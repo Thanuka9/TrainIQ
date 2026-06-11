@@ -27,6 +27,7 @@ class SupportRequestForm(FlaskForm):
 
 from utils.tenant_utils import filter_by_user_tenant, user_tenant_id
 from utils.task_filters import assigned_to_user
+from utils.announcements import active_announcements_for_tenant
 
 # Initialize Blueprint
 general_routes = Blueprint('general_routes', __name__)
@@ -96,7 +97,8 @@ def dashboard():
         course_progress  = course_progress,
         last_exam_title  = last_exam_title,
         last_exam_score  = last_exam_score,
-        upcoming_tasks   = upcoming_tasks
+        upcoming_tasks   = upcoming_tasks,
+        announcements    = active_announcements_for_tenant(user_tenant_id()),
     )
 
 @general_routes.route('/study_materials')

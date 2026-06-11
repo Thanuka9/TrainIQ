@@ -17,17 +17,9 @@
     </p>
   </div>
   <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
-    <a href="{{ url_for('admin_routes.view_analytics') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">
-      <i class="fas fa-chart-line"></i> Analytics
+    <a href="{{ url_for('general_routes.dashboard') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">
+      <i class="fas fa-house"></i> User App
     </a>
-    <a href="{{ url_for('admin_routes.generate_reports') }}" class="tiq-btn tiq-btn-primary tiq-btn-sm">
-      <i class="fas fa-chart-bar"></i> Reports
-    </a>
-    {% if current_user.is_super_admin %}
-    <a href="{{ url_for('billing_routes.billing_home') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">
-      <i class="fas fa-credit-card"></i> Billing
-    </a>
-    {% endif %}
   </div>
 </div>
 
@@ -119,63 +111,14 @@
 
 </div>
 
-<!-- Quick Navigation -->
+<!-- Admin Tools — full quick launch (matches sidebar) -->
 <div class="tiq-card tiq-reveal" style="margin-bottom:2rem;">
   <div class="tiq-card-header">
     <h3 class="tiq-card-title"><i class="fas fa-th" style="margin-right:8px;"></i>Admin Tools</h3>
+    <span style="font-size:0.8rem;color:var(--tiq-text-3);">Every admin area in one place</span>
   </div>
   <div class="tiq-card-body">
-    <div style="display:flex;flex-wrap:wrap;gap:0.75rem;">
-      <a href="{{ url_for('admin_routes.view_users') }}" class="tiq-btn tiq-btn-secondary" title="Manage users">
-        <i class="fas fa-users"></i> Manage Users
-      </a>
-      <a href="{{ url_for('admin_routes.view_roles') }}" class="tiq-btn tiq-btn-secondary" title="Manage roles">
-        <i class="fas fa-user-shield"></i> Manage Roles
-      </a>
-      <a href="{{ url_for('admin_routes.view_courses') }}" class="tiq-btn tiq-btn-secondary" title="Manage courses">
-        <i class="fas fa-book-open"></i> Manage Courses
-      </a>
-      <a href="{{ url_for('admin_routes.view_exams') }}" class="tiq-btn tiq-btn-secondary" title="Manage exams">
-        <i class="fas fa-file-alt"></i> Manage Exams
-      </a>
-      <a href="{{ url_for('admin_routes.view_analytics') }}" class="tiq-btn tiq-btn-secondary" title="Analytics">
-        <i class="fas fa-chart-line"></i> Analytics
-      </a>
-      <a href="{{ url_for('admin_routes.generate_reports') }}" class="tiq-btn tiq-btn-secondary" title="View reports">
-        <i class="fas fa-chart-bar"></i> View Reports
-      </a>
-      <a href="{{ url_for('admin_routes.view_audit_logs') }}" class="tiq-btn tiq-btn-secondary" title="Audit logs">
-        <i class="fas fa-scroll"></i> Audit Logs{% if audit_events_today %} <span class="tiq-badge tiq-badge-info" style="margin-left:2px;">{{ audit_events_today }} today</span>{% endif %}
-      </a>
-      <a href="{{ url_for('admin_routes.manage_exam_requests') }}" class="tiq-btn tiq-btn-secondary" title="Exam requests">
-        <i class="fas fa-envelope-open-text"></i> Exam Requests
-      </a>
-      <a href="{{ url_for('admin_routes.incorrect_summary') }}" class="tiq-btn tiq-btn-secondary" title="Incorrect answers summary">
-        <i class="fas fa-exclamation-circle"></i> Incorrect Answers
-      </a>
-      <a href="{{ url_for('admin_routes.manage_level_areas') }}" class="tiq-btn tiq-btn-secondary" title="Manage level areas">
-        <i class="fas fa-layer-group"></i> Manage Level Areas
-      </a>
-      <a href="{{ url_for('admin_routes.manage_user_clients') }}" class="tiq-btn tiq-btn-secondary" title="Manage user-clients">
-        <i class="fas fa-user-friends"></i> Manage User–Clients
-      </a>
-      <a href="{{ url_for('admin_routes.manage_seeds') }}" class="tiq-btn tiq-btn-secondary" title="Manage Seed Data">
-        <i class="fas fa-database"></i> Manage Seeds
-      </a>
-      <a href="{{ url_for('admin_routes.admin_list_tickets') }}" class="tiq-btn tiq-btn-secondary {% if request.endpoint=='admin_routes.admin_list_tickets' %}active{% endif %}" title="Manage Support Tickets">
-        <i class="fas fa-headset"></i> Support
-      </a>
-      {% if current_user.is_super_admin %}
-      <a href="{{ url_for('admin_routes.tenant_settings') }}" class="tiq-btn tiq-btn-secondary" title="Organization Settings">
-        <i class="fas fa-cog"></i> Org Settings
-      </a>
-      {% endif %}
-      {% if is_trainiq_staff() %}
-      <a href="{{ url_for('platform_routes.list_tenants') }}" class="tiq-btn tiq-btn-secondary" title="TrainIQ Platform Console">
-        <i class="fas fa-globe"></i> Platform
-      </a>
-      {% endif %}
-    </div>
+    {% include 'partials/admin_tools_grid.html' %}
   </div>
 </div>
 

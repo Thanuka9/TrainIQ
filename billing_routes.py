@@ -28,10 +28,13 @@ def super_admin_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         from admin_routes import _effective_super_admin
-        if not _effective_super_admin():
-            flash("Only Super Admins can manage billing.", "error")
-            return redirect(url_for("general_routes.dashboard"))
-        return func(*args, **kwargs)
+        from utils.admin_permissions import user_has_permission
+        if _effective_super_admin():
+            return func(*args, **kwargs)
+        if user_has_permission(current_user, "org.billing"):
+            return func(*args, **kwargs)
+        flash("Only Super Admins can manage billing.", "error")
+        return redirect(url_for("general_routes.dashboard"))
     return wrapper
 
 

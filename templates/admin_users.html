@@ -227,11 +227,19 @@
               {% if u.is_super_admin %}
                 <span class="tiq-badge" style="background:rgba(245,158,11,0.12);color:#D97706;border:1px solid rgba(245,158,11,0.25);">Super Admin</span>
               {% else %}
-                <span class="tiq-badge tiq-badge-secondary">Member</span>
+                <span class="tiq-badge tiq-badge-secondary" title="{% for r in u.roles %}{{ r.name }}{% if not loop.last %}, {% endif %}{% endfor %}">
+                  {{ permission_summary(u) }}
+                </span>
               {% endif %}
             </td>
 
-            <td style="text-align:center;">
+            <td style="text-align:center;white-space:nowrap;">
+              {% if user_can_manage_permissions(current_user) and not u.is_super_admin %}
+              <a href="{{ url_for('admin_routes.manage_user_permissions', user_id=u.id) }}"
+                 class="tiq-btn tiq-btn-primary tiq-btn-sm" title="Configure admin access">
+                <i class="fas fa-key"></i>
+              </a>
+              {% endif %}
               {% if not u.is_super_admin %}
                 <form action="{{ url_for('admin_routes.set_user_super_admin', user_id=u.id) }}?status={{ status or '' }}" method="POST" style="display:inline-block;">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

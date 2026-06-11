@@ -130,7 +130,7 @@
         <span class="nav-label">Support</span>
       </a>
 
-      {% if current_user.is_super_admin %}
+      {% if user_can_access_admin(current_user) %}
       <div class="tiq-nav-section-label" style="margin-top:1rem">Administration</div>
       <a href="{{ url_for('admin_routes.admin_dashboard') }}"
          class="tiq-nav-item {% if 'admin' in request.endpoint and not request.endpoint.startswith('billing_routes.') %}active{% endif %}"
@@ -138,11 +138,13 @@
         <span class="nav-icon"><i class="fas fa-shield-halved"></i></span>
         <span class="nav-label">Admin Panel</span>
       </a>
+      {% if has_admin_perm('org.billing') %}
       <a href="{{ url_for('billing_routes.billing_home') }}"
          class="tiq-nav-item {% if request.endpoint and request.endpoint.startswith('billing_routes.') %}active{% endif %}">
         <span class="nav-icon"><i class="fas fa-credit-card"></i></span>
         <span class="nav-label">Billing</span>
       </a>
+      {% endif %}
       {% endif %}
 
     </nav>
@@ -199,13 +201,7 @@
 
       <!-- Right controls -->
       <div style="display:flex;align-items:center;gap:0.75rem">
-        <!-- Theme Toggle -->
-        <button class="tiq-theme-toggle" onclick="TrainIQ.Theme.toggle()" aria-label="Toggle theme">
-          <i class="fas fa-moon tiq-theme-icon"></i>
-        </button>
-
-        <!-- Notifications -->
-        {% include 'partials/notifications_bell.html' %}
+        {% include 'partials/topbar_right_controls.html' %}
 
         <!-- User Menu -->
         <div class="tiq-user-menu">

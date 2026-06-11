@@ -392,6 +392,7 @@ class User(db.Model, UserMixin):
     )
 
     is_super_admin = Column(Boolean, default=False)  # Super admin privileges
+    admin_permissions = Column(JSON, nullable=True)  # {grants:[], denies:[], preset:str}
     trial_checklist_dismissed = Column(Boolean, default=False, nullable=False)
     current_level = Column(Integer, default=0)  # Tracks the user's current active level
 
@@ -1333,3 +1334,42 @@ def _notification_time_ago(dt):
         return f'{hrs}h ago'
     days = hrs // 24
     return f'{days}d ago'
+
+
+# -------------------------------------
+# Organization Announcement Model
+# -------------------------------------
+class Announcement(db.Model):
+    __tablename__ = 'announcements'
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    is_pinned = Column(Boolean, nullable=False, default=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    published_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=True)
+    created_by_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    tenant = relationship('Tenant', backref=db.backref('announcements', lazy='dynamic'))
+    author = relationship('User', foreign_keys=[created_by_user_id])
+
+    def is_visible(self) -> bool:
+        if not self.is_active:
+            return False
+        if self.expires_at and self.expires_at < datetime.utcnow():
+            return False
+        return True
+
+    def dashboard_dict(self) -> dict:
+        dt = self.published_at or self.created_at
+        return {
+            'id': self.id,
+            'title': self.title,
+            'message': self.message,
+            'date': dt.strftime('%b %d, %Y') if dt else '',
+            'is_pinned': self.is_pinned,
+        }

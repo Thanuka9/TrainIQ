@@ -45,6 +45,13 @@
           <tr>
             <td style="padding-left:1.5rem; font-weight:600;">
               {{ u.first_name }} {{ u.last_name }}
+              {% if user_can_manage_permissions(current_user) and not u.is_super_admin %}
+              <a href="{{ url_for('admin_routes.manage_user_permissions', user_id=u.id) }}"
+                 class="tiq-btn tiq-btn-ghost tiq-btn-sm" style="margin-left:6px;padding:2px 6px;font-size:0.75rem;"
+                 title="Configure admin access">
+                <i class="fas fa-key"></i> Access
+              </a>
+              {% endif %}
             </td>
             <td>
               <div class="tiq-flex" style="flex-wrap:wrap; gap:8px; align-items:center;">

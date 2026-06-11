@@ -1,0 +1,228 @@
+{% extends 'admin_base.html' %}
+{% block title %}User Access — {{ target.first_name }} {{ target.last_name }}{% endblock %}
+
+{% block breadcrumb %}
+<a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+<span class="tiq-breadcrumb-sep">/</span>
+<a href="{{ url_for('admin_routes.view_users') }}">Users</a>
+<span class="tiq-breadcrumb-sep">/</span>
+<span>Access</span>
+{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header" style="margin-bottom:1.5rem;">
+  <div class="tiq-flex-between" style="flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1 style="margin:0 0 0.35rem;font-size:1.65rem;font-weight:800;">Admin Access</h1>
+      <p style="margin:0;color:var(--tiq-text-3);font-size:0.95rem;">
+        Configure what <strong>{{ target.first_name }} {{ target.last_name }}</strong> can do in the admin console.
+      </p>
+    </div>
+    <a href="{{ url_for('admin_routes.view_users') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">
+      <i class="fas fa-arrow-left"></i> Back to Users
+    </a>
+  </div>
+</div>
+
+{% if target.is_super_admin %}
+<div class="tiq-alert tiq-alert-warning" style="margin-bottom:1.25rem;">
+  <i class="fas fa-crown"></i>
+  This user is a <strong>Super Admin</strong> and has full organization access. Revoke Super Admin on the Users page to assign granular permissions.
+</div>
+{% else %}
+
+<div class="perm-breakdown-grid" style="margin-bottom:1.25rem;">
+  <div class="tiq-card">
+    <div class="tiq-card-header"><h3 class="tiq-card-title">Effective access</h3></div>
+    <div class="tiq-card-body">
+      {% if effective_permissions %}
+      <div class="perm-effective-badges">
+        {% for code in effective_permissions %}
+        <span class="tiq-badge" title="{{ code }}">{{ permission_labels[code][0] }}</span>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="margin:0;color:var(--tiq-text-3);font-style:italic;">No admin areas — member access only.</p>
+      {% endif %}
+      <p style="margin:0.75rem 0 0;font-size:0.78rem;color:var(--tiq-text-3);">
+        Admin dashboard is included automatically when any area is granted.
+      </p>
+    </div>
+  </div>
+
+  <div class="tiq-card">
+    <div class="tiq-card-header"><h3 class="tiq-card-title">How access is built</h3></div>
+    <div class="tiq-card-body perm-stack">
+      <div class="perm-stack-row">
+        <span class="perm-stack-label">From roles</span>
+        {% if breakdown.role %}
+        <span class="perm-stack-value">{{ breakdown.role|length }} area{{ 's' if breakdown.role|length != 1 else '' }}</span>
+        {% else %}
+        <span class="perm-stack-value muted">None</span>
+        {% endif %}
+      </div>
+      <div class="perm-stack-row">
+        <span class="perm-stack-label">Custom grants</span>
+        <span class="perm-stack-value {% if not breakdown.grants %}muted{% endif %}">{{ breakdown.grants|length }}</span>
+      </div>
+      <div class="perm-stack-row">
+        <span class="perm-stack-label">Custom revokes</span>
+        <span class="perm-stack-value {% if not breakdown.denies %}muted{% endif %}">{{ breakdown.denies|length }}</span>
+      </div>
+      {% if target.roles %}
+      <p style="margin:0.5rem 0 0;font-size:0.78rem;color:var(--tiq-text-3);">
+        Roles: {{ target.roles|map(attribute='name')|join(', ') }}
+      </p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if tenant_users %}
+<div class="tiq-card" style="margin-bottom:1.25rem;">
+  <div class="tiq-card-header">
+    <h3 class="tiq-card-title"><i class="fas fa-copy" style="margin-right:8px;"></i>Copy from another user</h3>
+  </div>
+  <div class="tiq-card-body">
+    <form method="post" action="{{ url_for('admin_routes.update_user_permissions', user_id=target.id) }}" class="tiq-flex" style="gap:0.75rem;flex-wrap:wrap;align-items:flex-end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="copy">
+      <div style="flex:1;min-width:220px;">
+        <label style="font-size:0.8rem;font-weight:600;color:var(--tiq-text-2);display:block;margin-bottom:4px;">Match access to</label>
+        <select name="copy_from_user_id" class="tiq-input" required>
+          <option value="">Select user…</option>
+          {% for u in tenant_users %}
+          <option value="{{ u.id }}">{{ u.first_name }} {{ u.last_name }} — {{ permission_summary(u) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="tiq-btn tiq-btn-secondary tiq-btn-sm"><i class="fas fa-copy"></i> Copy access</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('admin_routes.update_user_permissions', user_id=target.id) }}" id="permForm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="tiq-card" style="margin-bottom:1.25rem;">
+    <div class="tiq-card-header">
+      <h3 class="tiq-card-title"><i class="fas fa-magic" style="margin-right:8px;color:#F59E0B;"></i>Quick presets</h3>
+    </div>
+    <div class="tiq-card-body">
+      <div class="perm-preset-row">
+        {% for key, (label, _) in permission_presets.items() %}
+        <label class="perm-preset-chip">
+          <input type="radio" name="preset" value="{{ key }}" {% if (overrides.preset or 'custom') == key %}checked{% endif %} data-perm-preset>
+          <span>{{ label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="tiq-card" style="margin-bottom:1.25rem;" id="permGridCard">
+    <div class="tiq-card-header">
+      <h3 class="tiq-card-title"><i class="fas fa-sliders-h" style="margin-right:8px;"></i>Admin areas</h3>
+      <div style="display:flex;gap:0.5rem;">
+        <button type="button" class="tiq-btn tiq-btn-ghost tiq-btn-sm" id="permSelectNone">Clear all</button>
+        <button type="button" class="tiq-btn tiq-btn-ghost tiq-btn-sm" id="permSelectAll">Select all</button>
+      </div>
+    </div>
+    <div class="tiq-card-body perm-grid-panel">
+      {% if not can_assign_sensitive %}
+      <div class="tiq-alert tiq-alert-info" style="margin-bottom:1rem;font-size:0.85rem;">
+        Billing, org settings, seed data, and access management can only be assigned by a Super Admin.
+      </div>
+      {% endif %}
+      {% for group_id, group_label, items in permission_groups %}
+      <div class="perm-grid-section">
+        <h4 class="perm-grid-heading">{{ group_label }}</h4>
+        <div class="perm-grid">
+          {% for code, label in items %}
+          <label class="perm-grid-item {% if code in ['org.billing','org.settings','seeds.manage','users.permissions'] %}perm-sensitive{% endif %} {% if not can_assign_sensitive and code in ['org.billing','org.settings','seeds.manage','users.permissions'] %}perm-disabled{% endif %}">
+            <input type="checkbox" name="permissions" value="{{ code }}"
+              {% if checked[code] %}checked{% endif %}
+              {% if not can_assign_sensitive and code in ['org.billing','org.settings','seeds.manage','users.permissions'] %}disabled{% endif %}
+              data-perm-code="{{ code }}">
+            <span>{{ label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+    <button type="submit" class="tiq-btn tiq-btn-primary" name="action" value="save">
+      <i class="fas fa-save"></i> Save access
+    </button>
+    <button type="submit" class="tiq-btn tiq-btn-secondary" name="action" value="clear" onclick="return confirm('Clear custom access? Role defaults will still apply.');">
+      <i class="fas fa-eraser"></i> Reset to role only
+    </button>
+  </div>
+</form>
+
+<script>
+(function () {
+  var PRESET_CODES = {
+    {% for key, preset in permission_presets.items() %}
+    "{{ key }}": {{ preset[1]|list|tojson }}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  };
+
+  var presetRadios = document.querySelectorAll('[data-perm-preset]');
+  var checkboxes = document.querySelectorAll('[data-perm-code]:not([disabled])');
+  var allCheckboxes = document.querySelectorAll('[data-perm-code]');
+  var gridCard = document.getElementById('permGridCard');
+
+  function applyPreset(key) {
+    var codes = (PRESET_CODES[key] || []).filter(function (c) { return c !== 'dashboard'; });
+    var isCustom = key === 'custom';
+    gridCard.style.opacity = isCustom ? '1' : '0.92';
+    allCheckboxes.forEach(function (cb) {
+      if (cb.disabled) return;
+      if (!isCustom) {
+        cb.checked = codes.indexOf(cb.value) !== -1;
+      }
+    });
+    if (!isCustom) {
+      document.querySelector('[data-perm-preset][value="custom"]');
+    }
+  }
+
+  presetRadios.forEach(function (radio) {
+    radio.addEventListener('change', function () {
+      applyPreset(this.value);
+    });
+  });
+
+  var initial = document.querySelector('[data-perm-preset]:checked');
+  if (initial && initial.value !== 'custom') {
+    applyPreset(initial.value);
+  }
+
+  document.getElementById('permSelectAll').addEventListener('click', function () {
+    var custom = document.querySelector('[data-perm-preset][value="custom"]');
+    if (custom) custom.checked = true;
+    checkboxes.forEach(function (cb) { cb.checked = true; });
+    gridCard.style.opacity = '1';
+  });
+
+  document.getElementById('permSelectNone').addEventListener('click', function () {
+    var custom = document.querySelector('[data-perm-preset][value="custom"]');
+    if (custom) custom.checked = true;
+    checkboxes.forEach(function (cb) { cb.checked = false; });
+    gridCard.style.opacity = '1';
+  });
+
+  document.getElementById('permForm').addEventListener('submit', function () {
+    allCheckboxes.forEach(function (cb) {
+      if (cb.disabled) cb.checked = false;
+    });
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

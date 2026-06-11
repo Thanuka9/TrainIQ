@@ -536,7 +536,22 @@ app.before_request(resolve_tenant)
 @app.context_processor
 def inject_platform_helpers():
     from utils.tenant_utils import is_trainiq_staff
-    return dict(is_trainiq_staff=is_trainiq_staff)
+    from utils.admin_permissions import user_has_permission, user_can_access_admin, permission_summary, user_can_manage_permissions
+    from flask_login import current_user
+
+    def has_admin_perm(code):
+        if not current_user.is_authenticated:
+            return False
+        return user_has_permission(current_user, code)
+
+    return dict(
+        is_trainiq_staff=is_trainiq_staff,
+        has_admin_perm=has_admin_perm,
+        has_admin_perm_any=lambda *codes: any(has_admin_perm(c) for c in codes),
+        user_can_access_admin=user_can_access_admin,
+        user_can_manage_permissions=user_can_manage_permissions,
+        permission_summary=permission_summary,
+    )
 
 
 @app.context_processor

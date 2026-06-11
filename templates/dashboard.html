@@ -207,7 +207,7 @@
         <span class="nav-icon"><i class="fas fa-headset"></i></span>
         <span class="nav-label">Support</span>
       </a>
-      {% if current_user.is_super_admin %}
+      {% if user_can_access_admin(current_user) %}
       <div class="tiq-nav-section-label" style="margin-top:1rem">Administration</div>
       <a href="{{ url_for('admin_routes.admin_dashboard') }}" class="tiq-nav-item" style="color:#f59e0b">
         <span class="nav-icon"><i class="fas fa-shield-halved"></i></span>
@@ -244,9 +244,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:0.75rem">
-        <button class="tiq-theme-toggle" onclick="TrainIQ.Theme.toggle()" aria-label="Toggle theme">
-          <i class="fas fa-moon tiq-theme-icon"></i>
-        </button>
+        {% include 'partials/topbar_right_controls.html' %}
         <div class="tiq-user-menu">
           <button class="tiq-user-trigger" data-tiq-dropdown="topbarMenu">
             <div class="tiq-avatar tiq-avatar-md" title="{{ user_name }}">
@@ -463,6 +461,7 @@
                 <div class="announcement-item">
                   <div class="announcement-dot"></div>
                   <div>
+                    {% if note.title %}<div style="font-weight:700;font-size:0.875rem;margin-bottom:2px;">{{ note.title }}</div>{% endif %}
                     <div class="announcement-msg">{{ note.message }}</div>
                     <div class="announcement-date">{{ note.date }}</div>
                   </div>
@@ -509,7 +508,7 @@
 <div class="tiq-toast-container"></div>
 <button class="tiq-scroll-top"><i class="fas fa-chevron-up"></i></button>
 
-<script src="{{ url_for('static', filename='js/trainiq.js') }}?v=1.2"></script>
+<script src="{{ url_for('static', filename='js/trainiq.js') }}?v=1.3"></script>
 <script src="{{ url_for('static', filename='js/trainiq-ai.js') }}?v=1.0"></script>
 <script>
   document.getElementById("analyticsiqBtn")?.addEventListener("click", async () => {

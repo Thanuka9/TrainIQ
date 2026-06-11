@@ -1,0 +1,144 @@
+{% extends 'admin_base.html' %}
+{% block title %}Announcements{% endblock %}
+{% block breadcrumb %}Announcements{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header" style="margin-bottom:1.5rem;">
+  <div class="tiq-flex-between" style="flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1>Organization Announcements</h1>
+      <p class="tiq-lead">Publish messages that appear on every user's dashboard and optionally in their notification bell.</p>
+    </div>
+  </div>
+</div>
+
+<div class="tiq-grid tiq-grid-2 tiq-gap" style="margin-bottom:1.5rem;">
+  <!-- Create form -->
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <h3 class="tiq-card-title"><i class="fas fa-bullhorn me-2"></i>Post new announcement</h3>
+    </div>
+    <div class="tiq-card-body">
+      <form method="POST" action="{{ url_for('admin_routes.create_announcement') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="tiq-form-group">
+          <label class="tiq-label">Title</label>
+          <input type="text" name="title" class="tiq-input" placeholder="e.g. Office closure Friday" required maxlength="200">
+        </div>
+        <div class="tiq-form-group">
+          <label class="tiq-label">Message</label>
+          <textarea name="message" class="tiq-textarea" rows="4" placeholder="Share updates with your entire organization…" required></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+          <div>
+            <label class="tiq-label">Expires (optional)</label>
+            <input type="date" name="expires_at" class="tiq-input">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0.5rem;padding-top:1.5rem;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:0.875rem;cursor:pointer;">
+              <input type="checkbox" name="is_pinned" value="1" style="width:16px;height:16px;"> Pin to top
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:0.875rem;cursor:pointer;">
+              <input type="checkbox" name="notify_users" value="1" checked style="width:16px;height:16px;"> Notify all users (bell)
+            </label>
+          </div>
+        </div>
+        <button type="submit" class="tiq-btn tiq-btn-primary">
+          <i class="fas fa-paper-plane"></i> Publish
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Preview hint -->
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <h3 class="tiq-card-title"><i class="fas fa-eye me-2"></i>Where users see this</h3>
+    </div>
+    <div class="tiq-card-body" style="font-size:0.875rem;color:var(--tiq-text-2);line-height:1.7;">
+      <p><strong>User Dashboard</strong> — right column “Announcements” card.</p>
+      <p><strong>Notification bell</strong> — if “Notify all users” is checked, everyone gets an in-app alert with a link back to the dashboard.</p>
+      <p style="margin:0;color:var(--tiq-text-3);">Expired or deactivated announcements are hidden automatically.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Existing announcements -->
+<div class="tiq-card">
+  <div class="tiq-card-header">
+    <h3 class="tiq-card-title">All announcements ({{ announcements|length }})</h3>
+  </div>
+  <div class="tiq-card-body" style="padding:0;">
+    <div class="tiq-table-wrapper">
+      <table class="tiq-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Published</th>
+            <th>Expires</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ann in announcements %}
+          <tr>
+            <td>
+              <strong>{{ ann.title }}</strong>
+              {% if ann.is_pinned %}<span class="tiq-badge" style="margin-left:6px;">Pinned</span>{% endif %}
+              <div style="font-size:0.8rem;color:var(--tiq-text-3);margin-top:4px;max-width:360px;">{{ ann.message[:120] }}{% if ann.message|length > 120 %}…{% endif %}</div>
+            </td>
+            <td>
+              {% if ann.is_active %}
+                <span class="tiq-badge tiq-badge-success">Active</span>
+              {% else %}
+                <span class="tiq-badge tiq-badge-secondary">Hidden</span>
+              {% endif %}
+            </td>
+            <td style="white-space:nowrap;font-size:0.85rem;">{{ ann.published_at.strftime('%Y-%m-%d') if ann.published_at else '—' }}</td>
+            <td style="white-space:nowrap;font-size:0.85rem;">{{ ann.expires_at.strftime('%Y-%m-%d') if ann.expires_at else '—' }}</td>
+            <td style="white-space:nowrap;">
+              <button type="button" class="tiq-btn tiq-btn-secondary tiq-btn-sm" onclick="document.getElementById('edit-ann-{{ ann.id }}').style.display='table-row'">
+                <i class="fas fa-edit"></i>
+              </button>
+              <form action="{{ url_for('admin_routes.delete_announcement', announcement_id=ann.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete this announcement?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="tiq-btn tiq-btn-danger tiq-btn-sm"><i class="fas fa-trash"></i></button>
+              </form>
+            </td>
+          </tr>
+          <tr id="edit-ann-{{ ann.id }}" style="display:none;background:var(--tiq-surface-2);">
+            <td colspan="5" style="padding:1rem;">
+              <form method="POST" action="{{ url_for('admin_routes.update_announcement', announcement_id=ann.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
+                  <input type="text" name="title" class="tiq-input" value="{{ ann.title }}" required>
+                  <input type="date" name="expires_at" class="tiq-input" value="{{ ann.expires_at.strftime('%Y-%m-%d') if ann.expires_at else '' }}">
+                </div>
+                <textarea name="message" class="tiq-textarea" rows="3" required>{{ ann.message }}</textarea>
+                <div style="display:flex;gap:1rem;align-items:center;margin:0.75rem 0;">
+                  <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;">
+                    <input type="checkbox" name="is_pinned" value="1" {% if ann.is_pinned %}checked{% endif %}> Pinned
+                  </label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;">
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" name="is_active" value="1" {% if ann.is_active %}checked{% endif %}> Active
+                  </label>
+                </div>
+                <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">Save changes</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" style="text-align:center;padding:2rem;color:var(--tiq-text-3);">
+              No announcements yet — post one above to populate the user dashboard.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

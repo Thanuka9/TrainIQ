@@ -10,7 +10,7 @@ from models import (
     Category, Level, Area, UserLevelProgress,
     SpecialExamRecord, Client, LevelArea,
     Task, TaskDocument, FailedLogin, Event, Role, ExamAccessRequest, IncorrectAnswer, Department, user_departments, SupportAttachment, 
-    SupportTicket, AuditLog
+    SupportTicket, AuditLog, Announcement
 )
 import logging
 from datetime import datetime, timedelta
@@ -44,6 +44,18 @@ from utils.tenant_utils import (
 )
 from utils.special_exams import special_paper_label
 from utils.exam_grading import DEFAULT_PASSING_SCORE
+from utils.admin_permissions import (
+    user_has_permission,
+    user_can_access_admin,
+    user_can_access_route,
+    grouped_permissions,
+    PERMISSION_PRESETS,
+    PERMISSIONS,
+    permission_summary,
+    permission_breakdown,
+    filter_assignable_permissions,
+    user_can_manage_permissions,
+)
 
 
 
@@ -117,32 +129,33 @@ def _effective_super_admin():
     return bool(session.get('platform_support') and is_trainiq_staff())
 
 
+def _deny_admin_access(message="You don't have permission to do that."):
+    flash(message, "access_denied")
+    logging.warning(
+        f"Unauthorized access attempt by user_id={current_user.id} "
+        f"to {request.path} from {request.remote_addr}"
+    )
+    return redirect(request.referrer or url_for('admin_routes.admin_dashboard'))
+
+
 def admin_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         if _effective_super_admin():
             return func(*args, **kwargs)
-        if any(role.id == 2 for role in current_user.roles):
+        if user_can_access_route(current_user, func.__name__, effective_super_admin=False):
             return func(*args, **kwargs)
-        flash("You don’t have permission to do that.", "access_denied")
-        logging.warning(
-            f"Unauthorized access attempt by user_id={current_user.id} "
-            f"to {request.path} from {request.remote_addr}"
-        )
-        return redirect(request.referrer or url_for('admin_routes.admin_dashboard'))
+        return _deny_admin_access()
     return wrapper
 
 def super_admin_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if not _effective_super_admin():
-            flash("You don’t have permission to perform that action.", "access_denied")
-            logging.warning(
-                f"Unauthorized super-admin attempt by user_id={current_user.id} "
-                f"to {request.path} from {request.remote_addr}"
-            )
-            return redirect(request.referrer or url_for('admin_routes.admin_dashboard'))
-        return func(*args, **kwargs)
+        if _effective_super_admin():
+            return func(*args, **kwargs)
+        if user_can_access_route(current_user, func.__name__, effective_super_admin=False):
+            return func(*args, **kwargs)
+        return _deny_admin_access("You don't have permission to perform that action.")
     return wrapper
 
 # --- Sync PostgreSQL Sequence ---
@@ -281,9 +294,6 @@ def admin_dashboard():
             special_exam_passed_2=special_exam_passed_2,
             course_completion_avg=round(course_completion_avg, 2),
             recent_events=recent_events,
-        audit_events_today=scope_audit_logs(AuditLog.query).filter(
-            AuditLog.created_at >= datetime.combine(datetime.utcnow().date(), datetime.min.time())
-        ).count(),
             # search
             q=q,
             search_results=search_results,
@@ -1088,6 +1098,115 @@ def set_user_super_admin(user_id):
         flash("Invalid action.", "error")
 
     return redirect(url_for('admin_routes.view_users', status=request.args.get('status')))
+
+
+@admin_routes.route('/admin/user/<int:user_id>/permissions', methods=['GET'])
+@login_required
+@super_admin_required
+def manage_user_permissions(user_id):
+    """Configure granular admin access for a user."""
+    target = require_user_in_tenant(user_id)
+    from utils.admin_permissions import permissions_for_template, resolve_permissions
+
+    breakdown = permission_breakdown(target)
+    display_effective = sorted(breakdown["effective"] - {"dashboard"})
+
+    return render_template(
+        'admin_user_permissions.html',
+        target=target,
+        permission_groups=grouped_permissions(editable_only=True),
+        permission_presets=PERMISSION_PRESETS,
+        effective_permissions=display_effective,
+        checked=permissions_for_template(target),
+        overrides=target.admin_permissions or {},
+        permission_labels=PERMISSIONS,
+        breakdown=breakdown,
+        can_assign_sensitive=_effective_super_admin(),
+        tenant_users=tenant_users_query()
+            .filter(User.id != target.id, User.is_super_admin.is_(False))
+            .order_by(User.first_name, User.last_name)
+            .all(),
+    )
+
+
+@admin_routes.route('/admin/user/<int:user_id>/permissions', methods=['POST'])
+@login_required
+@super_admin_required
+def update_user_permissions(user_id):
+    from utils.admin_permissions import (
+        apply_preset_for_user,
+        compute_overrides_from_desired,
+        filter_assignable_permissions,
+        resolve_permissions,
+    )
+
+    target = require_user_in_tenant(user_id)
+    allow_sensitive = _effective_super_admin()
+    if target.is_super_admin:
+        flash("Super Admins have full access. Revoke Super Admin first to use custom permissions.", "warning")
+        return redirect(url_for('admin_routes.manage_user_permissions', user_id=user_id))
+
+    preset = (request.form.get('preset') or 'custom').strip()
+    action = (request.form.get('action') or 'save').strip()
+
+    if action == 'clear':
+        target.admin_permissions = None
+        db.session.commit()
+        log_event(
+            "USER_PERMISSIONS_CLEARED",
+            user=current_user,
+            target=target,
+            tenant_id=user_tenant_id(),
+        )
+        flash(f"Cleared custom access for {target.first_name} {target.last_name}. Role defaults still apply.", "success")
+        return redirect(url_for('admin_routes.manage_user_permissions', user_id=user_id))
+
+    copy_from = request.form.get('copy_from_user_id', type=int)
+    if copy_from and action == 'copy':
+        source = require_user_in_tenant(copy_from)
+        if source.is_super_admin:
+            flash("Cannot copy access from a Super Admin.", "error")
+        elif source.admin_permissions:
+            target.admin_permissions = dict(source.admin_permissions)
+            db.session.commit()
+            log_event("USER_PERMISSIONS_COPIED", user=current_user, target=target,
+                      source_user_id=source.id, tenant_id=user_tenant_id())
+            flash(f"Copied access from {source.first_name} {source.last_name}.", "success")
+        else:
+            target.admin_permissions = compute_overrides_from_desired(target, resolve_permissions(source))
+            db.session.commit()
+            flash(f"Copied effective access from {source.first_name} {source.last_name}.", "success")
+        return redirect(url_for('admin_routes.manage_user_permissions', user_id=user_id))
+
+    if preset and preset != 'custom' and preset in PERMISSION_PRESETS:
+        if allow_sensitive:
+            target.admin_permissions = apply_preset_for_user(target, preset)
+        else:
+            _, preset_perms = PERMISSION_PRESETS[preset]
+            desired = filter_assignable_permissions(preset_perms, allow_sensitive=False)
+            target.admin_permissions = compute_overrides_from_desired(target, desired)
+            target.admin_permissions['preset'] = preset
+    else:
+        desired = filter_assignable_permissions(
+            request.form.getlist('permissions'),
+            allow_sensitive=allow_sensitive,
+        )
+        # Dashboard is implicit whenever any admin area is selected
+        if desired:
+            desired = sorted(set(desired) | {"dashboard"})
+        target.admin_permissions = compute_overrides_from_desired(target, desired)
+
+    db.session.commit()
+    log_event(
+        "USER_PERMISSIONS_UPDATED",
+        user=current_user,
+        target=target,
+        tenant_id=user_tenant_id(),
+        preset=(target.admin_permissions or {}).get('preset'),
+        grants=(target.admin_permissions or {}).get('grants', []),
+    )
+    flash(f"Access updated for {target.first_name} {target.last_name}.", "success")
+    return redirect(url_for('admin_routes.manage_user_permissions', user_id=user_id))
 
 
 @admin_routes.route('/admin/user/designation/<int:user_id>', methods=['POST'])
@@ -3921,6 +4040,103 @@ def delete_category(id):
         )
 
     return redirect(url_for('admin_routes.manage_seeds'))
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Organization Announcements
+# ────────────────────────────────────────────────────────────────────────────
+@admin_routes.route('/admin/announcements', methods=['GET'])
+@login_required
+@super_admin_required
+def manage_announcements():
+    tid = user_tenant_id()
+    q = Announcement.query.filter_by(tenant_id=tid).order_by(
+        Announcement.is_pinned.desc(),
+        Announcement.published_at.desc(),
+    )
+    return render_template('admin_announcements.html', announcements=q.all())
+
+
+@admin_routes.route('/admin/announcements/create', methods=['POST'])
+@login_required
+@super_admin_required
+def create_announcement():
+    tid = user_tenant_id()
+    title = (request.form.get('title') or '').strip()
+    message = (request.form.get('message') or '').strip()
+    if not title or not message:
+        flash('Title and message are required.', 'error')
+        return redirect(url_for('admin_routes.manage_announcements'))
+
+    expires_raw = (request.form.get('expires_at') or '').strip()
+    expires_at = None
+    if expires_raw:
+        try:
+            expires_at = datetime.strptime(expires_raw, '%Y-%m-%d')
+        except ValueError:
+            flash('Invalid expiry date. Use YYYY-MM-DD.', 'error')
+            return redirect(url_for('admin_routes.manage_announcements'))
+
+    ann = Announcement(
+        tenant_id=tid,
+        title=title,
+        message=message,
+        is_pinned=bool(request.form.get('is_pinned')),
+        is_active=True,
+        published_at=datetime.utcnow(),
+        expires_at=expires_at,
+        created_by_user_id=current_user.id,
+    )
+    db.session.add(ann)
+    db.session.commit()
+
+    if request.form.get('notify_users') == '1':
+        from utils.announcements import broadcast_announcement
+        broadcast_announcement(ann, notify=True)
+
+    flash('Announcement published.', 'success')
+    return redirect(url_for('admin_routes.manage_announcements'))
+
+
+@admin_routes.route('/admin/announcements/<int:announcement_id>/update', methods=['POST'])
+@login_required
+@super_admin_required
+def update_announcement(announcement_id):
+    tid = user_tenant_id()
+    ann = Announcement.query.filter_by(id=announcement_id, tenant_id=tid).first_or_404()
+    title = (request.form.get('title') or '').strip()
+    message = (request.form.get('message') or '').strip()
+    if title:
+        ann.title = title
+    if message:
+        ann.message = message
+    ann.is_pinned = bool(request.form.get('is_pinned'))
+    ann.is_active = request.form.get('is_active') != '0'
+    expires_raw = (request.form.get('expires_at') or '').strip()
+    if expires_raw:
+        try:
+            ann.expires_at = datetime.strptime(expires_raw, '%Y-%m-%d')
+        except ValueError:
+            flash('Invalid expiry date.', 'error')
+            return redirect(url_for('admin_routes.manage_announcements'))
+    else:
+        ann.expires_at = None
+    ann.updated_at = datetime.utcnow()
+    db.session.commit()
+    flash('Announcement updated.', 'success')
+    return redirect(url_for('admin_routes.manage_announcements'))
+
+
+@admin_routes.route('/admin/announcements/<int:announcement_id>/delete', methods=['POST'])
+@login_required
+@super_admin_required
+def delete_announcement(announcement_id):
+    tid = user_tenant_id()
+    ann = Announcement.query.filter_by(id=announcement_id, tenant_id=tid).first_or_404()
+    db.session.delete(ann)
+    db.session.commit()
+    flash('Announcement deleted.', 'success')
+    return redirect(url_for('admin_routes.manage_announcements'))
 
 
 # ────────────────────────────────────────────────────────────────────────────

@@ -1051,6 +1051,159 @@ h6 { font-size: 0.875rem; }
   .admin-stat-grid { grid-template-columns: 1fr; }
 }
 
+/* ─── Admin Tools Grid (dashboard quick launch) ─────────────── */
+.admin-tools-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+.admin-tools-section + .admin-tools-section {
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--tiq-border);
+}
+.admin-tools-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tiq-text-3);
+}
+.admin-tools-heading i { color: var(--tiq-primary); font-size: 0.75rem; }
+.admin-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 0.6rem;
+}
+.admin-tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem 0.85rem;
+  min-height: 44px;
+  background: var(--tiq-surface-2);
+  border: 1px solid var(--tiq-border);
+  border-radius: var(--tiq-radius);
+  text-decoration: none;
+  color: var(--tiq-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition: border-color var(--tiq-transition), background var(--tiq-transition), transform 0.15s ease;
+}
+.admin-tool-btn i {
+  width: 18px;
+  text-align: center;
+  color: #F59E0B;
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+.admin-tool-btn span { line-height: 1.2; }
+.admin-tool-btn:hover {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: rgba(245, 158, 11, 0.08);
+  transform: translateY(-1px);
+}
+.admin-tool-btn.active {
+  border-color: #F59E0B;
+  background: rgba(245, 158, 11, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.2);
+}
+
+/* ─── Admin permission editor ───────────────────────────────── */
+.perm-effective-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.perm-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.perm-preset-chip {
+  display: inline-flex;
+  cursor: pointer;
+}
+.perm-preset-chip input { position: absolute; opacity: 0; pointer-events: none; }
+.perm-preset-chip span {
+  display: inline-block;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 1px solid var(--tiq-border);
+  border-radius: 999px;
+  background: var(--tiq-surface-2);
+  color: var(--tiq-text-2);
+  transition: all var(--tiq-transition);
+}
+.perm-preset-chip input:checked + span {
+  border-color: var(--tiq-primary);
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--tiq-primary);
+}
+.perm-grid-panel { display: flex; flex-direction: column; gap: 1.25rem; }
+.perm-grid-section + .perm-grid-section {
+  padding-top: 1rem;
+  border-top: 1px solid var(--tiq-border);
+}
+.perm-grid-heading {
+  margin: 0 0 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--tiq-text-3);
+}
+.perm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem;
+}
+.perm-grid-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--tiq-border);
+  border-radius: var(--tiq-radius);
+  background: var(--tiq-surface-2);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--tiq-text);
+}
+.perm-grid-item input { margin-top: 2px; flex-shrink: 0; }
+.perm-grid-item.perm-sensitive { border-style: dashed; }
+.perm-grid-item:has(input:checked) {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.08);
+}
+.perm-grid-item.perm-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.perm-breakdown-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 768px) {
+  .perm-breakdown-grid { grid-template-columns: 1fr; }
+}
+.perm-stack { display: flex; flex-direction: column; gap: 0.5rem; }
+.perm-stack-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+.perm-stack-label { color: var(--tiq-text-2); font-weight: 600; }
+.perm-stack-value { font-weight: 700; color: var(--tiq-text); }
+.perm-stack-value.muted { color: var(--tiq-text-3); font-weight: 500; }
+
 .tiq-avatar-hero {
   width: 96px;
   height: 96px;
