@@ -135,6 +135,14 @@ def _deny_admin_access(message="You don't have permission to do that."):
         f"Unauthorized access attempt by user_id={current_user.id} "
         f"to {request.path} from {request.remote_addr}"
     )
+    wants_json = (
+        request.method in ('POST', 'PUT', 'PATCH', 'DELETE')
+        or request.is_json
+        or (request.content_type or '').startswith('application/json')
+        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    )
+    if wants_json:
+        return jsonify({"error": message}), 403
     return redirect(request.referrer or url_for('admin_routes.admin_dashboard'))
 
 
@@ -990,13 +998,34 @@ def view_special_exam_record(record_id):
 @login_required
 @super_admin_required
 def view_users():
+    q = request.args.get('q', '').strip()
     status = request.args.get('status')  # 'verified' or 'unverified'
-    qry = filter_by_user_tenant(User.query, User).order_by(User.join_date.desc())
+    base_qry = filter_by_user_tenant(User.query, User)
+    user_stats = {
+        'total': base_qry.count(),
+        'verified': base_qry.filter_by(is_verified=True).count(),
+        'unverified': base_qry.filter_by(is_verified=False).count(),
+        'super_admins': base_qry.filter_by(is_super_admin=True).count(),
+    }
+
+    qry = base_qry.order_by(User.join_date.desc())
 
     if status == 'verified':
         qry = qry.filter_by(is_verified=True)
     elif status == 'unverified':
         qry = qry.filter_by(is_verified=False)
+
+    if q:
+        like = f'%{q}%'
+        qry = qry.filter(
+            db.or_(
+                User.first_name.ilike(like),
+                User.last_name.ilike(like),
+                User.employee_email.ilike(like),
+                User.employee_id.ilike(like),
+                cast(User.id, String).ilike(like),
+            )
+        )
 
     users           = qry.all()
     designations    = tenant_designations_query().order_by(Designation.title).all()
@@ -1022,6 +1051,8 @@ def view_users():
         'admin_users.html',
         users=users,
         status=status,
+        q=q,
+        user_stats=user_stats,
         designations=designations,
         all_departments=all_departments,
         current_user_id=current_user.id,
@@ -1485,10 +1516,14 @@ def view_analytics():
     total_users    = len(users_filtered)
     active_users   = total_users  # Adjust if you have an “inactive” flag
 
+    from utils.local_ai import get_ai_status
+    ai_status = get_ai_status()
+
     # If no users at all, return early with all “No data” responses
     if total_users == 0:
         return render_template(
             'admin_analytics.html',
+            ai_status         = ai_status,
             # ── FILTERS ──
             periods         = periods,
             period          = period,
@@ -1736,19 +1771,22 @@ def view_analytics():
     desig_values = [r[1] for r in desig_counts]
 
     # ── 9) CATEGORY PERFORMANCE (horizontal bar) ──────────
-    cat_avg_data = (
+    cat_avg_q = (
         db.session.query(
             Category.name.label('cat_name'),
             func.avg(UserScore.score).label('avg_score'),
             func.count(UserScore.id).label('count_scores')
         )
         .join(UserScore, UserScore.category_id == Category.id)
-        .filter(
-            UserScore.user_id.in_([u.id for u in users_filtered]),
-            UserScore.created_at >= start_date if start_date is not None else True,
-            UserScore.created_at <= end_date   if end_date   is not None else True
+        .filter(UserScore.user_id.in_([u.id for u in users_filtered]))
+    )
+    if start_datetime is not None and end_datetime is not None:
+        cat_avg_q = cat_avg_q.filter(
+            UserScore.created_at >= start_datetime,
+            UserScore.created_at <= end_datetime,
         )
-        .group_by(Category.name)
+    cat_avg_data = (
+        cat_avg_q.group_by(Category.name)
         .order_by(Category.name)
         .all()
     )
@@ -1905,7 +1943,7 @@ def view_analytics():
     ts_labels     = [r.date.strftime('%Y-%m-%d') for r in ts]
     ts_avg_scores = [round(r.avg_score, 2) for r in ts]
 
-    spec_ts = (
+    spec_ts_q = (
         db.session.query(
             func.date(SpecialExamRecord.created_at).label('spec_date'),
             func.avg(
@@ -1916,12 +1954,15 @@ def view_analytics():
                 )
             ).label('spec_avg_score')
         )
-        .filter(
-            SpecialExamRecord.user_id.in_([u.id for u in users_filtered]),
-            SpecialExamRecord.created_at >= start_date if start_date is not None else True,
-            SpecialExamRecord.created_at <= end_date   if end_date   is not None else True
+        .filter(SpecialExamRecord.user_id.in_([u.id for u in users_filtered]))
+    )
+    if start_datetime is not None and end_datetime is not None:
+        spec_ts_q = spec_ts_q.filter(
+            SpecialExamRecord.created_at >= start_datetime,
+            SpecialExamRecord.created_at <= end_datetime,
         )
-        .group_by(func.date(SpecialExamRecord.created_at))
+    spec_ts = (
+        spec_ts_q.group_by(func.date(SpecialExamRecord.created_at))
         .order_by(func.date(SpecialExamRecord.created_at))
         .all()
     )
@@ -1978,7 +2019,7 @@ def view_analytics():
             days_ago = (today - last_dt.date()).days
         else:
             days_ago = None
-        metrics["last_activity_days_ago"].append(days_ago if days_ago is not None else "")
+        metrics["last_activity_days_ago"].append(days_ago if days_ago is not None else 0)
 
         rec = getattr(user, "special_exam_record", None)
         if rec:
@@ -2072,12 +2113,13 @@ def view_analytics():
         sel_dept        = sel_dept,
         designations    = Designation.query.order_by(Designation.title).all(),
         sel_desig       = sel_desig,
+        ai_status       = ai_status,
 
         # ── SUMMARY CARDS ──
         total_users         = total_users,
         active_users        = active_users,
-        avg_exam_score      = round(avg_exam_score, 2),
-        avg_course_progress = round(avg_course_progress, 2),
+        avg_exam_score      = round(float(avg_exam_score or 0), 2),
+        avg_course_progress = round(float(avg_course_progress or 0), 2),
         special_avg_score   = round(special_avg_score, 2),
 
         # ── PASS / FAIL ──
@@ -2151,29 +2193,47 @@ def view_analytics():
 @login_required
 @admin_required
 def analytics_ai_insights():
-    from utils.local_ai import analyticsiq_platform_summary, is_available
+    from utils.local_ai import (
+        analyticsiq_platform_summary,
+        analyticsiq_platform_summary_fallback,
+        get_ai_status,
+        is_available,
+    )
     from utils.ai_rate_limit import check_ai_rate_limit
 
-    if not is_available():
-        return jsonify({"error": "Local AI is offline. Start Ollama to use AnalyticsIQ."}), 503
-
-    ok, retry = check_ai_rate_limit()
-    if not ok:
-        return jsonify({"error": f"Rate limit exceeded. Retry in {retry}s.", "retry_after": retry}), 429
-
+    ai_status = get_ai_status()
     data = request.get_json(silent=True) or {}
     summary = data.get("summary") or {}
     if not summary:
         return jsonify({"error": "No analytics summary provided."}), 400
 
-    try:
-        insights = analyticsiq_platform_summary(summary)
-        return jsonify({"insights": insights, "feature": "AnalyticsIQ"})
-    except ConnectionError:
-        return jsonify({"error": "AI service is temporarily unavailable."}), 503
-    except Exception as e:
-        logging.error(f"analytics_ai_insights error: {e}")
-        return jsonify({"error": "Could not generate insights."}), 500
+    source = "fallback"
+    warning = None
+    insights = analyticsiq_platform_summary_fallback(summary)
+
+    if is_available():
+        ok, retry = check_ai_rate_limit()
+        if not ok:
+            warning = f"AI rate limit reached — showing rule-based summary. Retry in {retry}s."
+        else:
+            try:
+                insights = analyticsiq_platform_summary(summary)
+                source = "ai"
+            except ConnectionError:
+                warning = "Ollama disconnected — showing rule-based summary."
+            except Exception as e:
+                logging.error(f"analytics_ai_insights error: {e}")
+                warning = "AI generation failed — showing rule-based summary."
+
+    payload = {
+        "insights": insights,
+        "source": source,
+        "feature": "AnalyticsIQ",
+        **ai_status,
+    }
+    if warning:
+        payload["warning"] = warning
+    return jsonify(payload)
 
 
 @admin_routes.route('/admin/analytics/export-pdf', methods=['POST'])

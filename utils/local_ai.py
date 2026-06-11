@@ -611,6 +611,136 @@ def analyticsiq_platform_summary(stats):
     return query_local_model(prompt, system=system, temperature=0.35, think=False, timeout=180)
 
 
+def _pct_label(value, good=70, warn=50):
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return "needs review"
+    if v >= good:
+        return "strong"
+    if v >= warn:
+        return "moderate"
+    return "below target"
+
+
+def analyticsiq_platform_summary_fallback(stats):
+    """Rule-based executive summary when Ollama is offline or AI fails."""
+    total = int(stats.get("total_users") or 0)
+    active = int(stats.get("active_users") or 0)
+    avg_exam = float(stats.get("avg_exam_score") or 0)
+    avg_course = float(stats.get("avg_course_progress") or 0)
+    special = float(stats.get("special_avg_score") or 0)
+    pass_pct = float(stats.get("pass_pct") or 0)
+    sp_pass = float(stats.get("sp_pass_pct") or 0)
+    passed = int(stats.get("passed_count") or 0)
+    failed = int(stats.get("failed_count") or 0)
+
+    dept_labels = stats.get("dept_labels") or []
+    task_depts = stats.get("task_depts") or []
+    task_assigned = stats.get("task_assigned") or []
+    task_completed = stats.get("task_completed") or []
+
+    if total == 0:
+        return (
+            "No learners match the current filters, so there is limited platform activity to summarize. "
+            "Adjust the date range or department filters, or confirm users are assigned to this tenant.\n\n"
+            "Once data appears, track active users, average exam scores, and course completion together — "
+            "they indicate whether content is being consumed and retained.\n\n"
+            "If this empty view is unexpected, verify user imports, department assignments, and that exams "
+            "and courses are published for the selected audience.\n\n"
+            "Recommended next steps: widen the date range to All Time, clear department filters, invite or "
+            "import users, and assign at least one course plus a baseline exam to establish metrics."
+        )
+
+    active_rate = round((active / total) * 100, 1) if total else 0
+    exam_health = _pct_label(avg_exam)
+    course_health = _pct_label(avg_course)
+    top_depts = ", ".join(str(d) for d in dept_labels[:3]) or "not enough department breakdown"
+
+    task_gaps = []
+    for i, dept in enumerate(task_depts):
+        assigned = task_assigned[i] if i < len(task_assigned) else 0
+        completed = task_completed[i] if i < len(task_completed) else 0
+        if assigned and completed < assigned * 0.6:
+            task_gaps.append(f"{dept} ({completed}/{assigned} completed)")
+
+    p1 = (
+        f"Across **{total}** users ({active_rate}% active in this view), platform health looks "
+        f"**{exam_health}** on exams (**{avg_exam:.1f}%** average) and **{course_health}** on course progress "
+        f"(**{avg_course:.1f}%**). Regular exam pass rate is **{pass_pct:.1f}%** ({passed} passed, {failed} failed); "
+        f"special exams average **{special:.1f}%** with **{sp_pass:.1f}%** pass rate."
+    )
+
+    strengths = []
+    if avg_exam >= 70:
+        strengths.append("exam scores are holding above the 70% benchmark")
+    if avg_course >= 60:
+        strengths.append("course progress suggests steady engagement")
+    if pass_pct >= 75:
+        strengths.append("pass rates indicate most learners are clearing standard assessments")
+    if not strengths:
+        strengths.append("baseline data is available to target improvements")
+    p2 = (
+        f"Strengths include {', '.join(strengths)}. "
+        f"Largest departments in this slice: {top_depts}."
+    )
+
+    risks = []
+    if avg_exam < 60:
+        risks.append("average exam scores are low — review question difficulty and study materials")
+    if avg_course < 45:
+        risks.append("course completion is lagging — learners may not be finishing assigned paths")
+    if pass_pct < 65:
+        risks.append("pass rate suggests a meaningful cohort is failing standard exams")
+    if special < 60:
+        risks.append("special exam performance may need targeted remediation")
+    if task_gaps:
+        risks.append(f"task completion gaps in {', '.join(task_gaps[:3])}")
+    if not risks:
+        risks.append("no critical red flags in this filter — continue monitoring trends weekly")
+    p3 = "Risk areas: " + "; ".join(risks) + "."
+
+    actions = []
+    if avg_exam < 70:
+        actions.append("audit the lowest-scoring exams and add refresher modules")
+    if avg_course < 55:
+        actions.append("send nudges to users below 50% course progress")
+    if task_gaps:
+        actions.append("follow up with managers in departments with low task completion")
+    if pass_pct < 70:
+        actions.append("schedule a review session for frequently missed question categories")
+    actions.append("export this PDF report and share with team leads in the next stand-up")
+    p4 = "Recommended admin actions (next 2 weeks): " + "; ".join(actions[:3]) + "."
+
+    return f"{p1}\n\n{p2}\n\n{p3}\n\n{p4}\n\n(Summary generated offline — start Ollama for AI-enhanced narrative.)"
+
+
+def analyticsiq_diagnose_fallback(user_name, scores_summary, incorrect_summary, available_courses):
+    """Rule-based learner diagnosis when local AI is unavailable."""
+    has_scores = scores_summary and "No exam attempts" not in scores_summary
+    has_errors = incorrect_summary and "No incorrect answers" not in incorrect_summary
+
+    p1 = (
+        f"{user_name}, "
+        + (
+            f"your recent exam pattern shows: {scores_summary}."
+            if has_scores
+            else "you have not recorded exam attempts yet — complete at least one assigned exam to unlock deeper insights."
+        )
+    )
+    p2 = (
+        f"Incorrect-answer trends: {incorrect_summary}."
+        if has_errors
+        else "No missed-question history is logged yet; focus on timed practice under exam conditions."
+    )
+    courses = available_courses or "No courses listed"
+    p3 = (
+        f"Next steps: prioritize courses from your catalog ({courses}), revisit slides for topics tied to "
+        f"missed questions, and retake practice exams within 48 hours to confirm improvement."
+    )
+    return f"{p1}\n\n{p2}\n\n{p3}\n\n(Offline summary — start Ollama for personalized AI coaching.)"
+
+
 def analyticsiq_diagnose(user_name, scores_summary, incorrect_summary, available_courses):
     system = (
         "You are AnalyticsIQ for TrainIQ. Analyze learner performance and recommend "

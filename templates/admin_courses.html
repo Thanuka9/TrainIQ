@@ -9,16 +9,10 @@
 {% endblock %}
 
 {% block content %}
-<div class="tiq-page-header">
-  <div class="tiq-flex-between">
-    <div>
-      <div class="tiq-breadcrumb">
-        <a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
-        <span class="tiq-breadcrumb-sep">/</span>
-        <span>Courses</span>
-      </div>
-      <h1>Manage Courses</h1>
-    </div>
+<div class="admin-page-hero">
+  <div>
+    <h1>Manage Courses</h1>
+    <p class="admin-page-lead">Browse and manage your organization's course catalog, restrictions, and AI-generated outlines.</p>
   </div>
 </div>
 
@@ -47,12 +41,13 @@
 </div>
 
 <div class="tiq-card">
-  <div class="tiq-card-header">
-    <h2 class="tiq-card-title"><i class="fas fa-book-open" style="margin-right:8px; color:var(--tiq-accent);"></i>Active Course Catalog</h2>
+  <div class="tiq-table-toolbar">
+    <span style="font-size:0.875rem;color:var(--tiq-text-3);"><strong>{{ courses|length }}</strong> courses in catalog</span>
+    <input type="search" class="tiq-input tiq-table-search" placeholder="Search courses…" data-table-search="coursesTable" aria-label="Search courses">
   </div>
-  <div class="tiq-card-body">
-    <div class="tiq-table-wrapper">
-      <table class="tiq-table">
+  <div class="tiq-card-body" style="padding:0;">
+    <div class="tiq-table-wrapper tiq-table-sticky">
+      <table class="tiq-table tiq-table-pro" id="coursesTable">
         <thead>
           <tr>
             <th style="padding-left:1.5rem; width:80px;">ID</th>

@@ -189,6 +189,8 @@ h6 { font-size: 0.875rem; }
   padding: 1.25rem 1.25rem 1rem;
   border-bottom: 1px solid rgba(255,255,255,0.06);
   min-height: 72px;
+  position: relative;
+  flex-shrink: 0;
 }
 .tiq-sidebar-brand .brand-logo {
   width: 38px; height: 38px;
@@ -207,6 +209,12 @@ h6 { font-size: 0.875rem; }
 }
 .tiq-sidebar-brand .brand-text span { color: var(--tiq-secondary); }
 .tiq-sidebar.collapsed .brand-text { opacity: 0; width: 0; overflow: hidden; }
+.tiq-sidebar.collapsed .tiq-sidebar-brand {
+  justify-content: center;
+  padding-left: 0.65rem;
+  padding-right: 0.65rem;
+  gap: 0;
+}
 
 .tiq-sidebar-nav {
   flex: 1;
@@ -265,6 +273,15 @@ h6 { font-size: 0.875rem; }
   white-space: nowrap;
 }
 .tiq-sidebar.collapsed .nav-label { opacity: 0; width: 0; overflow: hidden; }
+.tiq-sidebar.collapsed .tiq-nav-item {
+  justify-content: center;
+  padding-left: 0.65rem;
+  padding-right: 0.65rem;
+  gap: 0;
+}
+.tiq-sidebar.collapsed .tiq-nav-item.active::before {
+  left: 4px;
+}
 .tiq-nav-badge {
   margin-left: auto; font-size: 0.7rem;
   background: var(--tiq-primary);
@@ -298,20 +315,40 @@ h6 { font-size: 0.875rem; }
 .tiq-sidebar-user .user-name { font-size: 0.875rem; font-weight: 600; color: #fff; }
 .tiq-sidebar-user .user-role { font-size: 0.75rem; color: var(--tiq-sidebar-text); }
 .tiq-sidebar.collapsed .user-info { opacity: 0; width: 0; overflow: hidden; }
+.tiq-sidebar.collapsed .tiq-sidebar-user {
+  justify-content: center;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+.tiq-sidebar.collapsed .tiq-sidebar-footer {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
 
 .tiq-sidebar-toggle {
-  position: absolute; right: -12px; top: 80px;
-  width: 24px; height: 24px; border-radius: 50%;
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
   background: var(--tiq-primary);
   border: 2px solid var(--tiq-sidebar-bg);
-  color: white; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.7rem;
-  transition: all var(--tiq-transition);
-  z-index: 10;
+  transition: background var(--tiq-transition), transform var(--tiq-transition), box-shadow var(--tiq-transition);
+  z-index: 20;
   box-shadow: 0 2px 8px rgba(79,70,229,0.4);
 }
-.tiq-sidebar-toggle:hover { background: var(--tiq-primary-dark); transform: scale(1.1); }
+.tiq-sidebar-toggle:hover {
+  background: var(--tiq-primary-dark);
+  transform: translateY(-50%) scale(1.08);
+}
 .tiq-sidebar-toggle i {
   transition: transform var(--tiq-transition);
 }
@@ -1363,6 +1400,36 @@ h6 { font-size: 0.875rem; }
   color: var(--tiq-text-2);
   margin-top: 0.25rem;
 }
+/* Analytics chart containers — explicit height so Chart.js / Plotly render */
+.tiq-chart-panel {
+  position: relative;
+  min-height: 320px;
+}
+.tiq-chart-panel--tall {
+  min-height: 420px;
+  max-height: 720px;
+}
+.tiq-chart-panel canvas {
+  display: block;
+  width: 100% !important;
+  max-width: 100%;
+}
+.tiq-chart-panel--donut {
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tiq-chart-panel--donut canvas {
+  max-width: 220px;
+  max-height: 220px;
+}
+.tiq-plot-panel {
+  width: 100%;
+  min-height: 380px;
+  height: 380px;
+}
+
 .analytics-insight-item .insight-meta {
   font-size: 0.75rem;
   color: var(--tiq-text-3);
@@ -1397,6 +1464,414 @@ h6 { font-size: 0.875rem; }
   background: var(--tiq-surface);
   box-shadow: 0 1px 0 var(--tiq-border);
 }
+
+/* ─── Admin Data Tables (Pro) ───────────────────────────────── */
+.admin-page-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+.admin-page-hero h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.admin-page-hero .admin-page-lead {
+  margin: 0;
+  color: var(--tiq-text-3);
+  font-size: 0.925rem;
+  max-width: 42rem;
+}
+.admin-stat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+.admin-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.9rem;
+  background: var(--tiq-surface);
+  border: 1px solid var(--tiq-border);
+  border-radius: var(--tiq-radius-lg);
+  font-size: 0.8125rem;
+  color: var(--tiq-text-2);
+  box-shadow: var(--tiq-shadow-sm);
+}
+.admin-stat-chip strong {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--tiq-text);
+}
+.admin-stat-chip i { color: var(--tiq-primary); opacity: 0.85; }
+.admin-stat-chip.accent { border-color: rgba(99, 102, 241, 0.25); background: rgba(99, 102, 241, 0.06); }
+.admin-stat-chip.success { border-color: rgba(16, 185, 129, 0.25); background: rgba(16, 185, 129, 0.06); }
+.admin-stat-chip.warning { border-color: rgba(245, 158, 11, 0.25); background: rgba(245, 158, 11, 0.06); }
+
+.admin-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1.15rem;
+  border-bottom: 1px solid var(--tiq-border);
+  background: linear-gradient(180deg, var(--tiq-surface) 0%, var(--tiq-surface-2) 100%);
+}
+.admin-filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.admin-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--tiq-text-2);
+  border: 1px solid var(--tiq-border);
+  background: var(--tiq-surface);
+  transition: all var(--tiq-transition);
+}
+.admin-filter-pill:hover {
+  border-color: rgba(99, 102, 241, 0.35);
+  color: var(--tiq-primary);
+}
+.admin-filter-pill.active {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: var(--tiq-primary);
+}
+.admin-filter-pill .pill-count {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--tiq-surface-3);
+  color: var(--tiq-text-3);
+}
+.admin-filter-pill.active .pill-count {
+  background: rgba(99, 102, 241, 0.18);
+  color: var(--tiq-primary);
+}
+
+.tiq-table-pro thead th {
+  background: var(--tiq-surface-2);
+  font-size: 0.68rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 2px solid var(--tiq-border);
+}
+.tiq-table-pro tbody tr {
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.tiq-table-pro tbody tr:hover {
+  background: rgba(99, 102, 241, 0.04);
+}
+.tiq-table-pro td {
+  padding: 1rem;
+  vertical-align: top;
+}
+.tiq-table-pro .col-sticky-actions {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--tiq-surface);
+  box-shadow: -8px 0 12px -8px rgba(15, 23, 42, 0.12);
+  min-width: 168px;
+  vertical-align: middle;
+}
+.tiq-table-pro tbody tr:hover .col-sticky-actions {
+  background: rgba(99, 102, 241, 0.04);
+}
+.tiq-table-wrapper.admin-table-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+}
+.tiq-table-pro td.col-has-menu {
+  overflow: visible;
+  position: relative;
+}
+
+.admin-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: nowrap;
+}
+.admin-row-actions form { margin: 0; display: inline-flex; }
+.admin-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--tiq-border);
+  border-radius: var(--tiq-radius);
+  background: var(--tiq-surface-2);
+  color: var(--tiq-text-2);
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 0.8rem;
+  transition: all 0.15s ease;
+}
+.admin-action-btn:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  color: var(--tiq-primary);
+  background: rgba(99, 102, 241, 0.08);
+}
+.admin-action-btn-warn:hover {
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #D97706;
+  background: rgba(245, 158, 11, 0.1);
+}
+.admin-action-btn-ok:hover {
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #059669;
+  background: rgba(16, 185, 129, 0.1);
+}
+.admin-action-btn-danger:hover {
+  border-color: rgba(239, 68, 68, 0.45);
+  color: var(--tiq-danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.admin-access-link {
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.admin-access-link:hover {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--tiq-primary);
+}
+.admin-access-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid transparent;
+}
+.admin-access-badge.super {
+  background: rgba(245, 158, 11, 0.12);
+  color: #D97706;
+  border-color: rgba(245, 158, 11, 0.25);
+}
+.admin-access-badge.delegated {
+  background: var(--tiq-surface-2);
+  color: var(--tiq-text-2);
+  border-color: var(--tiq-border);
+}
+  font-size: 0.68rem;
+  padding: 0.2rem 0.45rem;
+}
+.admin-status-cell {
+  min-width: 96px;
+  vertical-align: middle;
+}
+.admin-status-date {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--tiq-text-3);
+}
+
+.tiq-dropdown.drop-up {
+  top: auto;
+  bottom: calc(100% + 8px);
+  transform: translateY(8px) scale(0.97);
+}
+.tiq-dropdown.drop-up.show {
+  transform: translateY(0) scale(1);
+}
+.tiq-dropdown.drop-fixed {
+  position: fixed;
+  z-index: 9999;
+}
+
+.admin-user-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  min-width: 220px;
+}
+.admin-user-cell .tiq-avatar { flex-shrink: 0; margin-top: 2px; }
+.admin-user-name {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--tiq-text);
+  line-height: 1.3;
+}
+.admin-user-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--tiq-text-3);
+}
+.admin-user-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.admin-user-meta i { width: 12px; text-align: center; opacity: 0.7; }
+.admin-id-badge {
+  display: inline-block;
+  font-family: ui-monospace, monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: var(--tiq-surface-3);
+  color: var(--tiq-text-3);
+  margin-top: 0.35rem;
+}
+
+.admin-org-block { min-width: 200px; }
+.admin-dept-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+.admin-dept-chip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366F1;
+  border: 1px solid rgba(99, 102, 241, 0.18);
+}
+.admin-inline-select {
+  font-size: 0.8125rem;
+  padding: 0.4rem 1.75rem 0.4rem 0.65rem;
+  min-width: 150px;
+  border-radius: var(--tiq-radius);
+  border: 1px solid var(--tiq-border);
+  background: var(--tiq-surface);
+  color: var(--tiq-text);
+}
+.admin-inline-select:focus {
+  outline: none;
+  border-color: var(--tiq-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+.admin-label-xs {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tiq-text-3);
+  margin-bottom: 0.35rem;
+}
+
+.admin-actions-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  margin: 0;
+  padding: 0.65rem 1.25rem;
+  font-size: 0.72rem;
+  color: var(--tiq-text-3);
+  border-top: 1px solid var(--tiq-border);
+  background: var(--tiq-surface-2);
+}
+.admin-actions-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.admin-actions-legend .muted { opacity: 0.85; }
+
+.admin-empty-state {
+  text-align: center;
+  padding: 3.5rem 1.5rem;
+  color: var(--tiq-text-3);
+}
+.admin-empty-state i {
+  font-size: 2.5rem;
+  opacity: 0.25;
+  margin-bottom: 0.75rem;
+  display: block;
+}
+.admin-empty-state h4 {
+  margin: 0 0 0.35rem;
+  color: var(--tiq-text-2);
+  font-size: 1rem;
+}
+
+.admin-invite-panel {
+  border: 1px dashed var(--tiq-border);
+  border-radius: var(--tiq-radius-lg);
+  padding: 1rem 1.15rem;
+  background: var(--tiq-surface-2);
+}
+.admin-invite-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-invite-list li {
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.65rem;
+  background: var(--tiq-surface);
+  border: 1px solid var(--tiq-border);
+  border-radius: var(--tiq-radius);
+}
+
+.admin-role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.55rem 0.35rem 0.75rem;
+  background: var(--tiq-surface-2);
+  border: 1px solid var(--tiq-border);
+  border-radius: var(--tiq-radius);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.admin-role-chip .role-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tiq-danger);
+  cursor: pointer;
+  padding: 0;
+}
+.admin-role-chip .role-remove:hover { background: rgba(239, 68, 68, 0.1); }
+
+@media (max-width: 900px) {
+  .tiq-table-pro .col-sticky-actions { position: static; box-shadow: none; }
+}
+
 .tiq-theme-preview {
   margin-top: 1rem;
   padding: 1rem;

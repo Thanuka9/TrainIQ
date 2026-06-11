@@ -8,9 +8,11 @@
 {% endblock %}
 
 {% block content %}
-  <div class="tiq-page-header">
-    <h1>User ↔ Client Associations</h1>
-    <p class="tiq-lead">Associate platform users with specific client entities for granular context-scoping.</p>
+  <div class="admin-page-hero">
+    <div>
+      <h1>User ↔ Client Associations</h1>
+      <p class="admin-page-lead">Link users to client entities for scoped tasks, reporting, and context in the platform.</p>
+    </div>
   </div>
 
   {# Flash messages #}
@@ -73,21 +75,18 @@
 
   <!-- Existing Associations -->
   <div class="tiq-card">
-    <div class="tiq-card-header">
-      <div class="tiq-card-title">
-        <i class="fas fa-table me-2"></i>Active Associations List
-      </div>
+    <div class="tiq-table-toolbar">
+      <span style="font-size:0.875rem;color:var(--tiq-text-3);">Active user–client mappings</span>
+      <input type="search" class="tiq-input tiq-table-search" placeholder="Search associations…" data-table-search="clientAssocTable" aria-label="Search associations">
     </div>
     <div class="tiq-p-0">
-      <div class="tiq-table-wrapper">
-        <table class="tiq-table">
+      <div class="tiq-table-wrapper tiq-table-sticky">
+        <table class="tiq-table tiq-table-pro" id="clientAssocTable">
           <thead>
             <tr>
-              <th style="width: 100px;">User ID</th>
-              <th>User Name</th>
-              <th style="width: 100px;">Client ID</th>
-              <th>Client Name</th>
-              <th class="tiq-text-center" style="width: 300px;">Update Client Connection</th>
+              <th style="padding-left:1.25rem;">User</th>
+              <th>Client</th>
+              <th style="padding-right:1.25rem;min-width:220px;">Manage</th>
             </tr>
           </thead>
           <tbody>
@@ -95,36 +94,34 @@
               {% if u.clients %}
                 {% for c in u.clients %}
                   <tr>
-                    <td><code>#{{ u.id }}</code></td>
-                    <td class="fw-bold">{{ u.first_name }} {{ u.last_name }}</td>
-                    <td><code>#{{ c.id }}</code></td>
-                    <td><span class="tiq-badge tiq-badge-info">{{ c.name }}</span></td>
-                    <td class="tiq-text-center">
-                      <div style="display: flex; gap: 0.5rem; justify-content: center; align-items: center;">
-                        <!-- Edit Association Form -->
-                        <form id="edit-form-{{ u.id }}-{{ c.id }}" action="{{ url_for('admin_routes.edit_user_client') }}" method="post" style="display: flex; gap: 0.35rem; margin: 0;">
+                    <td style="padding-left:1.25rem;">
+                      <div class="admin-user-name">{{ u.first_name }} {{ u.last_name }}</div>
+                      <span class="admin-id-badge">User #{{ u.id }}</span>
+                    </td>
+                    <td>
+                      <span class="tiq-badge tiq-badge-info">{{ c.name }}</span>
+                      <span class="admin-id-badge" style="margin-left:6px;">#{{ c.id }}</span>
+                    </td>
+                    <td style="padding-right:1.25rem;">
+                      <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                        <form action="{{ url_for('admin_routes.edit_user_client') }}" method="post" style="display:flex;gap:0.35rem;margin:0;align-items:center;">
                           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                           <input type="hidden" name="user_id" value="{{ u.id }}">
                           <input type="hidden" name="old_client_id" value="{{ c.id }}">
-                          
-                          <select name="new_client_id" class="tiq-select" style="padding: 0.35rem 2rem 0.35rem 0.5rem; font-size: 0.8125rem; width: 160px; height: auto;">
+                          <select name="new_client_id" class="admin-inline-select" style="min-width:160px;">
                             {% for x in clients %}
-                              <option value="{{ x.id }}" {% if x.id == c.id %}selected{% endif %}>
-                                {{ x.name }}
-                              </option>
+                              <option value="{{ x.id }}" {% if x.id == c.id %}selected{% endif %}>{{ x.name }}</option>
                             {% endfor %}
                           </select>
-                          <button type="submit" class="tiq-btn tiq-btn-icon-sm tiq-btn-secondary" title="Save new client mapping">
+                          <button type="submit" class="tiq-btn tiq-btn-sm tiq-btn-secondary" title="Save">
                             <i class="fas fa-save"></i>
                           </button>
                         </form>
-
-                        <!-- Delete Association Form -->
-                        <form action="{{ url_for('admin_routes.delete_user_client') }}" method="post" style="margin: 0;" onsubmit="return confirm('Remove association between {{ u.first_name }} and {{ c.name }}?');">
+                        <form action="{{ url_for('admin_routes.delete_user_client') }}" method="post" style="margin:0;" onsubmit="return confirm('Remove association between {{ u.first_name }} and {{ c.name }}?');">
                           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                           <input type="hidden" name="user_id" value="{{ u.id }}">
                           <input type="hidden" name="client_id" value="{{ c.id }}">
-                          <button type="submit" class="tiq-btn tiq-btn-icon-sm tiq-btn-danger" title="Remove Association">
+                          <button type="submit" class="tiq-btn tiq-btn-sm tiq-btn-danger" title="Remove">
                             <i class="fas fa-trash-alt"></i>
                           </button>
                         </form>
@@ -134,13 +131,12 @@
                 {% endfor %}
               {% else %}
                 <tr>
-                  <td><code>#{{ u.id }}</code></td>
-                  <td>{{ u.first_name }} {{ u.last_name }}</td>
-                  <td>—</td>
-                  <td><span class="tiq-badge tiq-badge-neutral">Unassociated</span></td>
-                  <td class="tiq-text-center text-muted" style="font-size: 0.8125rem;">
-                    No clients assigned
+                  <td style="padding-left:1.25rem;">
+                    <div class="admin-user-name">{{ u.first_name }} {{ u.last_name }}</div>
+                    <span class="admin-id-badge">#{{ u.id }}</span>
                   </td>
+                  <td><span class="tiq-badge tiq-badge-neutral">Unassociated</span></td>
+                  <td style="padding-right:1.25rem;color:var(--tiq-text-3);font-size:0.8125rem;">No clients assigned</td>
                 </tr>
               {% endif %}
             {% endfor %}

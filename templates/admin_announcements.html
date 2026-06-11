@@ -69,8 +69,12 @@
     <h3 class="tiq-card-title">All announcements ({{ announcements|length }})</h3>
   </div>
   <div class="tiq-card-body" style="padding:0;">
-    <div class="tiq-table-wrapper">
-      <table class="tiq-table">
+    <div class="tiq-table-toolbar">
+      <span style="font-size:0.875rem;color:var(--tiq-text-3);"><strong>{{ announcements|length }}</strong> announcements</span>
+      <input type="search" class="tiq-input tiq-table-search" placeholder="Search announcements…" data-table-search="announcementsTable" aria-label="Search announcements">
+    </div>
+    <div class="tiq-table-wrapper tiq-table-sticky">
+      <table class="tiq-table tiq-table-pro" id="announcementsTable">
         <thead>
           <tr>
             <th>Title</th>

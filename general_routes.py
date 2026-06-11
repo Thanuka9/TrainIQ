@@ -168,31 +168,63 @@ def _analyticsiq_payload(user):
 @login_required
 def analyticsiq_start():
     """Start AnalyticsIQ analysis as a background job."""
-    from utils.local_ai import analyticsiq_diagnose, get_ai_status
+    from utils.local_ai import analyticsiq_diagnose, analyticsiq_diagnose_fallback, get_ai_status
     from utils.ai_jobs import create_job, run_job
     from utils.ai_rate_limit import check_ai_rate_limit
 
-    ok, retry = check_ai_rate_limit()
-    if not ok:
-        return jsonify({"error": f"Rate limit exceeded. Retry in {retry}s.", "retry_after": retry}), 429
-
     ai_status = get_ai_status()
-    if not ai_status["available"] or not ai_status["model_ready"]:
-        return jsonify({"error": ai_status["message"], **ai_status}), 503
-
     scores_summary, incorrect_summary, available_courses = _analyticsiq_payload(current_user)
     user_name = current_user.first_name or "Learner"
+
+    if not ai_status["available"] or not ai_status["model_ready"]:
+        diagnosis = analyticsiq_diagnose_fallback(
+            user_name, scores_summary, incorrect_summary, available_courses,
+        )
+        return jsonify({
+            "status": "complete",
+            "diagnosis": diagnosis,
+            "source": "fallback",
+            "feature": "AnalyticsIQ",
+            **ai_status,
+        })
+
+    ok, retry = check_ai_rate_limit()
+    if not ok:
+        diagnosis = analyticsiq_diagnose_fallback(
+            user_name, scores_summary, incorrect_summary, available_courses,
+        )
+        return jsonify({
+            "status": "complete",
+            "diagnosis": diagnosis,
+            "source": "fallback",
+            "warning": f"AI rate limit reached — offline summary shown. Retry in {retry}s.",
+            "feature": "AnalyticsIQ",
+            **ai_status,
+        })
+
     from utils.tenant_utils import user_tenant_id
     job_id = create_job(current_user.id, "analyticsiq", tenant_id=user_tenant_id())
 
     def work():
-        diagnosis = analyticsiq_diagnose(
-            user_name,
-            scores_summary,
-            incorrect_summary,
-            available_courses,
-        )
-        return {"diagnosis": diagnosis, "feature": "AnalyticsIQ", **get_ai_status()}
+        try:
+            diagnosis = analyticsiq_diagnose(
+                user_name,
+                scores_summary,
+                incorrect_summary,
+                available_courses,
+            )
+            return {"diagnosis": diagnosis, "source": "ai", "feature": "AnalyticsIQ", **get_ai_status()}
+        except (ConnectionError, Exception) as e:
+            logging.warning("AnalyticsIQ job failed, using fallback: %s", e)
+            diagnosis = analyticsiq_diagnose_fallback(
+                user_name, scores_summary, incorrect_summary, available_courses,
+            )
+            return {
+                "diagnosis": diagnosis,
+                "source": "fallback",
+                "feature": "AnalyticsIQ",
+                **get_ai_status(),
+            }
 
     from flask import current_app
     run_job(job_id, work, app=current_app._get_current_object())
@@ -203,33 +235,60 @@ def analyticsiq_start():
 @login_required
 def analyticsiq_insights():
     """AnalyticsIQ sync fallback (prefer /start + job polling)."""
-    from utils.local_ai import analyticsiq_diagnose, get_ai_status
+    from utils.local_ai import analyticsiq_diagnose, analyticsiq_diagnose_fallback, get_ai_status
     from utils.ai_rate_limit import check_ai_rate_limit
+
+    ai_status = get_ai_status()
+    scores_summary, incorrect_summary, available_courses = _analyticsiq_payload(current_user)
+    user_name = current_user.first_name or "Learner"
+
+    if not ai_status["available"] or not ai_status["model_ready"]:
+        diagnosis = analyticsiq_diagnose_fallback(
+            user_name, scores_summary, incorrect_summary, available_courses,
+        )
+        return jsonify({
+            "diagnosis": diagnosis,
+            "source": "fallback",
+            "feature": "AnalyticsIQ",
+            **ai_status,
+        })
 
     ok, retry = check_ai_rate_limit()
     if not ok:
-        return jsonify({"error": f"Rate limit exceeded. Retry in {retry}s.", "retry_after": retry}), 429
-
-    ai_status = get_ai_status()
-    if not ai_status["available"] or not ai_status["model_ready"]:
-        return jsonify({"error": ai_status["message"], **ai_status}), 503
-
-    scores_summary, incorrect_summary, available_courses = _analyticsiq_payload(current_user)
+        diagnosis = analyticsiq_diagnose_fallback(
+            user_name, scores_summary, incorrect_summary, available_courses,
+        )
+        return jsonify({
+            "diagnosis": diagnosis,
+            "source": "fallback",
+            "warning": f"AI rate limit reached — offline summary shown. Retry in {retry}s.",
+            "feature": "AnalyticsIQ",
+            **ai_status,
+        })
 
     try:
         diagnosis = analyticsiq_diagnose(
-            current_user.first_name or "Learner",
+            user_name,
             scores_summary,
             incorrect_summary,
             available_courses,
         )
         return jsonify({
             "diagnosis": diagnosis,
+            "source": "ai",
             "feature": "AnalyticsIQ",
             **ai_status,
         })
-    except ConnectionError as e:
-        return jsonify({"error": "AI service is temporarily unavailable.", "available": False}), 503
+    except ConnectionError:
+        diagnosis = analyticsiq_diagnose_fallback(
+            user_name, scores_summary, incorrect_summary, available_courses,
+        )
+        return jsonify({
+            "diagnosis": diagnosis,
+            "source": "fallback",
+            "feature": "AnalyticsIQ",
+            **ai_status,
+        })
 
 
 @general_routes.route('/client_materials')

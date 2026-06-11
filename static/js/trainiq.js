@@ -77,6 +77,37 @@
 
   /* ─── Dropdown Management ──────────────────────────────── */
   const Dropdowns = {
+    _positionMenu(trigger, target) {
+      target.classList.remove('drop-up', 'drop-fixed');
+      target.style.top = '';
+      target.style.left = '';
+      target.style.right = '';
+      target.style.bottom = '';
+
+      const tr = trigger.closest('td, .tiq-dept-dropdown-wrap, .admin-actions-wrap');
+      if (tr && tr.closest('.tiq-table-wrapper')) {
+        const rect = trigger.getBoundingClientRect();
+        target.classList.add('drop-fixed');
+        const menuW = target.offsetWidth || 220;
+        let left = rect.right - menuW;
+        left = Math.max(8, Math.min(left, window.innerWidth - menuW - 8));
+        target.style.left = `${left}px`;
+        const below = rect.bottom + 8;
+        const menuH = target.offsetHeight || 200;
+        if (below + menuH > window.innerHeight - 8) {
+          target.style.top = `${Math.max(8, rect.top - menuH - 8)}px`;
+        } else {
+          target.style.top = `${below}px`;
+        }
+        return;
+      }
+
+      const rect = target.getBoundingClientRect();
+      if (rect.bottom > window.innerHeight - 8) {
+        target.classList.add('drop-up');
+      }
+    },
+
     init() {
       document.querySelectorAll('[data-tiq-dropdown]').forEach(trigger => {
         const targetId = trigger.getAttribute('data-tiq-dropdown');
@@ -86,18 +117,24 @@
         trigger.addEventListener('click', (e) => {
           e.stopPropagation();
           const isOpen = target.classList.contains('show');
-          // Close all dropdowns
-          document.querySelectorAll('.tiq-dropdown.show').forEach(d => d.classList.remove('show'));
+          document.querySelectorAll('.tiq-dropdown.show').forEach(d => {
+            d.classList.remove('show', 'drop-up', 'drop-fixed');
+            d.style.top = d.style.left = d.style.right = d.style.bottom = '';
+          });
           document.querySelectorAll('[data-tiq-dropdown]').forEach(t => t.classList.remove('open'));
           if (!isOpen) {
             target.classList.add('show');
             trigger.classList.add('open');
+            requestAnimationFrame(() => this._positionMenu(trigger, target));
           }
         });
       });
 
       document.addEventListener('click', () => {
-        document.querySelectorAll('.tiq-dropdown.show').forEach(d => d.classList.remove('show'));
+        document.querySelectorAll('.tiq-dropdown.show').forEach(d => {
+          d.classList.remove('show', 'drop-up', 'drop-fixed');
+          d.style.top = d.style.left = d.style.right = d.style.bottom = '';
+        });
         document.querySelectorAll('[data-tiq-dropdown]').forEach(t => t.classList.remove('open'));
       });
     }

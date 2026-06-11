@@ -1,317 +1,263 @@
-{# admin_users.html #}
 {% extends 'admin_base.html' %}
 {% block title %}Users{% endblock %}
 {% block breadcrumb %}Users Management{% endblock %}
 
 {% block content %}
 
-<!-- Page Header -->
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;">
+<div class="admin-page-hero">
   <div>
-    <h1 style="font-size:1.75rem;font-weight:800;margin:0 0 0.25rem;">
-      Users Management{% if status %} — <span style="color:var(--tiq-primary);">{{ status|capitalize }}</span>{% endif %}
-    </h1>
-    <p style="color:var(--tiq-text-3);margin:0;font-size:0.9rem;">
-      <i class="fas fa-users" style="margin-right:6px;"></i>
-      Manage user accounts, departments, designations, and access.
+    <h1>Users Management</h1>
+    <p class="admin-page-lead">
+      Manage accounts, departments, designations, and delegated admin access for your organization.
     </p>
   </div>
-  <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
-    <a href="{{ url_for('admin_routes.view_users') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">
-      <i class="fas fa-list"></i> All Users
-    </a>
-    <a href="{{ url_for('admin_routes.view_users', status='verified') }}" class="tiq-btn tiq-btn-primary tiq-btn-sm">
-      <i class="fas fa-user-check"></i> Verified
-    </a>
+</div>
+
+<div class="admin-stat-chips">
+  <div class="admin-stat-chip accent">
+    <i class="fas fa-users"></i>
+    <span><strong>{{ user_stats.total }}</strong> total</span>
+  </div>
+  <div class="admin-stat-chip success">
+    <i class="fas fa-user-check"></i>
+    <span><strong>{{ user_stats.verified }}</strong> verified</span>
+  </div>
+  <div class="admin-stat-chip warning">
+    <i class="fas fa-user-clock"></i>
+    <span><strong>{{ user_stats.unverified }}</strong> pending</span>
+  </div>
+  <div class="admin-stat-chip">
+    <i class="fas fa-crown"></i>
+    <span><strong>{{ user_stats.super_admins }}</strong> super admins</span>
+  </div>
+  <div class="admin-stat-chip">
+    <i class="fas fa-chair"></i>
+    <span><strong>{{ tenant_usage.users }}/{{ tenant_usage.max_users }}</strong> seats used</span>
   </div>
 </div>
 
-<!-- Filter Bar -->
-<div class="tiq-card" style="margin-bottom:1.5rem;">
-  <div class="tiq-card-body" style="padding:1rem 1.25rem;">
-    <form method="get" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;">
-      <div style="flex:1;min-width:200px;">
-        <label style="font-size:0.8rem;font-weight:600;color:var(--tiq-text-2);margin-bottom:4px;display:block;">
-          <i class="fas fa-search"></i> Search Users
-        </label>
-        <input type="text" name="q" class="tiq-input" placeholder="Search by name, email, ID…" />
-      </div>
-      <div style="min-width:150px;">
-        <label style="font-size:0.8rem;font-weight:600;color:var(--tiq-text-2);margin-bottom:4px;display:block;">Status</label>
-        <select name="status" class="tiq-input">
-          <option value="">All Status</option>
-          <option value="verified" {% if status == 'verified' %}selected{% endif %}>Verified</option>
-          <option value="unverified" {% if status == 'unverified' %}selected{% endif %}>Unverified</option>
-        </select>
-      </div>
-      <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">
-        <i class="fas fa-filter"></i> Apply Filter
-      </button>
-    </form>
-  </div>
-</div>
-
-<!-- Invite Users -->
-<div class="tiq-card" style="margin-bottom:1.5rem;">
+<div class="tiq-card" style="margin-bottom:1.25rem;">
   <div class="tiq-card-header">
-    <h3 class="tiq-card-title"><i class="fas fa-paper-plane" style="margin-right:8px;"></i>Invite Users</h3>
-    <span class="tiq-badge">{{ tenant_usage.users }}/{{ tenant_usage.max_users }} seats</span>
+    <h3 class="tiq-card-title"><i class="fas fa-paper-plane" style="margin-right:8px;color:var(--tiq-primary);"></i>Invite users</h3>
   </div>
   <div class="tiq-card-body">
-    {% if tenant_usage.at_limit %}
-    <div class="tiq-alert tiq-alert-warning" style="margin-bottom:1rem;">
-      <i class="fas fa-lock"></i> User limit reached. <a href="{{ url_for('billing_routes.billing_home', upgrade=1) }}">Upgrade your plan</a> to invite more people.
-    </div>
-    {% else %}
-    <p style="color:var(--tiq-text-3);font-size:0.9rem;margin:0 0 1rem;">
-      Send a magic-link invitation. {{ tenant_usage.remaining_seats }} seat{{ 's' if tenant_usage.remaining_seats != 1 else '' }} remaining on your plan.
-    </p>
-    <form method="post" action="{{ url_for('admin_routes.send_user_invite', status=status) }}" style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end;">
-      <div style="flex:1;min-width:220px;">
-        <label style="font-size:0.8rem;font-weight:600;color:var(--tiq-text-2);margin-bottom:4px;display:block;">Email address</label>
-        <input type="email" name="invite_email" class="tiq-input" placeholder="colleague@company.com" required />
+    <div class="admin-invite-panel">
+      {% if tenant_usage.at_limit %}
+      <div class="tiq-alert tiq-alert-warning" style="margin:0;">
+        <i class="fas fa-lock"></i>
+        <div>User limit reached. <a href="{{ url_for('billing_routes.billing_home', upgrade=1) }}">Upgrade your plan</a> to invite more people.</div>
       </div>
-      <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">
-        <i class="fas fa-envelope"></i> Send invite
-      </button>
-    </form>
-    {% endif %}
-    {% if pending_invites %}
-    <div style="margin-top:1.25rem;">
-      <h4 style="font-size:0.85rem;font-weight:700;margin:0 0 0.5rem;color:var(--tiq-text-2);">Pending invitations</h4>
-      <ul style="margin:0;padding-left:1.25rem;font-size:0.85rem;color:var(--tiq-text-3);">
+      {% else %}
+      <p style="color:var(--tiq-text-3);font-size:0.875rem;margin:0 0 0.85rem;">
+        Send a magic-link invitation — <strong>{{ tenant_usage.remaining_seats }}</strong> seat{{ 's' if tenant_usage.remaining_seats != 1 else '' }} remaining.
+      </p>
+      <form method="post" action="{{ url_for('admin_routes.send_user_invite', status=status) }}" style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end;">
+        <div style="flex:1;min-width:240px;">
+          <label class="admin-label-xs">Email address</label>
+          <input type="email" name="invite_email" class="tiq-input" placeholder="colleague@company.com" required />
+        </div>
+        <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">
+          <i class="fas fa-envelope"></i> Send invite
+        </button>
+      </form>
+      {% endif %}
+      {% if pending_invites %}
+      <ul class="admin-invite-list">
         {% for inv in pending_invites %}
         <li>
           {{ inv.email }}
           {% if inv.is_valid %}
-            <span class="tiq-badge" style="margin-left:6px;">expires {{ inv.expires_at.strftime('%Y-%m-%d') }}</span>
+            <span class="tiq-badge" style="margin-left:4px;font-size:0.7rem;">expires {{ inv.expires_at.strftime('%b %d') }}</span>
           {% else %}
-            <span class="tiq-badge" style="margin-left:6px;background:#fef2f2;color:#b91c1c;">expired</span>
+            <span class="tiq-badge" style="margin-left:4px;font-size:0.7rem;background:#fef2f2;color:#b91c1c;">expired</span>
           {% endif %}
         </li>
         {% endfor %}
       </ul>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 </div>
 
-<!-- Users Table -->
 <div class="tiq-card">
-  <div class="tiq-card-header">
-    <h3 class="tiq-card-title"><i class="fas fa-table" style="margin-right:8px;"></i>All Users</h3>
+  <div class="admin-filter-bar">
+    <div class="admin-filter-pills">
+      <a href="{{ url_for('admin_routes.view_users', q=q) }}" class="admin-filter-pill {% if not status %}active{% endif %}">
+        All <span class="pill-count">{{ user_stats.total }}</span>
+      </a>
+      <a href="{{ url_for('admin_routes.view_users', status='verified', q=q) }}" class="admin-filter-pill {% if status == 'verified' %}active{% endif %}">
+        <i class="fas fa-check-circle"></i> Verified <span class="pill-count">{{ user_stats.verified }}</span>
+      </a>
+      <a href="{{ url_for('admin_routes.view_users', status='unverified', q=q) }}" class="admin-filter-pill {% if status == 'unverified' %}active{% endif %}">
+        <i class="fas fa-clock"></i> Pending <span class="pill-count">{{ user_stats.unverified }}</span>
+      </a>
+    </div>
+    <form method="get" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+      {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+      <input type="search" name="q" value="{{ q or '' }}" class="tiq-input tiq-table-search" style="max-width:260px;margin:0;" placeholder="Search name, email, ID…" aria-label="Search users">
+      <button type="submit" class="tiq-btn tiq-btn-secondary tiq-btn-sm"><i class="fas fa-search"></i></button>
+      {% if q %}
+      <a href="{{ url_for('admin_routes.view_users', status=status) }}" class="tiq-btn tiq-btn-ghost tiq-btn-sm">Clear</a>
+      {% endif %}
+    </form>
   </div>
+
+  <div class="tiq-table-toolbar">
+    <span style="font-size:0.875rem;color:var(--tiq-text-3);">
+      Showing <strong>{{ users|length }}</strong> user{{ 's' if users|length != 1 else '' }}
+      {% if q %} matching “{{ q }}”{% endif %}
+    </span>
+    <input type="search" class="tiq-input tiq-table-search" placeholder="Filter this list…" data-table-search="usersTable" aria-label="Quick filter table">
+  </div>
+
   <div class="tiq-card-body" style="padding:0;">
-    <div class="tiq-table-wrapper">
-      <table class="tiq-table">
+    <div class="tiq-table-wrapper tiq-table-sticky admin-table-scroll">
+      <table class="tiq-table tiq-table-pro" id="usersTable">
         <thead>
           <tr>
-            <th>User ID</th>
-            <th>Name</th>
-            <th>Employee ID</th>
-            <th>Phone</th>
-            <th>Email</th>
-            <th>Departments</th>
-            <th>Joined</th>
-            <th>Status</th>
-            <th>Designation</th>
-            <th>Role</th>
-            <th>Actions</th>
+            <th style="padding-left:1.25rem;min-width:240px;">User</th>
+            <th style="min-width:220px;">Organization</th>
+            <th style="min-width:100px;">Access</th>
+            <th style="min-width:88px;">Status</th>
+            <th class="col-sticky-actions" style="padding-right:1.25rem;min-width:168px;">Actions</th>
           </tr>
         </thead>
         <tbody>
           {% for u in users %}
           <tr>
-            <td><span style="font-family:monospace;font-size:0.85rem;color:var(--tiq-text-3);">{{ u.id }}</span></td>
-            <td>
-              <div style="display:flex;align-items:center;gap:0.75rem;">
-                <div class="tiq-avatar tiq-avatar-sm" style="{% if not has_profile_picture(u.id) %}background:linear-gradient(135deg,#6366F1,#8B5CF6);{% endif %}flex-shrink:0;">
+            <td style="padding-left:1.25rem;">
+              <div class="admin-user-cell">
+                <div class="tiq-avatar tiq-avatar-sm" style="{% if not has_profile_picture(u.id) %}background:linear-gradient(135deg,#6366F1,#8B5CF6);{% endif %}">
                   {% if has_profile_picture(u.id) %}
-                    <img src="{{ url_for('profile_routes.serve_profile_picture', user_id=u.id) }}" alt="Avatar">
+                    <img src="{{ url_for('profile_routes.serve_profile_picture', user_id=u.id) }}" alt="">
                   {% else %}
                     {{ u.first_name|first }}{{ u.last_name|first }}
                   {% endif %}
                 </div>
-                <span style="font-weight:600;">{{ u.first_name }} {{ u.last_name }}</span>
+                <div>
+                  <div class="admin-user-name">{{ u.first_name }} {{ u.last_name }}</div>
+                  <div class="admin-user-meta">
+                    {% if u.employee_email %}
+                    <span><i class="fas fa-envelope"></i> {{ u.employee_email }}</span>
+                    {% endif %}
+                    {% if u.phone_number %}
+                    <span><i class="fas fa-phone"></i> {{ u.phone_number }}</span>
+                    {% endif %}
+                    {% if u.employee_id %}
+                    <span><i class="fas fa-id-badge"></i> {{ u.employee_id }}</span>
+                    {% endif %}
+                  </div>
+                  <span class="admin-id-badge">#{{ u.id }}</span>
+                </div>
               </div>
             </td>
-            <td>{{ u.employee_id or '—' }}</td>
-            <td>{{ u.phone_number or '—' }}</td>
-            <td>{{ u.employee_email or '—' }}</td>
 
-            {# ===== Departments Column ===== #}
-            <td style="min-width:200px;">
-              {% if u.departments %}
-                <div style="margin-bottom:0.5rem;display:flex;flex-wrap:wrap;gap:4px;">
+            <td class="col-has-menu">
+              <div class="admin-org-block">
+                <span class="admin-label-xs">Departments</span>
+                {% if u.departments %}
+                <div class="admin-dept-chips">
                   {% for d in u.departments %}
-                    <span class="tiq-badge" style="background:rgba(99,102,241,0.1);color:#6366F1;border:1px solid rgba(99,102,241,0.2);">{{ d.name }}</span>
+                  <span class="admin-dept-chip">{{ d.name }}</span>
                   {% endfor %}
                 </div>
-              {% else %}
-                <em style="color:var(--tiq-text-3);font-size:0.85rem;">No Departments</em>
-              {% endif %}
-
-              <div style="position:relative;" class="tiq-dept-dropdown-wrap">
-                <button
-                  class="tiq-btn tiq-btn-secondary tiq-btn-sm"
-                  type="button"
-                  data-tiq-dropdown="deptMenu-{{ u.id }}"
-                >
-                  <i class="fas fa-edit"></i> Edit Dept
-                </button>
-                <div class="tiq-dropdown" id="deptMenu-{{ u.id }}" onclick="event.stopPropagation()" style="min-width:220px;top:100%;left:0;right:auto;">
-                  <form
-                    action="{{ url_for('admin_routes.change_user_departments', user_id=u.id) }}"
-                    method="POST"
-                    id="deptForm-{{ u.id }}"
-                    style="padding:0.75rem;"
-                  >
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="status" value="{{ status or '' }}">
-                    <div style="max-height:150px;overflow-y:auto;margin-bottom:0.75rem;">
-                      {% for d in all_departments %}
-                        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
-                          <input
-                            type="checkbox"
-                            name="departments"
-                            value="{{ d.id }}"
-                            id="dept-{{ u.id }}-{{ d.id }}"
-                            {% if d in u.departments %}checked{% endif %}
-                            style="width:16px;height:16px;cursor:pointer;"
-                          >
-                          <label for="dept-{{ u.id }}-{{ d.id }}" style="cursor:pointer;font-size:0.875rem;">{{ d.name }}</label>
-                        </div>
-                      {% endfor %}
-                    </div>
-                    <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm" style="width:100%;">
-                      <i class="fas fa-save"></i> Save
-                    </button>
-                  </form>
+                {% else %}
+                <p style="margin:0 0 0.5rem;font-size:0.8rem;color:var(--tiq-text-3);font-style:italic;">None assigned</p>
+                {% endif %}
+                <div class="tiq-dept-dropdown-wrap" style="position:relative;display:inline-block;">
+                  <button class="tiq-btn tiq-btn-ghost tiq-btn-sm" type="button" data-tiq-dropdown="deptMenu-{{ u.id }}">
+                    <i class="fas fa-building"></i> Edit departments
+                  </button>
+                  <div class="tiq-dropdown" id="deptMenu-{{ u.id }}" onclick="event.stopPropagation()" style="min-width:240px;top:100%;left:0;">
+                    <form action="{{ url_for('admin_routes.change_user_departments', user_id=u.id) }}" method="POST" style="padding:0.75rem;">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="status" value="{{ status or '' }}">
+                      <span class="admin-label-xs" style="margin-bottom:0.5rem;">Select departments</span>
+                      <div style="max-height:160px;overflow-y:auto;margin-bottom:0.75rem;">
+                        {% for d in all_departments %}
+                        <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:0.875rem;">
+                          <input type="checkbox" name="departments" value="{{ d.id }}" {% if d in u.departments %}checked{% endif %}>
+                          {{ d.name }}
+                        </label>
+                        {% endfor %}
+                      </div>
+                      <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm" style="width:100%;">
+                        <i class="fas fa-save"></i> Save
+                      </button>
+                    </form>
+                  </div>
                 </div>
+
+                <span class="admin-label-xs" style="margin-top:0.85rem;">Designation</span>
+                <form action="{{ url_for('admin_routes.change_designation', user_id=u.id) }}" method="POST">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="status" value="{{ status or '' }}">
+                  <select name="designation_id" class="admin-inline-select" onchange="this.form.submit()">
+                    {% for dsg in designations %}
+                    <option value="{{ dsg.id }}" {% if u.designation_id == dsg.id %}selected{% endif %}>{{ dsg.title }}</option>
+                    {% endfor %}
+                  </select>
+                </form>
               </div>
-            </td>
-
-            <td>{{ u.join_date.strftime('%Y-%m-%d') }}</td>
-            <td>
-              {% if u.is_verified %}
-                <span class="tiq-badge tiq-badge-success">Verified</span>
-              {% else %}
-                <span class="tiq-badge tiq-badge-warning">Unverified</span>
-              {% endif %}
-            </td>
-
-            <td>
-              <form
-                action="{{ url_for('admin_routes.change_designation', user_id=u.id) }}"
-                method="POST"
-                class="d-inline"
-              >
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="status" value="{{ status or '' }}">
-                <select
-                  name="designation_id"
-                  class="tiq-input"
-                  style="font-size:0.8rem;padding:0.35rem 0.6rem;min-width:140px;"
-                  onchange="this.form.submit()"
-                >
-                  {% for dsg in designations %}
-                    <option value="{{ dsg.id }}" {% if u.designation_id == dsg.id %}selected{% endif %}>
-                      {{ dsg.title }}
-                    </option>
-                  {% endfor %}
-                </select>
-              </form>
             </td>
 
             <td>
               {% if u.is_super_admin %}
-                <span class="tiq-badge" style="background:rgba(245,158,11,0.12);color:#D97706;border:1px solid rgba(245,158,11,0.25);">Super Admin</span>
+              <span class="admin-access-badge super"><i class="fas fa-crown"></i> Super Admin</span>
               {% else %}
-                <span class="tiq-badge tiq-badge-secondary" title="{% for r in u.roles %}{{ r.name }}{% if not loop.last %}, {% endif %}{% endfor %}">
-                  {{ permission_summary(u) }}
-                </span>
+              {% if user_can_manage_permissions(current_user) %}
+              <a href="{{ url_for('admin_routes.manage_user_permissions', user_id=u.id) }}" class="admin-access-badge delegated admin-access-link" title="Edit admin access">
+                <i class="fas fa-shield-halved"></i> {{ permission_summary(u) }}
+              </a>
+              {% else %}
+              <span class="admin-access-badge delegated" title="{% for r in u.roles %}{{ r.name }}{% if not loop.last %}, {% endif %}{% endfor %}">
+                <i class="fas fa-shield-halved"></i> {{ permission_summary(u) }}
+              </span>
+              {% endif %}
               {% endif %}
             </td>
 
-            <td style="text-align:center;white-space:nowrap;">
-              {% if user_can_manage_permissions(current_user) and not u.is_super_admin %}
-              <a href="{{ url_for('admin_routes.manage_user_permissions', user_id=u.id) }}"
-                 class="tiq-btn tiq-btn-primary tiq-btn-sm" title="Configure admin access">
-                <i class="fas fa-key"></i>
-              </a>
-              {% endif %}
-              {% if not u.is_super_admin %}
-                <form action="{{ url_for('admin_routes.set_user_super_admin', user_id=u.id) }}?status={{ status or '' }}" method="POST" style="display:inline-block;">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <input type="hidden" name="status" value="{{ status or '' }}">
-                  <input type="hidden" name="action" value="grant">
-                  <button class="tiq-btn tiq-btn-secondary tiq-btn-sm" title="Make Super Admin" type="submit">
-                    <i class="fas fa-user-shield"></i>
-                  </button>
-                </form>
-              {% elif u.is_super_admin %}
-                <form action="{{ url_for('admin_routes.set_user_super_admin', user_id=u.id) }}?status={{ status or '' }}" method="POST" style="display:inline-block;" onsubmit="return confirm('Remove Super Admin access for this user?');">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <input type="hidden" name="status" value="{{ status or '' }}">
-                  <input type="hidden" name="action" value="revoke">
-                  <button class="tiq-btn tiq-btn-warning tiq-btn-sm" title="Remove Super Admin" type="submit">
-                    <i class="fas fa-user-minus"></i>
-                  </button>
-                </form>
-              {% endif %}
+            <td class="admin-status-cell">
               {% if u.is_verified %}
-                <form
-                  action="{{ url_for('admin_routes.deactivate_user', user_id=u.id) }}"
-                  method="POST"
-                  style="display:inline-block;"
-                  onsubmit="return confirm('Deactivate this user?');"
-                >
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <input type="hidden" name="status" value="{{ status or '' }}">
-                  <button class="tiq-btn tiq-btn-warning tiq-btn-sm" title="Deactivate">
-                    <i class="fas fa-user-slash"></i>
-                  </button>
-                </form>
+              <span class="tiq-badge tiq-badge-success tiq-badge-sm"><i class="fas fa-check"></i> Verified</span>
               {% else %}
-                <form
-                  action="{{ url_for('admin_routes.activate_user', user_id=u.id) }}"
-                  method="POST"
-                  style="display:inline-block;"
-                  onsubmit="return confirm('Activate this user?');"
-                >
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <input type="hidden" name="status" value="{{ status or '' }}">
-                  <button class="tiq-btn tiq-btn-success tiq-btn-sm" title="Activate">
-                    <i class="fas fa-user-check"></i>
-                  </button>
-                </form>
+              <span class="tiq-badge tiq-badge-warning tiq-badge-sm"><i class="fas fa-clock"></i> Pending</span>
               {% endif %}
-              <form
-                action="{{ url_for('admin_routes.delete_user', user_id=u.id) }}"
-                method="POST"
-                style="display:inline-block;"
-                onsubmit="return confirm('Delete this user permanently?');"
-              >
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="status" value="{{ status or '' }}">
-                <button class="tiq-btn tiq-btn-danger tiq-btn-sm" title="Delete">
-                  <i class="fas fa-trash-alt"></i>
-                </button>
-              </form>
+              <span class="admin-status-date">{{ u.join_date.strftime('%b %d, %Y') }}</span>
+            </td>
+
+            <td class="col-sticky-actions col-has-menu" style="padding-right:1.25rem;">
+              {% include 'partials/admin_user_row_actions.html' %}
             </td>
           </tr>
           {% else %}
           <tr>
-            <td colspan="11" style="text-align:center;padding:3rem;color:var(--tiq-text-3);">
-              <i class="fas fa-users" style="font-size:2rem;margin-bottom:0.75rem;display:block;opacity:0.3;"></i>
-              No users found.
+            <td colspan="5">
+              <div class="admin-empty-state">
+                <i class="fas fa-users"></i>
+                <h4>No users found</h4>
+                <p style="margin:0;font-size:0.875rem;">Try adjusting your filters or search term.</p>
+              </div>
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+    <p class="admin-actions-legend">
+      <span><i class="fas fa-user-shield"></i> Super Admin</span>
+      <span><i class="fas fa-user-slash"></i> Deactivate</span>
+      <span><i class="fas fa-user-check"></i> Activate</span>
+      <span><i class="fas fa-trash-alt"></i> Delete</span>
+      <span class="muted">· Click access badge to edit permissions</span>
+    </p>
   </div>
 </div>
+
+<style>
+  @media (max-width: 640px) {
+    .hide-mobile { display: none; }
+  }
+</style>
 
 {% endblock %}

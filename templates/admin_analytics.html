@@ -135,7 +135,10 @@
 <div class="tiq-card tiq-reveal" style="margin-bottom: 2rem; border-color: var(--tiq-primary-light);">
   <div class="tiq-card-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
     <h2 class="tiq-card-title"><i class="fas fa-wand-magic-sparkles" style="margin-right:8px; color:var(--tiq-primary);"></i>AnalyticsIQ Insights</h2>
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+      <span id="aiEngineStatus" class="tiq-badge {% if ai_status.model_ready %}tiq-badge-success{% else %}tiq-badge-warning{% endif %}" style="font-size:0.75rem;">
+        {% if ai_status.model_ready %}AI ready ({{ ai_status.resolved_model or 'local' }}){% else %}Offline summary{% endif %}
+      </span>
       <button type="button" class="tiq-btn tiq-btn-sm tiq-btn-primary" id="genAiInsights">
         <i class="fas fa-robot"></i> Generate Summary
       </button>
@@ -221,8 +224,8 @@
     <div class="tiq-card-header">
       <h2 class="tiq-card-title"><i class="fas fa-chart-bar" style="margin-right: 8px; color: var(--tiq-primary);"></i>Avg Exam Scores by Course</h2>
     </div>
-    <div class="tiq-card-body" style="min-height:420px; max-height:720px; position:relative;">
-      <canvas id="examChart" style="width:100%;"></canvas>
+    <div class="tiq-card-body tiq-chart-panel tiq-chart-panel--tall">
+      <canvas id="examChart"></canvas>
       <div id="noExamData" class="tiq-text-center" style="display:none; padding-top:5rem; color:var(--tiq-text-3);">
         No exam data to display.
       </div>
@@ -234,8 +237,8 @@
     <div class="tiq-card-header">
       <h2 class="tiq-card-title"><i class="fas fa-chart-line" style="margin-right: 8px; color: var(--tiq-secondary);"></i>Course Progress Overview</h2>
     </div>
-    <div class="tiq-card-body" style="min-height:420px; max-height:720px; overflow-y:auto; position:relative;">
-      <canvas id="courseChart" style="width:100%;"></canvas>
+    <div class="tiq-card-body tiq-chart-panel tiq-chart-panel--tall">
+      <canvas id="courseChart"></canvas>
       <div id="noCourseData" class="tiq-text-center" style="display:none; padding-top:5rem; color:var(--tiq-text-3);">
         No course progress data.
       </div>
@@ -248,8 +251,8 @@
   <div class="tiq-card-header">
     <h2 class="tiq-card-title"><i class="fas fa-list-check" style="margin-right: 8px; color: var(--tiq-primary);"></i>Tasks Assigned vs Completed by Dept</h2>
   </div>
-  <div class="tiq-card-body" style="min-height:420px; max-height:720px; position:relative;">
-    <canvas id="tasksBarChart" style="width:100%;"></canvas>
+  <div class="tiq-card-body tiq-chart-panel tiq-chart-panel--tall">
+    <canvas id="tasksBarChart"></canvas>
     <div id="noTaskData" class="tiq-text-center" style="display:none; padding-top:5rem; color:var(--tiq-text-3);">
       No task data.
     </div>
@@ -262,8 +265,8 @@
     <div class="tiq-card-header">
       <h2 class="tiq-card-title"><i class="fas fa-table-cells" style="margin-right: 8px; color: var(--tiq-accent);"></i>Time Spent per Course by Dept</h2>
     </div>
-    <div class="tiq-card-body" style="min-height:380px; max-height:600px; position:relative;">
-      <div id="heatmapPlot" style="width:100%; height:100%;"></div>
+    <div class="tiq-card-body" style="padding:0.75rem 1rem 1rem;">
+      <div id="heatmapPlot" class="tiq-plot-panel"></div>
       <div id="noHeatmapData" class="tiq-text-center" style="display:none; padding-top:5rem; color:var(--tiq-text-3);">
         No time‐spent data.
       </div>
@@ -275,7 +278,7 @@
     <div class="tiq-card-header">
       <h2 class="tiq-card-title"><i class="fas fa-circle-question" style="margin-right: 8px; color: var(--tiq-danger);"></i>Top Missed Questions (Q#–PaperID)</h2>
     </div>
-    <div class="tiq-card-body" style="min-height:380px; max-height:600px; position:relative;">
+    <div class="tiq-card-body tiq-chart-panel">
       <canvas id="missedBarChart"></canvas>
       <div id="noMissedData" class="tiq-text-center" style="display:none; padding-top:5rem; color:var(--tiq-text-3);">
         No missed‐questions data.
@@ -290,7 +293,7 @@
   <div class="tiq-card-header">
     <h2 class="tiq-card-title"><i class="fas fa-tags" style="margin-right:8px;color:var(--tiq-warning);"></i>Performance by Category</h2>
   </div>
-  <div class="tiq-card-body" style="min-height:300px;position:relative;">
+  <div class="tiq-card-body tiq-chart-panel">
     <canvas id="categoryChart"></canvas>
   </div>
 </div>
@@ -302,8 +305,8 @@
     <div class="tiq-card-header">
       <h2 class="tiq-card-title"><i class="fas fa-pie-chart" style="margin-right: 8px; color: var(--tiq-success);"></i>Regular Exams</h2>
     </div>
-    <div class="tiq-card-body tiq-flex-center" style="min-height:280px; flex-direction:column; position:relative;">
-      <canvas id="regPassFailChart" style="max-width:200px; max-height:200px;"></canvas>
+    <div class="tiq-card-body tiq-chart-panel tiq-chart-panel--donut">
+      <canvas id="regPassFailChart"></canvas>
       <div id="noRegData" class="tiq-text-center" style="display:none; padding-top:2rem; color:var(--tiq-text-3);">
         No regular exam data.
       </div>
@@ -314,8 +317,8 @@
     <div class="tiq-card-header">
       <h2 class="tiq-card-title"><i class="fas fa-pie-chart" style="margin-right: 8px; color: var(--tiq-accent);"></i>Special Exams</h2>
     </div>
-    <div class="tiq-card-body tiq-flex-center" style="min-height:280px; flex-direction:column; position:relative;">
-      <canvas id="specPassFailChart" style="max-width:200px; max-height:200px;"></canvas>
+    <div class="tiq-card-body tiq-chart-panel tiq-chart-panel--donut">
+      <canvas id="specPassFailChart"></canvas>
       <div id="noSpecData" class="tiq-text-center" style="display:none; padding-top:2rem; color:var(--tiq-text-3);">
         No special exam data.
       </div>
@@ -326,8 +329,8 @@
     <div class="tiq-card-header">
       <h2 class="tiq-card-title"><i class="fas fa-building" style="margin-right: 8px; color: var(--tiq-primary);"></i>Users by Department</h2>
     </div>
-    <div class="tiq-card-body tiq-flex-center" style="min-height:280px; position:relative;">
-      <canvas id="deptPieChart" style="max-width:220px; max-height:220px;"></canvas>
+    <div class="tiq-card-body tiq-chart-panel tiq-chart-panel--donut">
+      <canvas id="deptPieChart"></canvas>
       <div id="noDeptData" class="tiq-text-center" style="display:none; padding-top:2rem; color:var(--tiq-text-3);">
         No department data.
       </div>
@@ -341,7 +344,7 @@
     <div class="tiq-card-header">
       <h2 class="tiq-card-title"><i class="fas fa-id-card" style="margin-right: 8px; color: var(--tiq-info);"></i>Users by Designation</h2>
     </div>
-    <div class="tiq-card-body" style="min-height:320px; position:relative;">
+    <div class="tiq-card-body tiq-chart-panel">
       <canvas id="desigBarChart"></canvas>
       <div id="noDesigData" class="tiq-text-center" style="display:none; padding-top:5rem; color:var(--tiq-text-3);">
         No designation data.
@@ -356,8 +359,8 @@
         Score Trend {% if period == 'all' %}(All Time){% else %}(Last {{ period }}d){% endif %}
       </h2>
     </div>
-    <div class="tiq-card-body" style="min-height:320px; position:relative;">
-      <canvas id="slopeChart" style="display:none; width:100%; height:100%;"></canvas>
+    <div class="tiq-card-body tiq-chart-panel">
+      <canvas id="slopeChart" style="display:none;"></canvas>
       <div id="noSlopeData" class="tiq-text-center" style="display:none; padding-top:5rem; color:var(--tiq-text-3);">
         No trend data.
       </div>
@@ -370,7 +373,7 @@
   <div class="tiq-card-header">
     <h2 class="tiq-card-title"><i class="fas fa-filter" style="margin-right: 8px; color: var(--tiq-primary);"></i>Level Progress Funnel</h2>
   </div>
-  <div class="tiq-card-body" style="min-height:320px; position:relative;">
+  <div class="tiq-card-body tiq-chart-panel">
     <canvas id="funnelChart"></canvas>
     <div id="noFunnelData" class="tiq-text-center" style="display:none; padding-top:5rem; color:var(--tiq-text-3);">
       No level progress data.
@@ -456,6 +459,199 @@
   <script src="https://cdn.plot.ly/plotly-1.58.4.min.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function(){
+      function getCsrfToken() {
+        return document.querySelector('meta[name="csrf-token"]')?.content || '';
+      }
+
+      // ── AnalyticsIQ (register first — chart errors must not block this) ──
+      (function initAnalyticsIQ() {
+        const aiBtn = document.getElementById('genAiInsights');
+        const aiBtnTop = document.getElementById('genAiInsightsTop');
+        const aiBody = document.getElementById('aiInsightsBody');
+        const aiStatus = document.getElementById('aiEngineStatus');
+        const pdfBtn = document.getElementById('exportAnalyticsPdf');
+        const pdfBtnTop = document.getElementById('exportAnalyticsPdfTop');
+
+        const analyticsKpis = {
+          total_users: {{ total_users }},
+          active_users: {{ active_users }},
+          avg_exam_score: {{ avg_exam_score }},
+          avg_course_progress: {{ avg_course_progress }},
+          special_avg_score: {{ special_avg_score }},
+          pass_pct: {{ pass_pct }},
+        };
+        const analyticsFilters = {
+          start_date: {{ start_date|tojson }},
+          end_date: {{ end_date|tojson }},
+          department: {{ sel_dept|tojson }},
+          designation: {{ sel_desig|tojson }},
+          period: {{ period|tojson }},
+        };
+
+        function buildAnalyticsSummary() {
+          return {
+            total_users: {{ total_users }},
+            active_users: {{ active_users }},
+            avg_exam_score: {{ avg_exam_score }},
+            avg_course_progress: {{ avg_course_progress }},
+            special_avg_score: {{ special_avg_score }},
+            pass_pct: {{ pass_pct }},
+            passed_count: {{ passed_count }},
+            failed_count: {{ failed_count }},
+            sp_pass_pct: {{ sp_pass_pct }},
+            dept_labels: {{ dept_labels|tojson }},
+            task_depts: {{ task_depts|tojson }},
+            task_assigned: {{ task_assigned|tojson }},
+            task_completed: {{ task_completed|tojson }},
+          };
+        }
+
+        async function runAiInsights(btn) {
+          if (!aiBody || !btn) return;
+          const buttons = [aiBtn, aiBtnTop].filter(Boolean);
+          buttons.forEach(b => { b.disabled = true; });
+          aiBody.textContent = 'Generating insights…';
+          try {
+            const res = await fetch('{{ url_for("admin_routes.analytics_ai_insights") }}', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+              body: JSON.stringify({ summary: buildAnalyticsSummary() }),
+            });
+            let data = {};
+            try {
+              data = await res.json();
+            } catch (_) {
+              throw new Error(res.ok ? 'Invalid server response.' : `Request failed (${res.status}).`);
+            }
+            if (!res.ok) throw new Error(data.error || 'Failed to generate insights');
+            aiBody.textContent = data.insights || 'No insights returned.';
+            if (aiStatus) {
+              if (data.source === 'ai') {
+                aiStatus.className = 'tiq-badge tiq-badge-success';
+                aiStatus.textContent = 'AI summary · ' + (data.resolved_model || 'local');
+              } else {
+                aiStatus.className = 'tiq-badge tiq-badge-warning';
+                aiStatus.textContent = data.warning || 'Rule-based summary (Ollama offline)';
+              }
+            }
+          } catch (err) {
+            aiBody.textContent = err.message || 'Could not generate insights.';
+          } finally {
+            buttons.forEach(b => { b.disabled = false; });
+          }
+        }
+
+        [aiBtn, aiBtnTop].forEach(btn => {
+          if (!btn) return;
+          btn.addEventListener('click', () => runAiInsights(btn));
+        });
+
+        async function captureChartImages() {
+          const specs = [
+            { id: 'categoryChart', title: 'Performance by Category' },
+            { id: 'examChart', title: 'Avg Exam Scores' },
+            { id: 'courseChart', title: 'Course Progress' },
+            { id: 'tasksBarChart', title: 'Tasks Assigned vs Completed by Dept' },
+            { id: 'regPassFailChart', title: 'Regular Exams Pass/Fail' },
+            { id: 'specPassFailChart', title: 'Special Exams Pass/Fail' },
+            { id: 'deptPieChart', title: 'Users by Department' },
+            { id: 'desigBarChart', title: 'Users by Designation' },
+          ];
+          const out = [];
+          for (const spec of specs) {
+            const el = document.getElementById(spec.id);
+            if (!el || el.offsetParent === null || !el.toDataURL) continue;
+            try {
+              const data = el.toDataURL('image/jpeg', 0.82);
+              if (data && data.length > 100) out.push({ title: spec.title, data });
+            } catch (_) { /* skip */ }
+            if (out.length >= 6) break;
+          }
+          const plotlySpecs = [
+            { id: 'heatmapPlot', title: 'Time Spent per Course by Dept', w: 900, h: 420 },
+            { id: 'scatter3d', title: '3D User Analytics', w: 900, h: 480 },
+          ];
+          for (const spec of plotlySpecs) {
+            if (out.length >= 8) break;
+            if (!window.Plotly || !document.getElementById(spec.id)) continue;
+            try {
+              const url = await Promise.race([
+                Plotly.toImage(spec.id, { format: 'jpeg', width: spec.w, height: spec.h, scale: 1 }),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
+              ]);
+              if (url) out.push({ title: spec.title, data: url });
+            } catch (_) { /* skip */ }
+          }
+          return out;
+        }
+
+        async function exportPdf(btn) {
+          if (!btn) return;
+          const buttons = [btn, pdfBtn, pdfBtnTop].filter(Boolean);
+          const prevHtml = new Map(buttons.map(b => [b, b.innerHTML]));
+          buttons.forEach(b => { b.disabled = true; });
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Building PDF…';
+          try {
+            let charts = [];
+            try {
+              charts = await Promise.race([
+                captureChartImages(),
+                new Promise((resolve) => setTimeout(() => resolve([]), 12000)),
+              ]);
+            } catch (_) {
+              charts = [];
+            }
+            const res = await fetch('{{ url_for("admin_routes.analytics_export_pdf") }}', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+              },
+              body: JSON.stringify({
+                kpis: analyticsKpis,
+                filters: analyticsFilters,
+                insights: aiBody ? aiBody.textContent.trim() : '',
+                charts,
+              }),
+            });
+            if (!res.ok) {
+              let msg = 'PDF export failed';
+              try {
+                const err = await res.json();
+                msg = err.error || msg;
+              } catch (_) {
+                msg = (await res.text()).slice(0, 200) || msg;
+              }
+              throw new Error(msg);
+            }
+            const ct = (res.headers.get('Content-Type') || '').toLowerCase();
+            if (!ct.includes('pdf')) {
+              throw new Error('Server did not return a PDF file.');
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `analytics-report-${new Date().toISOString().slice(0,10)}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+          } catch (err) {
+            alert(err.message || 'Could not export PDF.');
+          } finally {
+            buttons.forEach(b => {
+              b.disabled = false;
+              if (prevHtml.has(b)) b.innerHTML = prevHtml.get(b);
+            });
+          }
+        }
+
+        [pdfBtn, pdfBtnTop].forEach(btn => {
+          if (btn) btn.addEventListener('click', () => exportPdf(btn));
+        });
+      })();
+
       // SERVER DATA VARS
       const metrics       = {{ metrics|tojson }} || {};
       const user_labels   = Array.isArray(metrics.user_labels)? metrics.user_labels : [];
@@ -512,6 +708,38 @@
       Chart.defaults.plugins.tooltip.enabled = true;
       Chart.defaults.animation = { duration: 900, easing: 'easeOutQuart' };
 
+      if (typeof ChartDataLabels !== 'undefined' && Chart.register) {
+        Chart.register(ChartDataLabels);
+      }
+      const chartSurface = rootStyle.getPropertyValue('--tiq-surface').trim() || (isDark ? '#111827' : '#ffffff');
+
+      function safeChart(label, fn) {
+        try {
+          fn();
+        } catch (err) {
+          console.error('[Analytics]', label, err);
+        }
+      }
+
+      function showChartEmpty(canvasId, emptyId) {
+        const canvas = document.getElementById(canvasId);
+        const empty = document.getElementById(emptyId);
+        if (canvas) canvas.style.display = 'none';
+        if (empty) empty.style.display = 'block';
+      }
+
+      function sizeBarCanvas(canvas, itemCount) {
+        if (!canvas) return;
+        const h = Math.max(320, Math.min(720, itemCount * 32));
+        canvas.style.height = h + 'px';
+      }
+
+      function numericRange(values) {
+        const nums = (values || []).map(v => Number(v)).filter(v => Number.isFinite(v));
+        if (!nums.length) return { min: 0, max: 1 };
+        return { min: Math.min(...nums), max: Math.max(...nums) };
+      }
+
       function barGradient(ctx, colorA, colorB) {
         const g = ctx.createLinearGradient(0, 0, ctx.canvas.width, 0);
         g.addColorStop(0, colorA);
@@ -525,11 +753,12 @@
       }
 
       // --- Avg Exam Scores (horizontal bar, dynamic height) ---
-      (function(){
+      safeChart('examChart', function(){
         const canvas = document.getElementById('examChart');
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (Array.isArray(examIDs) && examIDs.length > 0) {
-          canvas.height = Math.max(420, examIDs.length * 30);
+          sizeBarCanvas(canvas, examIDs.length);
           const bg = barGradient(ctx, chartPrimary, chartSecondary);
           new Chart(ctx, {
             type: 'bar',
@@ -562,21 +791,20 @@
                   formatter: val => val + '%'
                 }
               }
-            },
-            plugins: [ChartDataLabels]
+            }
           });
         } else {
-          canvas.style.display = 'none';
-          document.getElementById('noExamData').style.display = 'block';
+          showChartEmpty('examChart', 'noExamData');
         }
-      })();
+      });
 
       // --- Course Progress (horizontal bar, dynamic height, no cap) ---
-      (function(){
+      safeChart('courseChart', function(){
         const canvas = document.getElementById('courseChart');
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (Array.isArray(courseIDs) && courseIDs.length > 0) {
-          canvas.height = Math.max(420, courseIDs.length * 30);
+          sizeBarCanvas(canvas, courseIDs.length);
           const bg2 = barGradient(ctx, chartSecondary, chartSuccess);
           new Chart(ctx, {
             type: 'bar',
@@ -603,24 +831,23 @@
                 tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.x}%` } },
                 datalabels: {
                   display: showDataLabel,
-                  color: '#000',
+                  color: '#fff',
                   anchor: 'center',
                   font: { size: 11, weight: 'bold' },
                   formatter: val => val + '%'
                 }
               }
-            },
-            plugins: [ChartDataLabels]
+            }
           });
         } else {
-          canvas.style.display = 'none';
-          document.getElementById('noCourseData').style.display = 'block';
+          showChartEmpty('courseChart', 'noCourseData');
         }
-      })();
+      });
 
       // --- Tasks Assigned vs Completed by Dept (grouped bar, wide, readable) ---
-      (function(){
+      safeChart('tasksBarChart', function(){
         const canvas = document.getElementById('tasksBarChart');
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (
           Array.isArray(taskDepts) && taskDepts.length > 0 &&
@@ -680,17 +907,16 @@
                   formatter: val => val
                 }
               }
-            },
-            plugins: [ChartDataLabels]
+            }
           });
         } else {
-          canvas.style.display = 'none';
-          document.getElementById('noTaskData').style.display = 'block';
+          showChartEmpty('tasksBarChart', 'noTaskData');
         }
-      })();
+      });
 
       // --- Time Spent Heatmap (Plotly) ---
       function drawHeatmap() {
+        safeChart('heatmapPlot', function(){
         const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
         const pTextCol = isDarkTheme ? '#94A3B8' : '#475569';
         const heatmapPlotEl = document.getElementById('heatmapPlot');
@@ -723,12 +949,14 @@
           heatmapPlotEl.style.display = 'none';
           document.getElementById('noHeatmapData').style.display = 'block';
         }
+        });
       }
       drawHeatmap();
 
       // --- Top Missed Questions (horizontal/vertical bar, dynamic) ---
-      (function(){
+      safeChart('missedBarChart', function(){
         const canvas = document.getElementById('missedBarChart');
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (Array.isArray(missedQN) && missedQN.length > 0) {
           new Chart(ctx, {
@@ -761,17 +989,15 @@
                   formatter: val => val
                 }
               }
-            },
-            plugins: [ChartDataLabels]
+            }
           });
         } else {
-          canvas.style.display = 'none';
-          document.getElementById('noMissedData').style.display = 'block';
+          showChartEmpty('missedBarChart', 'noMissedData');
         }
-      })();
+      });
 
       // --- Category performance ---
-      (function(){
+      safeChart('categoryChart', function(){
         const canvas = document.getElementById('categoryChart');
         if (!canvas || !Array.isArray(catNames) || !catNames.length) return;
         const ctx = canvas.getContext('2d');
@@ -798,11 +1024,13 @@
             plugins: { legend: { display: false } }
           }
         });
-      })();
+      });
 
       // --- Regular Exams Pass/Fail (doughnut) ---
-      (function(){
-        const ctx = document.getElementById('regPassFailChart').getContext('2d');
+      safeChart('regPassFailChart', function(){
+        const el = document.getElementById('regPassFailChart');
+        if (!el) return;
+        const ctx = el.getContext('2d');
         if ((passCount + failCount) > 0) {
           new Chart(ctx, {
             type: 'doughnut',
@@ -811,7 +1039,7 @@
               datasets: [{
                 data: [passCount, failCount],
                 backgroundColor: [chartSuccess, chartDanger],
-                borderColor: 'var(--tiq-surface)',
+                borderColor: chartSurface,
                 borderWidth: 2,
                 hoverOffset: 6
               }]
@@ -819,7 +1047,7 @@
             options: {
               cutout: '70%',
               responsive: true,
-              maintainAspectRatio: false,
+              maintainAspectRatio: true,
               plugins: {
                 legend: { display: true, position: 'bottom', labels: { color: textColor, font: { size: 12 } } },
                 tooltip: {
@@ -844,18 +1072,18 @@
                   }
                 }
               }
-            },
-            plugins: [ChartDataLabels]
+            }
           });
         } else {
-          document.getElementById('regPassFailChart').style.display = 'none';
-          document.getElementById('noRegData').style.display = 'block';
+          showChartEmpty('regPassFailChart', 'noRegData');
         }
-      })();
+      });
 
       // --- Special Exams Pass/Fail (doughnut) ---
-      (function(){
-        const ctx = document.getElementById('specPassFailChart').getContext('2d');
+      safeChart('specPassFailChart', function(){
+        const el = document.getElementById('specPassFailChart');
+        if (!el) return;
+        const ctx = el.getContext('2d');
         if ((specPassCount + specFailCount) > 0) {
           new Chart(ctx, {
             type: 'doughnut',
@@ -864,7 +1092,7 @@
               datasets: [{
                 data: [specPassCount, specFailCount],
                 backgroundColor: [chartSecondary, chartDanger],
-                borderColor: 'var(--tiq-surface)',
+                borderColor: chartSurface,
                 borderWidth: 2,
                 hoverOffset: 6
               }]
@@ -872,7 +1100,7 @@
             options: {
               cutout: '70%',
               responsive: true,
-              maintainAspectRatio: false,
+              maintainAspectRatio: true,
               plugins: {
                 legend: { display: true, position: 'bottom', labels: { color: textColor, font: { size: 12 } } },
                 tooltip: {
@@ -897,18 +1125,18 @@
                   }
                 }
               }
-            },
-            plugins: [ChartDataLabels]
+            }
           });
         } else {
-          document.getElementById('specPassFailChart').style.display = 'none';
-          document.getElementById('noSpecData').style.display = 'block';
+          showChartEmpty('specPassFailChart', 'noSpecData');
         }
-      })();
+      });
 
       // --- Users by Department (pie) ---
-      (function(){
-        const ctx = document.getElementById('deptPieChart').getContext('2d');
+      safeChart('deptPieChart', function(){
+        const el = document.getElementById('deptPieChart');
+        if (!el) return;
+        const ctx = el.getContext('2d');
         if (Array.isArray(deptLabels) && deptLabels.length > 0) {
           new Chart(ctx, {
             type: 'pie',
@@ -923,13 +1151,13 @@
                   ];
                   return palette[i % palette.length];
                 }),
-                borderColor: 'var(--tiq-surface)',
+                borderColor: chartSurface,
                 borderWidth: 1
               }]
             },
             options: {
               responsive: true,
-              maintainAspectRatio: false,
+              maintainAspectRatio: true,
               plugins: {
                 legend: { display: true, position: 'right', labels: { color: textColor, boxWidth: 12, font: { size: 11 } } },
                 tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed}` } },
@@ -945,18 +1173,17 @@
                   }
                 }
               }
-            },
-            plugins: [ChartDataLabels]
+            }
           });
         } else {
-          document.getElementById('deptPieChart').style.display = 'none';
-          document.getElementById('noDeptData').style.display = 'block';
+          showChartEmpty('deptPieChart', 'noDeptData');
         }
-      })();
+      });
 
       // --- Users by Designation (vertical bar, dynamic height) ---
-      (function(){
+      safeChart('desigBarChart', function(){
         const canvas = document.getElementById('desigBarChart');
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (Array.isArray(desigLabels) && desigLabels.length > 0) {
           new Chart(ctx, {
@@ -989,17 +1216,15 @@
                   formatter: val => val
                 }
               }
-            },
-            plugins: [ChartDataLabels]
+            }
           });
         } else {
-          canvas.style.display = 'none';
-          document.getElementById('noDesigData').style.display = 'block';
+          showChartEmpty('desigBarChart', 'noDesigData');
         }
-      })();
+      });
 
       // --- Score Trend (slope chart) ---
-      (function(){
+      safeChart('slopeChart', function(){
         const allDates = Array.from(new Set([...(trendLabels||[]), ...(specTsLabels||[])])).sort();
         const regMap  = Object.fromEntries((trendLabels||[]).map((d,i) => [d, trendScores[i]]));
         const specMap = Object.fromEntries((specTsLabels||[]).map((d,i) => [d, specTsScores[i]]));
@@ -1007,6 +1232,7 @@
         const specData = allDates.map(d => (specMap[d] !== undefined ? specMap[d] : null));
         const canvasEl = document.getElementById('slopeChart');
         const noDataEl = document.getElementById('noSlopeData');
+        if (!canvasEl || !noDataEl) return;
         const hasAnyPoint = regData.some(v => v !== null) || specData.some(v => v !== null);
         if (hasAnyPoint && allDates.length > 0) {
           canvasEl.style.display = 'block';
@@ -1058,11 +1284,13 @@
           canvasEl.style.display = 'none';
           noDataEl.style.display = 'block';
         }
-      })();
+      });
 
       // --- Level Progress Funnel (stacked bar) ---
-      (function(){
-        const ctx = document.getElementById('funnelChart').getContext('2d');
+      safeChart('funnelChart', function(){
+        const el = document.getElementById('funnelChart');
+        if (!el) return;
+        const ctx = el.getContext('2d');
         if (Array.isArray(funnelLevels) && funnelLevels.length > 0) {
           new Chart(ctx, {
             type: 'bar',
@@ -1084,10 +1312,9 @@
             }
           });
         } else {
-          document.getElementById('funnelChart').style.display = 'none';
-          document.getElementById('noFunnelData').style.display = 'block';
+          showChartEmpty('funnelChart', 'noFunnelData');
         }
-      })();
+      });
 
       // --- 3D SCATTER (Plotly) ---
       function getDeptColorMap(depts) {
@@ -1106,13 +1333,16 @@
         return found ? found.label : key;
       }
       function drawScatter3D(xkey, ykey, zkey, colorKey) {
+        safeChart('scatter3d', function(){
         const container = document.getElementById('scatter3d');
         const noDataEl = document.getElementById('noScatterData');
+        if (!container || !noDataEl) return;
         if (!Array.isArray(user_labels) || user_labels.length === 0) {
           container.style.display = 'none';
           noDataEl.style.display = 'block';
           return;
         }
+        if (!window.Plotly) return;
         container.style.display = 'block';
         noDataEl.style.display = 'none';
         const markerBase = { size: 6, opacity: 0.88, line: { width: 0.5, color: '#333' } };
@@ -1153,7 +1383,8 @@
           return;
         }
         // Color by numeric metric
-        const cVals = (metrics[colorKey]||[]);
+        const cVals = (metrics[colorKey]||[]).map(v => Number(v)).filter(v => Number.isFinite(v));
+        const cRange = numericRange(cVals);
         const trace = {
           x: (metrics[xkey]||[]),
           y: (metrics[ykey]||[]),
@@ -1163,12 +1394,12 @@
           text:user_labels,
           marker:{
             ...markerBase,
-            color: cVals,
+            color: cVals.length ? (metrics[colorKey]||[]) : chartPrimary,
             colorscale: 'Viridis',
-            showscale: true,
+            showscale: cVals.length > 0,
             colorbar:{ title: { text: getAxisLabel(colorKey), font: { color: pTextCol } }, tickfont: { color: pTextCol } },
-            cmin: Math.min(...cVals),
-            cmax: Math.max(...cVals)
+            cmin: cRange.min,
+            cmax: cRange.max
           }
         };
         const layout = {
@@ -1184,6 +1415,7 @@
           font:{ family: "var(--tiq-font-sans)", size:12, color: pTextCol }
         };
         Plotly.newPlot('scatter3d', [trace], layout, { displayModeBar: false, responsive: true });
+        });
       }
       // Initial render or fallback
       if (!Array.isArray(user_labels) || user_labels.length === 0) {
@@ -1222,183 +1454,6 @@
         }
       });
 
-      // AnalyticsIQ platform summary
-      const aiBtn = document.getElementById('genAiInsights');
-      const aiBtnTop = document.getElementById('genAiInsightsTop');
-      const aiBody = document.getElementById('aiInsightsBody');
-      const pdfBtn = document.getElementById('exportAnalyticsPdf');
-      const pdfBtnTop = document.getElementById('exportAnalyticsPdfTop');
-
-      const analyticsKpis = {
-        total_users: {{ total_users }},
-        active_users: {{ active_users }},
-        avg_exam_score: {{ avg_exam_score }},
-        avg_course_progress: {{ avg_course_progress }},
-        special_avg_score: {{ special_avg_score }},
-        pass_pct: {{ pass_pct }},
-      };
-      const analyticsFilters = {
-        start_date: {{ start_date|tojson }},
-        end_date: {{ end_date|tojson }},
-        department: {{ sel_dept|tojson }},
-        designation: {{ sel_desig|tojson }},
-        period: {{ period|tojson }},
-      };
-
-      async function captureChartImages() {
-        const specs = [
-          { id: 'categoryChart', title: 'Performance by Category' },
-          { id: 'examChart', title: 'Avg Exam Scores' },
-          { id: 'courseChart', title: 'Course Progress' },
-          { id: 'tasksBarChart', title: 'Tasks Assigned vs Completed by Dept' },
-          { id: 'regPassFailChart', title: 'Regular Exams Pass/Fail' },
-          { id: 'specPassFailChart', title: 'Special Exams Pass/Fail' },
-          { id: 'deptPieChart', title: 'Users by Department' },
-          { id: 'desigBarChart', title: 'Users by Designation' },
-        ];
-        const out = [];
-        for (const spec of specs) {
-          const el = document.getElementById(spec.id);
-          if (!el || el.offsetParent === null) continue;
-          try {
-            const data = el.toDataURL('image/jpeg', 0.82);
-            if (data && data.length > 100) out.push({ title: spec.title, data });
-          } catch (_) { /* skip */ }
-          if (out.length >= 6) break;
-        }
-        const plotlySpecs = [
-          { id: 'heatmapPlot', title: 'Time Spent per Course by Dept', w: 900, h: 420 },
-          { id: 'scatter3d', title: '3D User Analytics', w: 900, h: 480 },
-        ];
-        for (const spec of plotlySpecs) {
-          if (out.length >= 8) break;
-          if (!window.Plotly || !document.getElementById(spec.id)) continue;
-          try {
-            const url = await Promise.race([
-              Plotly.toImage(spec.id, { format: 'jpeg', width: spec.w, height: spec.h, scale: 1 }),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
-            ]);
-            if (url) out.push({ title: spec.title, data: url });
-          } catch (_) { /* skip slow/failed plotly charts */ }
-        }
-        return out;
-      }
-
-      function getCsrfToken() {
-        return document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
-      }
-
-      async function runAiInsights(btn) {
-        if (!aiBody || !btn) return;
-        btn.disabled = true;
-        aiBody.textContent = 'Generating insights…';
-        const summary = {
-          total_users: {{ total_users }},
-          active_users: {{ active_users }},
-          avg_exam_score: {{ avg_exam_score }},
-          avg_course_progress: {{ avg_course_progress }},
-          special_avg_score: {{ special_avg_score }},
-          pass_pct: {{ pass_pct }},
-          passed_count: {{ passed_count }},
-          failed_count: {{ failed_count }},
-          sp_pass_pct: {{ sp_pass_pct }},
-          dept_labels: {{ dept_labels|tojson }},
-          task_depts: {{ task_depts|tojson }},
-          task_assigned: {{ task_assigned|tojson }},
-          task_completed: {{ task_completed|tojson }}
-        };
-        try {
-          const res = await fetch('{{ url_for("admin_routes.analytics_ai_insights") }}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
-            body: JSON.stringify({ summary })
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Failed to generate insights');
-          aiBody.textContent = data.insights || 'No insights returned.';
-        } catch (err) {
-          aiBody.textContent = err.message || 'Could not generate insights.';
-        } finally {
-          btn.disabled = false;
-          if (aiBtnTop) aiBtnTop.disabled = false;
-          if (aiBtn) aiBtn.disabled = false;
-        }
-      }
-
-      [aiBtn, aiBtnTop].forEach(btn => {
-        if (!btn) return;
-        btn.addEventListener('click', () => {
-          if (aiBtn) aiBtn.disabled = true;
-          if (aiBtnTop) aiBtnTop.disabled = true;
-          runAiInsights(btn);
-        });
-      });
-
-      async function exportPdf(btn) {
-        if (!btn) return;
-        const buttons = [btn, pdfBtn, pdfBtnTop].filter(Boolean);
-        const prevHtml = new Map(buttons.map(b => [b, b.innerHTML]));
-        buttons.forEach(b => { b.disabled = true; });
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Building PDF…';
-        try {
-            let charts = [];
-            try {
-              charts = await Promise.race([
-                captureChartImages(),
-                new Promise((resolve) => setTimeout(() => resolve([]), 12000)),
-              ]);
-            } catch (_) {
-              charts = [];
-            }
-            const res = await fetch('{{ url_for("admin_routes.analytics_export_pdf") }}', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken(),
-              },
-              body: JSON.stringify({
-                kpis: analyticsKpis,
-                filters: analyticsFilters,
-                insights: aiBody ? aiBody.textContent.trim() : '',
-                charts,
-              }),
-            });
-            if (!res.ok) {
-              let msg = 'PDF export failed';
-              try {
-                const err = await res.json();
-                msg = err.error || msg;
-              } catch (_) {
-                msg = (await res.text()).slice(0, 200) || msg;
-              }
-              throw new Error(msg);
-            }
-            const ct = (res.headers.get('Content-Type') || '').toLowerCase();
-            if (!ct.includes('pdf')) {
-              throw new Error('Server did not return a PDF file.');
-            }
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `analytics-report-${new Date().toISOString().slice(0,10)}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-          } catch (err) {
-            alert(err.message || 'Could not export PDF.');
-          } finally {
-            buttons.forEach(b => {
-              b.disabled = false;
-              if (prevHtml.has(b)) b.innerHTML = prevHtml.get(b);
-            });
-          }
-      }
-
-      [pdfBtn, pdfBtnTop].forEach(btn => {
-        if (btn) btn.addEventListener('click', () => exportPdf(btn));
-      });
     });
   </script>
 {% endblock %}

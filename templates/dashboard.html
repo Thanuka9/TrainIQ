@@ -516,26 +516,37 @@
     const status = document.getElementById("analyticsiqStatus");
     const btn = document.getElementById("analyticsiqBtn");
     btn.disabled = true;
-    status.textContent = "Running AnalyticsIQ in background (Gemma 4)...";
+    status.textContent = "Running AnalyticsIQ...";
     result.textContent = "";
     try {
+      const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
       const res = await fetch("{{ url_for('general_routes.analyticsiq_start') }}", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token() }}" },
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
       });
       const start = await res.json();
       if (!res.ok) throw new Error(start.error || "Failed to start analysis");
+      if (start.status === "complete" && start.diagnosis) {
+        status.textContent = start.source === "ai"
+          ? `Powered by local ${start.resolved_model || "gemma4:e4b"} — no API keys required.`
+          : (start.warning || "Rule-based summary — start Ollama for AI coaching.");
+        result.textContent = start.diagnosis;
+        return;
+      }
       const data = await window.TrainIQAI.pollJob(start.job_id, (job) => {
         status.textContent = `AnalyticsIQ: ${job.status}...`;
       });
       const model = data.resolved_model || "gemma4:e4b";
-      status.textContent = `Powered by local ${model} — no API keys required.`;
+      status.textContent = data.source === "ai"
+        ? `Powered by local ${model} — no API keys required.`
+        : "Rule-based summary — start Ollama for AI coaching.";
       result.textContent = data.diagnosis;
     } catch (e) {
-      status.textContent = "AI analysis unavailable.";
+      status.textContent = "Analysis unavailable.";
       result.textContent = e.message;
+    } finally {
+      btn.disabled = false;
     }
-    btn.disabled = false;
   });
 </script>
 </body>

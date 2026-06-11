@@ -353,12 +353,38 @@ def permission_summary(user) -> str:
     if not perms:
         role_names = [r.name for r in (getattr(user, "roles", []) or [])]
         if role_names:
-            return f"Role: {', '.join(role_names)}"
+            return ", ".join(role_names)
         return "Member"
     overrides = _normalize_overrides(getattr(user, "admin_permissions", None))
     preset = overrides.get("preset")
     if preset and preset != "custom" and preset in PERMISSION_PRESETS:
         return PERMISSION_PRESETS[preset][0]
+    if len(perms) == 1:
+        return _permission_short_label(next(iter(perms)))
     if len(perms) <= 3:
-        return ", ".join(PERMISSIONS[p][0] for p in sorted(perms)[:3])
-    return f"{len(perms)} admin areas"
+        return ", ".join(_permission_short_label(p) for p in sorted(perms)[:3])
+    return f"{len(perms)} areas"
+
+
+def _permission_short_label(code: str) -> str:
+    short = {
+        "users.manage": "Users",
+        "users.permissions": "Access mgr",
+        "courses.manage": "Courses",
+        "exams.manage": "Exams",
+        "roles.manage": "Roles",
+        "clients.manage": "Clients",
+        "level_areas.manage": "Levels",
+        "analytics.view": "Analytics",
+        "reports.view": "Reports",
+        "incorrect.view": "Incorrect",
+        "proctor.view": "ProctorIQ",
+        "audit.view": "Audit",
+        "exam_requests.manage": "Exam req.",
+        "announcements.manage": "Announce",
+        "support.manage": "Support",
+        "seeds.manage": "Seeds",
+        "org.billing": "Billing",
+        "org.settings": "Settings",
+    }
+    return short.get(code, PERMISSIONS.get(code, (code,))[0])
