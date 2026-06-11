@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html><body style="font-family:Arial,sans-serif;background:#f4f4f7;margin:0;padding:24px;">
+  <table width="600" align="center" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;padding:32px;">
+    <tr><td>
+      <h2 style="color:#4f46e5;margin:0 0 12px;">Welcome to TrainIQ!</h2>
+      <p style="color:#555;line-height:1.6;">
+        Hi{% if admin_user %} {{ admin_user.first_name }}{% endif %} — <strong>{{ tenant.name }}</strong> is live.
+        Your 30-day trial includes AI LearnIQ, ProctorIQ exams, and up to 10 team members.
+      </p>
+      <table style="background:#f8fafc;border-radius:8px;width:100%;margin:20px 0;">
+        <tr><td style="padding:16px;font-size:14px;">
+          <strong>Office Key:</strong> {{ tenant.office_key }}<br/>
+          Share this with your team for sign-in.
+        </td></tr>
+      </table>
+      <p style="color:#555;line-height:1.6;"><strong>Your pilot checklist:</strong></p>
+      <ol style="color:#555;line-height:1.8;">
+        <li>Upload a course (study materials)</li>
+        <li>Invite 3 team members</li>
+        <li>Run a proctored exam</li>
+      </ol>
+      <p style="text-align:center;margin:28px 0;">
+        <a href="{{ dashboard_url }}" style="background:#4f46e5;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;">Open dashboard</a>
+      </p>
+    </td></tr>
+  </table>
+</body></html>

@@ -1,61 +1,87 @@
-{% extends "admin_base.html" %} {% block title %}All Support Tickets{% endblock
-%} {% block content %}
-<div class="container my-5">
-  <h2 class="mb-4">All Support Tickets</h2>
+{% extends "admin_base.html" %}
 
-  {% if tickets %}
-  <div class="table-responsive shadow-sm">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="table-light">
-        <tr>
-          <th scope="col">#ID</th>
-          <th scope="col">Title</th>
-          <th scope="col">Submitted By</th>
-          <th scope="col">Status</th>
-          <th scope="col">Assigned To</th>
-          <th scope="col">Created At</th>
-          <th scope="col">Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for t in tickets %}
-        <tr>
-          <td>#{{ t.id }}</td>
-          <td>{{ t.title }}</td>
-          <td>{{ t.user.first_name }} {{ t.user.last_name }}</td>
-          <td>
-            {% if t.status == 'Resolved' %}
-            <span class="badge bg-success">Resolved</span>
-            {% elif t.status == 'In Progress' %}
-            <span class="badge bg-warning text-dark">In Progress</span>
-            {% else %}
-            <span class="badge bg-secondary">Open</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if t.assignee %} {{ t.assignee.first_name }} {{
-            t.assignee.last_name }} {% else %}
-            <em>Unassigned</em>
-            {% endif %}
-          </td>
-          <td>{{ t.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-          <td>
-            <a
-              href="{{ url_for('admin_routes.admin_view_ticket', ticket_id=t.id) }}"
-              class="btn btn-sm btn-primary"
-            >
-              View/Edit
-            </a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+{% block title %}All Support Tickets{% endblock %}
+
+{% block breadcrumb %}
+<a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+<span class="tiq-breadcrumb-sep">/</span>
+<span>Support Tickets</span>
+{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <div class="tiq-breadcrumb">
+        <a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+        <span class="tiq-breadcrumb-sep">/</span>
+        <span>Support Tickets</span>
+      </div>
+      <h1>All Support Tickets</h1>
+    </div>
   </div>
-  {% else %}
-  <div class="alert alert-info">
-    No support tickets have been submitted yet.
+</div>
+
+<div class="tiq-card">
+  <div class="tiq-card-header">
+    <h2 class="tiq-card-title"><i class="fas fa-headset" style="margin-right:8px; color:var(--tiq-accent);"></i>Active Support Queues</h2>
   </div>
-  {% endif %}
+  <div class="tiq-card-body" style="padding:0;">
+    {% if tickets %}
+    <div class="tiq-table-wrapper">
+      <table class="tiq-table">
+        <thead>
+          <tr>
+            <th style="padding-left:1.5rem; width:100px;">#ID</th>
+            <th>Title</th>
+            <th>Submitted By</th>
+            <th>Status</th>
+            <th>Assigned To</th>
+            <th>Created At</th>
+            <th class="tiq-text-center" style="width:140px;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in tickets %}
+          <tr>
+            <td style="padding-left:1.5rem; font-weight:600;">#{{ t.id }}</td>
+            <td style="font-weight:600; color:var(--tiq-text);">{{ t.title }}</td>
+            <td>{{ t.user.first_name }} {{ t.user.last_name }}</td>
+            <td>
+              {% if t.status == 'Resolved' %}
+                <span class="tiq-badge tiq-badge-success">Resolved</span>
+              {% elif t.status == 'In Progress' %}
+                <span class="tiq-badge tiq-badge-warning">In Progress</span>
+              {% else %}
+                <span class="tiq-badge tiq-badge-info">Open</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if t.assignee %}
+                <span style="font-weight:500;">{{ t.assignee.first_name }} {{ t.assignee.last_name }}</span>
+              {% else %}
+                <span style="font-style:italic; color:var(--tiq-text-3);">Unassigned</span>
+              {% endif %}
+            </td>
+            <td style="font-size:0.8125rem; color:var(--tiq-text-3);">{{ t.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td class="tiq-text-center">
+              <a href="{{ url_for('admin_routes.admin_view_ticket', ticket_id=t.id) }}"
+                 class="tiq-btn tiq-btn-sm tiq-btn-primary">
+                View/Edit
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="tiq-empty" style="padding:4rem;">
+      <div class="tiq-empty-icon"><i class="fas fa-headset" style="opacity:0.25;"></i></div>
+      <h3>No Tickets</h3>
+      <p>No support tickets have been submitted yet.</p>
+    </div>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

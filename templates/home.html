@@ -1,241 +1,661 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Welcome to Collective</title>
-    <!-- Bootstrap CSS -->
-    <link
-      rel="stylesheet"
-      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
-    />
-    <!-- Google Fonts -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap"
-      rel="stylesheet"
-    />
-    <!-- Font Awesome for Social Icons -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
-    />
-    <style>
-      body {
-        min-height: 100vh;
-        background: radial-gradient(circle at 10% 20%, #e0f7fa 0%, #f8fafc 80%);
-        font-family: "Roboto", Arial, sans-serif;
-        position: relative;
-        overflow-x: hidden;
-      }
-      .bg-image::before,
-      .bg-image::after {
-        content: "";
-        position: absolute;
-        border-radius: 50%;
-        opacity: 0.18;
-        z-index: 0;
-      }
-      .bg-image::before {
-        width: 600px;
-        height: 600px;
-        left: -200px;
-        top: -220px;
-        background: #b2ebf2;
-      }
-      .bg-image::after {
-        width: 700px;
-        height: 700px;
-        right: -250px;
-        bottom: -250px;
-        background: #c8e6c9;
-      }
-      .bg-white.rounded-4 {
-        background: #fff !important;
-        border-radius: 24px !important;
-        box-shadow: 0 8px 48px 0 rgba(32, 37, 54, 0.13);
-        max-width: 650px;
-        min-width: 340px;
-        position: relative;
-        z-index: 2;
-      }
-      .logo-title .logo {
-        width: 76px;
-        height: 76px;
-        object-fit: contain;
-        border-radius: 18px;
-        box-shadow: 0 4px 18px rgba(32, 37, 54, 0.14);
-        margin-bottom: 0.7rem;
-        background: #fff;
-        padding: 6px;
-      }
-      .welcome-text {
-        font-size: 2.35rem;
-        font-weight: 700;
-        margin-bottom: 0.7rem;
-        color: #212529;
-      }
-      .red-text {
-        color: #ea4335;
-        font-weight: 800;
-      }
-      .btn-group .btn {
-        min-width: 180px;
-        padding: 0.8rem 0;
-        font-size: 1.15rem;
-        font-weight: 700;
-        border-radius: 999px !important;
-        margin: 0 0.5rem;
-        transition: transform 0.18s, box-shadow 0.18s;
-      }
-      .btn-primary {
-        background: linear-gradient(90deg, #007cf0 0%, #00dfd8 100%);
-        border: none;
-        color: #fff;
-      }
-      .btn-success {
-        background: linear-gradient(90deg, #1fd366 0%, #18e7a1 100%);
-        border: none;
-        color: #fff;
-      }
-      .btn-primary:hover,
-      .btn-success:hover {
-        transform: scale(1.05);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        color: #fff !important;
-      }
-      .social-icons {
-        margin-top: 1.5rem;
-        display: flex;
-        justify-content: center;
-        gap: 36px;
-      }
-      .social-icon {
-        font-size: 2.15rem;
-        transition: transform 0.16s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      /* Brand color for each icon */
-      .social-icon.instagram {
-        color: #e4405f;
-      }
-      .social-icon.linkedin {
-        color: #0077b5;
-      }
-      .social-icon.tiktok {
-        color: #000;
-      } /* TikTok uses a black icon, but we can add neon effect */
-      .social-icon.tiktok:hover {
-        /* TikTok uses a special effect, here’s a subtle blue-pink shadow */
-        text-shadow: 0 0 8px #25f4ee, 0 0 16px #fe2c55;
-      }
-      .social-icon.instagram:hover {
-        color: #c13584;
-        transform: scale(1.13);
-      }
-      .social-icon.linkedin:hover {
-        color: #005983;
-        transform: scale(1.13);
-      }
-      .social-icon.tiktok:hover {
-        color: #fe2c55;
-        transform: scale(1.13);
-      }
-      .text-muted {
-        color: #b0b0b0 !important;
-        font-size: 1rem;
-        margin-top: 1.7rem;
-        margin-bottom: 0;
-      }
-      @media (max-width: 600px) {
-        .bg-white.rounded-4 {
-          padding: 2rem 0.5rem;
-          min-width: unset;
-          max-width: 99vw;
-        }
-        .welcome-text {
-          font-size: 1.3rem;
-        }
-        .logo-title .logo {
-          width: 48px;
-          height: 48px;
-        }
-        .btn-group .btn {
-          min-width: 110px;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div
-      class="container-fluid bg-image min-vh-100 d-flex align-items-center justify-content-center"
-      style="position: relative"
-    >
-      <div class="text-center p-5 bg-white rounded-4 shadow-lg">
-        <!-- Logo and Title Centered with Reduced Size -->
-        <div class="logo-title text-center mb-4">
-          <img
-            src="{{ url_for('static', filename='images/logo.png') }}"
-            alt="Company Logo"
-            class="logo"
-          />
-        </div>
-        <h2 class="welcome-text">
-          Welcome to Collect<span class="red-text">IVE</span>
-        </h2>
-        <p>
-          Streamlining Employee Performance, Client Resources, and Continuous
-          Learning.
-        </p>
-        <p>
-          Manage your tasks, access study materials, and track your
-          performance—all in one place.
-        </p>
-        <!-- Centered Buttons -->
-        <div class="btn-group d-flex justify-content-center my-3">
-          <a
-            href="{{ url_for('auth_routes.login') }}"
-            class="btn btn-primary btn-lg mx-2"
-            >Login</a
-          >
-          <a
-            href="{{ url_for('auth_routes.register') }}"
-            class="btn btn-success btn-lg mx-2"
-            >Register</a
-          >
-        </div>
-        <!-- Social Media Icons -->
-        <div class="social-icons mt-4">
-          <a
-            href="https://www.instagram.com/collectivercm/"
-            target="_blank"
-            class="social-icon instagram"
-            aria-label="Instagram"
-          >
-            <i class="fab fa-instagram"></i>
-          </a>
-          <a
-            href="https://www.linkedin.com/company/collectivecareers?originalSubdomain=lk"
-            target="_blank"
-            class="social-icon linkedin"
-            aria-label="LinkedIn"
-          >
-            <i class="fab fa-linkedin"></i>
-          </a>
-          <a
-            href="https://www.tiktok.com/@collective.rcm?_t=8n1u46ddh3q&_r=1&fbclid=PAZXh0bgNhZW0CMTEAAab0DC507Wso1MHBK5Ysv4jigt93_BBcZZyikoQMEBabLp-nD34mYkYMGzU_aem_lrcC4gEy9ISKEeC4Skl5cg"
-            target="_blank"
-            class="social-icon tiktok"
-            aria-label="TikTok"
-          >
-            <i class="fab fa-tiktok"></i>
-          </a>
-        </div>
-        <div class="mt-4">
-          <p class="text-muted">Collective Intranet© 2024</p>
-        </div>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TrainIQ — Smart Workforce Training & Performance Platform</title>
+  <meta name="description" content="TrainIQ is the all-in-one SaaS platform for workforce training, performance tracking, exam management, and team analytics."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
+  <style>
+    /* ── Home-specific overrides ── */
+    body { overflow-x: hidden; }
+
+    /* Hero */
+    .hero {
+      min-height: 100vh;
+      background: var(--tiq-gradient-hero);
+      display: flex; flex-direction: column;
+      position: relative; overflow: hidden;
+    }
+    .hero-orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(80px); pointer-events: none;
+      animation: orbDrift 15s ease-in-out infinite alternate;
+    }
+    .hero-orb-1 { width: 600px; height: 600px; background: rgba(79,70,229,0.35); top: -200px; right: -150px; }
+    .hero-orb-2 { width: 400px; height: 400px; background: rgba(6,182,212,0.25); bottom: -100px; left: -100px; animation-delay: -5s; }
+    .hero-orb-3 { width: 250px; height: 250px; background: rgba(245,158,11,0.15); top: 40%; left: 30%; animation-delay: -10s; }
+
+    @keyframes orbDrift {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(60px, -40px) scale(1.1); }
+      100% { transform: translate(-30px, 50px) scale(0.9); }
+    }
+
+    /* Navbar */
+    .home-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.85rem 3rem;
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(10, 15, 30, 0.45);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .home-nav-brand {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .home-nav-logo {
+      width: 40px; height: 40px;
+      background: var(--tiq-gradient);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 900; color: white;
+      box-shadow: 0 4px 16px rgba(79,70,229,0.5);
+    }
+    .home-nav-name {
+      font-size: 1.4rem; font-weight: 800; color: white;
+      letter-spacing: -0.04em;
+    }
+    .home-nav-name span { color: var(--tiq-secondary); }
+    .home-nav-links {
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .home-nav-link {
+      color: rgba(255,255,255,0.75); font-size: 0.9rem;
+      font-weight: 500; padding: 0.5rem 1rem;
+      border-radius: var(--tiq-radius-full);
+      transition: all var(--tiq-transition);
+      text-decoration: none;
+    }
+    .home-nav-link:hover { color: white; background: rgba(255,255,255,0.1); }
+    .home-nav-cta {
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    @media (max-width: 768px) {
+      .home-nav { padding: 1rem 1.5rem; }
+      .home-nav-links { display: none; }
+    }
+
+    /* Hero Content */
+    .hero-content {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 8rem 2rem 4rem;
+      position: relative; z-index: 2;
+    }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(79,70,229,0.25);
+      border: 1px solid rgba(79,70,229,0.4);
+      color: #a5b4fc;
+      font-size: 0.8rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 0.4rem 1rem; border-radius: var(--tiq-radius-full);
+      margin-bottom: 1.5rem;
+      animation: fadeUp 0.6s ease-out both;
+    }
+    .hero-title {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 900; line-height: 1.08;
+      color: white; letter-spacing: -0.04em;
+      margin-bottom: 1.5rem;
+      animation: fadeUp 0.6s 0.1s ease-out both;
+    }
+    .hero-title .accent {
+      background: linear-gradient(135deg, var(--tiq-secondary), #10b981, #6366f1, var(--tiq-secondary));
+      background-size: 300% 300%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: gradientShift 6s ease infinite;
+      text-shadow: 0 0 40px rgba(16, 185, 129, 0.15);
+    }
+    .hero-title .underline-accent {
+      position: relative; display: inline-block;
+    }
+    .hero-title .underline-accent::after {
+      content: '';
+      position: absolute; bottom: -4px; left: 0; right: 0;
+      height: 4px; border-radius: 2px;
+      background: linear-gradient(90deg, var(--tiq-secondary), #10b981, #6366f1, var(--tiq-secondary));
+      background-size: 300% 300%;
+      animation: gradientShift 6s ease infinite;
+    }
+    .hero-eyebrow i {
+      animation: pulseIcon 2.2s infinite ease-in-out;
+      display: inline-block;
+    }
+
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    @keyframes pulseIcon {
+      0%, 100% { transform: scale(1); opacity: 0.85; color: #f59e0b; }
+      50% { transform: scale(1.3); opacity: 1; color: #fbbf24; filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.7)); }
+    }
+    .hero-subtitle {
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: rgba(255,255,255,0.65);
+      max-width: 680px; line-height: 1.7;
+      margin-bottom: 2.5rem;
+      animation: fadeUp 0.6s 0.2s ease-out both;
+    }
+    .hero-actions {
+      display: flex; align-items: center; gap: 1rem;
+      flex-wrap: wrap; justify-content: center;
+      margin-bottom: 4rem;
+      animation: fadeUp 0.6s 0.3s ease-out both;
+    }
+    .hero-btn-primary {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: white; color: #1E1B4B;
+      padding: 0.875rem 2rem; border-radius: var(--tiq-radius-full);
+      font-weight: 800; font-size: 1rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+      transition: all var(--tiq-transition);
+      text-decoration: none;
+    }
+    .hero-btn-primary:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.35);
+      color: var(--tiq-primary);
+    }
+    .hero-btn-ghost {
+      display: inline-flex; align-items: center; gap: 8px;
+      color: rgba(255,255,255,0.85); font-weight: 600; font-size: 0.95rem;
+      border: 1.5px solid rgba(255,255,255,0.25);
+      padding: 0.875rem 1.75rem; border-radius: var(--tiq-radius-full);
+      transition: all var(--tiq-transition);
+      text-decoration: none;
+    }
+    .hero-btn-ghost:hover {
+      border-color: white; color: white;
+      background: rgba(255,255,255,0.08);
+      transform: translateY(-2px);
+    }
+
+    /* Hero Stats */
+    .hero-stats {
+      display: flex; gap: 3rem; justify-content: center;
+      animation: fadeUp 0.6s 0.4s ease-out both;
+    }
+    .hero-stat { text-align: center; }
+    .hero-stat-value { font-size: 1.75rem; font-weight: 800; color: white; }
+    .hero-stat-label { font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-top: 2px; }
+    @media (max-width: 480px) {
+      .hero-stats { gap: 1.5rem; }
+      .hero-stat-value { font-size: 1.35rem; }
+    }
+
+    /* Section */
+    section { padding: 6rem 2rem; }
+    .section-eyebrow {
+      font-size: 0.75rem; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--tiq-primary); margin-bottom: 0.75rem;
+    }
+    .section-title {
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      font-weight: 800; letter-spacing: -0.03em;
+      color: var(--tiq-text); margin-bottom: 1rem;
+    }
+    .section-sub {
+      font-size: 1.0625rem; color: var(--tiq-text-2);
+      max-width: 560px; line-height: 1.7;
+    }
+    .section-header { margin-bottom: 3.5rem; }
+
+    /* Features */
+    .features { background: var(--tiq-bg); }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem; max-width: 1200px; margin: 0 auto;
+    }
+    .feature-card {
+      background: var(--tiq-surface);
+      border-radius: var(--tiq-radius-xl);
+      border: 1px solid var(--tiq-border);
+      padding: 2rem;
+      transition: all var(--tiq-transition-slow);
+      position: relative; overflow: hidden;
+    }
+    .feature-card:hover {
+      box-shadow: var(--tiq-shadow-lg);
+      transform: translateY(-4px);
+      border-color: var(--tiq-primary);
+    }
+    .feature-card::before {
+      content: ''; position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      background: var(--tiq-gradient); opacity: 0;
+      transition: opacity var(--tiq-transition);
+    }
+    .feature-card:hover::before { opacity: 1; }
+    .feature-icon {
+      width: 56px; height: 56px;
+      background: var(--tiq-gradient-soft);
+      border-radius: var(--tiq-radius-lg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; margin-bottom: 1.25rem;
+      color: var(--tiq-primary);
+      border: 1px solid rgba(79,70,229,0.15);
+    }
+    .feature-title { font-size: 1.0625rem; font-weight: 700; margin-bottom: 0.6rem; }
+    .feature-desc { font-size: 0.9rem; color: var(--tiq-text-2); line-height: 1.65; }
+
+    /* How it works */
+    .how-it-works { background: var(--tiq-surface); }
+    .steps-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 2rem; max-width: 1000px; margin: 0 auto;
+      position: relative;
+    }
+    .step-card { text-align: center; padding: 1.5rem; }
+    .step-number {
+      width: 56px; height: 56px;
+      background: var(--tiq-gradient);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem; font-weight: 900; color: white;
+      margin: 0 auto 1rem;
+      box-shadow: 0 8px 24px rgba(79,70,229,0.35);
+    }
+    .step-title { font-weight: 700; margin-bottom: 0.5rem; }
+    .step-desc { font-size: 0.875rem; color: var(--tiq-text-2); }
+
+    /* Pricing */
+    .pricing { background: var(--tiq-bg); }
+    .pricing-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem; max-width: 960px; margin: 0 auto;
+      align-items: center;
+    }
+    .pricing-card {
+      background: var(--tiq-surface);
+      border-radius: var(--tiq-radius-xl);
+      border: 1px solid var(--tiq-border);
+      padding: 2.5rem 2rem; text-align: center;
+      position: relative; transition: all var(--tiq-transition-slow);
+    }
+    .pricing-card:hover { transform: translateY(-4px); box-shadow: var(--tiq-shadow-lg); }
+    .pricing-card.featured {
+      background: var(--tiq-gradient);
+      border-color: transparent;
+      transform: scale(1.04);
+      box-shadow: 0 20px 60px rgba(79,70,229,0.4);
+    }
+    .pricing-card.featured:hover { transform: scale(1.04) translateY(-4px); }
+    .pricing-plan { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1rem; color: var(--tiq-primary); }
+    .pricing-card.featured .pricing-plan { color: rgba(255,255,255,0.7); }
+    .pricing-price { font-size: 3rem; font-weight: 900; line-height: 1; margin-bottom: 0.25rem; }
+    .pricing-card.featured .pricing-price, .pricing-card.featured .pricing-period,
+    .pricing-card.featured .pricing-features li, .pricing-card.featured .pricing-plan { color: white; }
+    .pricing-period { font-size: 0.875rem; color: var(--tiq-text-3); margin-bottom: 1.5rem; }
+    .pricing-features { list-style: none; margin-bottom: 2rem; text-align: left; }
+    .pricing-features li {
+      display: flex; align-items: center; gap: 10px;
+      padding: 0.5rem 0; font-size: 0.875rem;
+      border-bottom: 1px solid var(--tiq-border);
+    }
+    .pricing-card.featured .pricing-features li { border-color: rgba(255,255,255,0.15); }
+    .pricing-features li:last-child { border-bottom: none; }
+    .pricing-features li i { color: var(--tiq-success); }
+    .pricing-card.featured .pricing-features li i { color: #a7f3d0; }
+    .pricing-badge {
+      position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+      background: var(--tiq-accent); color: #7c2d12;
+      font-size: 0.7rem; font-weight: 800;
+      padding: 0.35rem 1rem; border-radius: var(--tiq-radius-full);
+      letter-spacing: 0.05em; text-transform: uppercase;
+      box-shadow: 0 4px 12px rgba(245,158,11,0.4);
+    }
+
+    /* CTA */
+    .cta-section {
+      background: var(--tiq-gradient-hero);
+      text-align: center; padding: 6rem 2rem;
+      position: relative; overflow: hidden;
+    }
+    .cta-section .hero-orb-1 { opacity: 0.5; }
+    .cta-title { font-size: clamp(2rem, 4vw, 3rem); font-weight: 900; color: white; margin-bottom: 1rem; }
+    .cta-sub { color: rgba(255,255,255,0.65); font-size: 1.0625rem; margin-bottom: 2.5rem; }
+
+    /* Footer */
+    .home-footer {
+      background: var(--tiq-sidebar-bg);
+      padding: 3rem 2rem 2rem;
+    }
+    .footer-content {
+      max-width: 1200px; margin: 0 auto;
+      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 2rem; margin-bottom: 3rem;
+    }
+    @media (max-width: 768px) {
+      .footer-content { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 480px) {
+      .footer-content { grid-template-columns: 1fr; }
+    }
+    .footer-brand p { font-size: 0.875rem; color: rgba(255,255,255,0.45); margin-top: 0.75rem; line-height: 1.6; }
+    .footer-col h4 { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 1rem; }
+    .footer-col a { display: block; font-size: 0.875rem; color: rgba(255,255,255,0.55); margin-bottom: 0.5rem; text-decoration: none; transition: color var(--tiq-transition); }
+    .footer-col a:hover { color: white; }
+    .footer-bottom {
+      max-width: 1200px; margin: 0 auto;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 1rem;
+    }
+    .footer-bottom p { font-size: 0.8125rem; color: rgba(255,255,255,0.3); }
+    .footer-social { display: flex; gap: 0.75rem; }
+    .footer-social a {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,0.5); font-size: 0.875rem;
+      transition: all var(--tiq-transition); text-decoration: none;
+    }
+    .footer-social a:hover { background: var(--tiq-primary); color: white; transform: translateY(-2px); }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Hero Section ─────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-orb hero-orb-1"></div>
+  <div class="hero-orb hero-orb-2"></div>
+  <div class="hero-orb hero-orb-3"></div>
+
+  <!-- Navbar -->
+  <nav class="home-nav">
+    <div class="home-nav-brand">
+      <div class="home-nav-logo" style="overflow:hidden; display:flex; align-items:center; justify-content:center;">
+        {% if global_logo_url %}
+          <img src="{{ global_logo_url }}" alt="Logo" style="width:100%; height:100%; object-fit:cover;">
+        {% else %}
+          <i class="fas fa-brain"></i>
+        {% endif %}
+      </div>
+      <div class="home-nav-name">
+        {% if is_platform_brand %}
+          Train<span>IQ</span>
+        {% else %}
+          {{ display_org_name }}
+        {% endif %}
       </div>
     </div>
-  </body>
+    <div class="home-nav-links">
+      <a href="#features" class="home-nav-link">Features</a>
+      <a href="#how-it-works" class="home-nav-link">How It Works</a>
+      <a href="{{ url_for('general_routes.pricing') }}" class="home-nav-link">Pricing</a>
+    </div>
+    <div class="home-nav-cta">
+      <a href="{{ url_for('auth_routes.login') }}"
+         style="color:rgba(255,255,255,0.8);font-size:0.9rem;font-weight:600;text-decoration:none;padding:0.5rem 1rem;transition:color 0.2s;"
+         onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.8)'">
+        Sign In
+      </a>
+      <a href="{{ url_for('auth_routes.onboarding', plan='trial') }}" class="hero-btn-primary" style="padding:0.6rem 1.25rem;font-size:0.9rem;">
+        Get Started <i class="fas fa-arrow-right"></i>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Content -->
+  <div class="hero-content">
+    <div class="hero-eyebrow">
+      <i class="fas fa-bolt"></i> AI-Powered Workforce Training
+    </div>
+    <h1 class="hero-title">
+      Train Smarter.<br/>
+      <span class="underline-accent">Grow <span class="accent">Faster</span>.</span>
+    </h1>
+    <p class="hero-subtitle">
+      TrainIQ is the all-in-one platform for managing employee training, performance exams,
+      knowledge bases, and team analytics — built for modern organizations that take learning seriously.
+    </p>
+    <div class="hero-actions">
+      <a href="{{ url_for('auth_routes.onboarding', plan='trial') }}" class="hero-btn-primary">
+        <i class="fas fa-rocket"></i> Start Free Trial
+      </a>
+      <a href="{{ url_for('auth_routes.login') }}" class="hero-btn-ghost">
+        <i class="fas fa-sign-in-alt"></i> Sign In
+      </a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-value">10K+</div>
+        <div class="hero-stat-label">Employees Trained</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">98%</div>
+        <div class="hero-stat-label">Completion Rate</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">500+</div>
+        <div class="hero-stat-label">Organizations</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ─────────────────────────────────────────── -->
+<section class="features" id="features">
+  <div class="tiq-container">
+    <div class="section-header tiq-text-center">
+      <div class="section-eyebrow">Everything You Need</div>
+      <h2 class="section-title">A complete training ecosystem</h2>
+      <p class="section-sub" style="margin:0 auto">
+        From onboarding to advanced certification — manage your entire workforce training journey in one place.
+      </p>
+    </div>
+    <div class="features-grid tiq-stagger">
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-graduation-cap"></i></div>
+        <h3 class="feature-title">Knowledge Base</h3>
+        <p class="feature-desc">Structured study materials with progress tracking, subtopics, and time-on-page analytics. Your team learns at their own pace.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-file-alt"></i></div>
+        <h3 class="feature-title">Exam Engine</h3>
+        <p class="feature-desc">Create timed, level-based assessments with automatic grading, multiple attempts, and detailed incorrect-answer reports.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-list-check"></i></div>
+        <h3 class="feature-title">Task Management</h3>
+        <p class="feature-desc">Assign, track, and manage tasks with priority levels, due dates, document attachments, and real-time progress updates.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+        <h3 class="feature-title">Advanced Analytics</h3>
+        <p class="feature-desc">Deep insights into team performance, learning velocity, exam pass rates, and skill gap identification at every level.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-shield-halved"></i></div>
+        <h3 class="feature-title">Role-Based Access</h3>
+        <p class="feature-desc">Granular RBAC with super-admin, admin, and member roles. 2FA security, audit logs, and session management built-in.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-briefcase"></i></div>
+        <h3 class="feature-title">HR Management</h3>
+        <p class="feature-desc">Manage designations, departments, clients, and employee profiles. Compare performance across your entire organization.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── How It Works ─────────────────────────────────────── -->
+<section class="how-it-works" id="how-it-works">
+  <div class="tiq-container">
+    <div class="section-header tiq-text-center">
+      <div class="section-eyebrow">Simple Setup</div>
+      <h2 class="section-title">Up and running in minutes</h2>
+    </div>
+    <div class="steps-grid tiq-stagger">
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <h3 class="step-title">Register Your Organization</h3>
+        <p class="step-desc">Create your account, set up your organization profile and invite your team.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">2</div>
+        <h3 class="step-title">Build Your Curriculum</h3>
+        <p class="step-desc">Upload study materials, create courses with levels, and design assessments.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">3</div>
+        <h3 class="step-title">Assign & Track</h3>
+        <p class="step-desc">Assign learning paths to employees and watch their progress in real-time.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">4</div>
+        <h3 class="step-title">Measure & Improve</h3>
+        <p class="step-desc">Use analytics to identify gaps, reward top performers, and iterate.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Pricing ──────────────────────────────────────────── -->
+<section class="pricing" id="pricing">
+  <div class="tiq-container">
+    <div class="section-header tiq-text-center">
+      <div class="section-eyebrow">Pricing</div>
+      <h2 class="section-title">Simple, user-based pricing</h2>
+      <p class="section-sub" style="margin:0 auto">30-day free trial · up to 10 users · full features. Scale with packages as you grow.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <div class="pricing-plan">Free Trial</div>
+        <div class="pricing-price">$0</div>
+        <div class="pricing-period">30 days · up to 10 users</div>
+        <ul class="pricing-features">
+          <li><i class="fas fa-check"></i> Full platform access</li>
+          <li><i class="fas fa-check"></i> AI LearnIQ + exams</li>
+          <li><i class="fas fa-check"></i> ProctorIQ security</li>
+          <li><i class="fas fa-check"></i> No credit card</li>
+        </ul>
+        <a href="{{ url_for('auth_routes.onboarding', plan='trial') }}" class="tiq-btn tiq-btn-secondary tiq-w-full tiq-flex-center">Start Free Trial</a>
+      </div>
+      <div class="pricing-card featured">
+        <div class="pricing-badge">Most Popular</div>
+        <div class="pricing-plan">Growth</div>
+        <div class="pricing-price">$149</div>
+        <div class="pricing-period">per month · up to 75 users</div>
+        <ul class="pricing-features">
+          <li><i class="fas fa-check"></i> White-label branding</li>
+          <li><i class="fas fa-check"></i> Full analytics &amp; audit logs</li>
+          <li><i class="fas fa-check"></i> 25 GB storage</li>
+          <li><i class="fas fa-check"></i> Priority support</li>
+        </ul>
+        <a href="{{ url_for('general_routes.pricing') }}"
+           style="display:flex;align-items:center;justify-content:center;gap:8px;background:white;color:#1E1B4B;padding:0.75rem 1.5rem;border-radius:var(--tiq-radius-full);font-weight:800;font-size:0.9rem;text-decoration:none;transition:all 0.2s;"
+           onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+          View All Plans <i class="fas fa-arrow-right"></i>
+        </a>
+      </div>
+      <div class="pricing-card">
+        <div class="pricing-plan">Enterprise</div>
+        <div class="pricing-price" style="font-size:2rem">Custom</div>
+        <div class="pricing-period">200+ users · dedicated support</div>
+        <ul class="pricing-features">
+          <li><i class="fas fa-check"></i> Custom user limits</li>
+          <li><i class="fas fa-check"></i> SSO / integrations</li>
+          <li><i class="fas fa-check"></i> Dedicated engineer</li>
+          <li><i class="fas fa-check"></i> SLA guarantee</li>
+        </ul>
+        <a href="mailto:support@trainiq.com?subject=Enterprise%20Inquiry" class="tiq-btn tiq-btn-secondary tiq-w-full tiq-flex-center">Contact Sales</a>
+      </div>
+    </div>
+    <p style="text-align:center;margin-top:1.5rem;font-size:0.9rem;color:var(--tiq-text-3);">
+      <a href="{{ url_for('general_routes.pricing') }}">See Starter, Business, and full pricing details →</a>
+    </p>
+  </div>
+</section>
+
+<!-- ── CTA ──────────────────────────────────────────────── -->
+<section class="cta-section">
+  <div class="hero-orb hero-orb-1" style="opacity:0.3"></div>
+  <div style="position:relative;z-index:2">
+    <h2 class="cta-title">Ready to transform your<br/>team's performance?</h2>
+    <p class="cta-sub">Join thousands of organizations already using TrainIQ.</p>
+    <div class="hero-actions">
+      <a href="{{ url_for('auth_routes.onboarding', plan='trial') }}" class="hero-btn-primary">
+        <i class="fas fa-rocket"></i> Start Free Trial
+      </a>
+      <a href="{{ url_for('auth_routes.login') }}" class="hero-btn-ghost">
+        Already have an account? Sign In
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ───────────────────────────────────────────── -->
+<footer class="home-footer">
+  <div class="footer-content">
+    <div class="footer-brand">
+      <div class="home-nav-brand">
+        <div class="home-nav-logo" style="width:34px;height:34px;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+          {% if global_logo_url %}
+            <img src="{{ global_logo_url }}" alt="Logo" style="width:100%; height:100%; object-fit:cover;">
+          {% else %}
+            <i class="fas fa-brain" style="font-size:0.95rem;"></i>
+          {% endif %}
+        </div>
+        <div class="home-nav-name" style="font-size:1.2rem">
+          {% if is_platform_brand %}
+            Train<span>IQ</span>
+          {% else %}
+            {{ display_org_name }}
+          {% endif %}
+        </div>
+      </div>
+      <p>Smart workforce training & performance management for modern organizations.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Product</h4>
+      <a href="#features">Features</a>
+      <a href="{{ url_for('general_routes.pricing') }}">Pricing</a>
+      <a href="{{ url_for('auth_routes.login') }}">Sign In</a>
+      <a href="{{ url_for('auth_routes.onboarding', plan='trial') }}">Register</a>
+    </div>
+    <div class="footer-col">
+      <h4>Company</h4>
+      <a href="{{ url_for('general_routes.privacy_policy') }}">Privacy Policy</a>
+      <a href="{{ url_for('general_routes.help_page') }}">Help Center</a>
+      <a href="{{ url_for('general_routes.support') }}">Support</a>
+    </div>
+    <div class="footer-col">
+      <h4>Legal</h4>
+      <a href="{{ url_for('general_routes.privacy_policy') }}">Privacy</a>
+      <a href="{{ url_for('general_routes.privacy_policy') }}">Terms</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>&copy; {{ 2025 }} TrainIQ. All rights reserved.</p>
+    <div class="footer-social">
+      <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+      <a href="#" aria-label="Twitter"><i class="fab fa-x-twitter"></i></a>
+      <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+    </div>
+  </div>
+</footer>
+
+</body>
 </html>

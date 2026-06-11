@@ -7,7 +7,7 @@ categories = [
     "Posting",
     "VOB",
     "Collection",
-    "Denial Management"
+    "Denial Management",
     "Introduction"
 ]
 

@@ -1,444 +1,395 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Register - COLLECTIVE</title>
-    <!-- Bootstrap 5 CSS -->
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
-    />
-    <!-- Font Awesome (Optional) -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-    />
-    <style>
-      /* Basic Reset */
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(
-          135deg,
-          rgba(224, 234, 252, 0.8),
-          rgba(207, 222, 243, 0.8)
-        );
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-      }
-      /* Top Bar */
-      .top-bar {
-        background-color: #ffffff;
-        border-bottom: 1px solid #ddd;
-        padding: 8px 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .brand-section {
-        display: flex;
-        align-items: center;
-      }
-      .brand-section img {
-        height: 40px;
-        margin-right: 8px;
-      }
-      .brand-section h1 {
-        font-size: 1.5rem;
-        font-weight: bold;
-        margin: 0;
-      }
-      .black-part {
-        color: #000;
-      }
-      .red-part {
-        color: rgba(186, 30, 36, 1);
-      }
-      .btn-back {
-        background-color: #6c757d;
-        color: #fff;
-        border: none;
-        padding: 6px 12px;
-        font-size: 0.85rem;
-        border-radius: 4px;
-        text-decoration: none;
-      }
-      .btn-back:hover {
-        background-color: #5a6268;
-      }
-      /* Main Container */
-      main {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 30px 15px;
-      }
-      /* Registration Card */
-      .register-card {
-        background-color: #fff;
-        border-radius: 10px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        max-width: 550px;
-        width: 100%;
-        padding: 30px;
-        animation: fadeIn 0.4s ease;
-      }
-      .register-card h2 {
-        text-align: center;
-        margin-bottom: 20px;
-        font-weight: bold;
-        color: rgba(186, 30, 36, 1);
-      }
-      /* Flash Message */
-      #errorAlert {
-        margin-bottom: 20px;
-      }
-      /* Buttons */
-      .btn-register {
-        width: 100%;
-        padding: 12px;
-        font-size: 1rem;
-        border-radius: 6px;
-        margin-top: 10px;
-      }
-      .btn-cancel {
-        width: 100%;
-        margin-top: 10px;
-        font-size: 1rem;
-        border-radius: 6px;
-      }
-      /* Footer */
-      footer {
-        background-color: #343a40;
-        color: #fff;
-        text-align: center;
-        padding: 12px 0;
-        font-size: 0.9rem;
-      }
-      /* Simple fade-in animation */
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateY(15px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <!-- Top Bar -->
-    <div class="top-bar">
-      <a href="{{ url_for('general_routes.home') }}" class="btn-back">
-        <i class="fas fa-arrow-left"></i> Back
-      </a>
-      <div class="brand-section">
-        <img
-          src="{{ url_for('static', filename='images/logo.png') }}"
-          alt="Company Logo"
-        />
-        <h1>
-          <span class="black-part">COLLECT</span
-          ><span class="red-part">IVE</span>
-        </h1>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Create Account — {{ display_org_name }}</title>
+  <meta name="description" content="Create your TrainIQ account to start your training journey."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; }
+
+    /* Slide-in Animations */
+    @keyframes slideFromLeft {
+      from { opacity: 0; transform: translateX(-40px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes slideFromRight {
+      from { opacity: 0; transform: translateX(40px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Left panel */
+    .login-left {
+      flex: 1; min-height: 100vh;
+      background: var(--tiq-gradient-hero);
+      display: flex; flex-direction: column;
+      justify-content: space-between;
+      padding: 2.5rem;
+      position: relative; overflow: hidden;
+      animation: slideFromLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    .login-left::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='30'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .login-left-orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(70px); pointer-events: none;
+    }
+    .orb-1 { width: 400px; height: 400px; background: rgba(79,70,229,0.5); top: -100px; right: -100px; animation: orbDrift 10s ease-in-out infinite alternate; }
+    .orb-2 { width: 300px; height: 300px; background: rgba(6,182,212,0.3); bottom: -80px; left: -60px; animation: orbDrift 10s ease-in-out infinite alternate-reverse; }
+
+    @keyframes orbDrift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(25px, 25px) scale(1.05); }
+    }
+
+    .login-brand {
+      display: flex; align-items: center; gap: 12px;
+      position: relative; z-index: 2;
+    }
+    .login-brand-logo {
+      width: 44px; height: 44px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; font-weight: 900; color: white;
+      backdrop-filter: blur(8px);
+    }
+    .login-brand-name {
+      font-size: 1.5rem; font-weight: 800; color: white;
+      letter-spacing: -0.04em;
+    }
+    .login-brand-name span { color: var(--tiq-secondary); }
+
+    .login-left-content {
+      flex: 1; display: flex; flex-direction: column;
+      justify-content: center; padding: 2rem 0;
+      position: relative; z-index: 2;
+    }
+    .login-left-content h2 {
+      font-size: clamp(1.75rem, 3vw, 2.4rem);
+      font-weight: 900; color: white;
+      letter-spacing: -0.04em; margin-bottom: 1rem;
+    }
+    .login-left-content p {
+      color: rgba(255,255,255,0.6);
+      font-size: 1rem; line-height: 1.65;
+      max-width: 380px;
+    }
+
+    .login-features { margin-top: 2.5rem; }
+    .login-feature {
+      display: flex; align-items: flex-start; gap: 14px;
+      margin-bottom: 1.25rem;
+    }
+    .login-feature-icon {
+      width: 36px; height: 36px; border-radius: 9px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem; color: var(--tiq-secondary);
+      flex-shrink: 0;
+    }
+    .login-feature-text h4 { font-size: 0.9rem; font-weight: 700; color: white; margin-bottom: 2px; }
+    .login-feature-text p { font-size: 0.8125rem; color: rgba(255,255,255,0.5); margin: 0; }
+
+    .login-left-footer {
+      font-size: 0.8rem; color: rgba(255,255,255,0.3);
+      position: relative; z-index: 2;
+    }
+
+    @media (max-width: 768px) { .login-left { display: none; } }
+
+    /* Right panel */
+    .login-right {
+      width: 540px; min-height: 100vh;
+      display: flex; flex-direction: column;
+      justify-content: center;
+      padding: 3rem 2.5rem;
+      background: var(--tiq-bg);
+      animation: slideFromRight 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+      overflow-y: auto;
+    }
+    @media (max-width: 768px) {
+      .login-right { width: 100%; padding: 2rem 1.5rem; }
+    }
+
+    .login-form-header { margin-bottom: 2rem; }
+    .login-form-header h1 {
+      font-size: 1.75rem; font-weight: 800;
+      letter-spacing: -0.04em; margin-bottom: 0.5rem;
+    }
+    .login-form-header p { color: var(--tiq-text-2); font-size: 0.9375rem; }
+
+    .login-form { width: 100%; }
+
+    /* Two-column grid */
+    .tiq-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 1rem;
+    }
+    @media (max-width: 480px) {
+      .tiq-grid-2 { grid-template-columns: 1fr; }
+    }
+
+    /* Multi-select hint */
+    .tiq-field-hint {
+      font-size: 0.775rem;
+      color: var(--tiq-text-3);
+      margin-top: 0.25rem;
+    }
+
+    /* Captcha box */
+    .captcha-question {
+      background: var(--tiq-surface);
+      border: 1px solid var(--tiq-border);
+      border-radius: 8px;
+      padding: 0.6rem 1rem;
+      font-weight: 700;
+      font-size: 0.9375rem;
+      color: var(--tiq-text);
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.02em;
+    }
+
+    .login-footer-links {
+      text-align: center; margin-top: 1.5rem;
+      font-size: 0.875rem; color: var(--tiq-text-3);
+    }
+    .login-footer-links a { color: var(--tiq-primary); font-weight: 600; }
+
+    /* select styling */
+    .tiq-input[multiple] {
+      min-height: 90px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Flash data for JS toasts -->
+{% with messages = get_flashed_messages(with_categories=True) %}
+  {% for category, message in messages %}
+    <div class="tiq-flash-data" data-category="{{ category }}" style="display:none">{{ message }}</div>
+  {% endfor %}
+{% endwith %}
+
+<!-- Left Panel -->
+<div class="login-left">
+  <div class="login-left-orb orb-1"></div>
+  <div class="login-left-orb orb-2"></div>
+
+  <div class="login-brand">
+    <div class="login-brand-logo" style="overflow:hidden; display:flex; align-items:center; justify-content:center;">
+      {% if global_logo_url %}
+        <img src="{{ global_logo_url }}" alt="Logo" style="width:100%; height:100%; object-fit:cover;">
+      {% else %}
+        <i class="fas fa-brain"></i>
+      {% endif %}
+    </div>
+    <div class="login-brand-name">
+      {% if is_platform_brand %}
+        Train<span>IQ</span>
+      {% else %}
+        {{ display_org_name }}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="login-left-content">
+    <h2>Join the next generation<br/>of corporate training.</h2>
+    <p>Build skills, track growth, and stay ahead. Your learning journey starts the moment you register.</p>
+
+    <div class="login-features">
+      <div class="login-feature">
+        <div class="login-feature-icon"><i class="fas fa-rocket"></i></div>
+        <div class="login-feature-text">
+          <h4>Instant Onboarding</h4>
+          <p>Get started immediately with guided learning paths</p>
+        </div>
+      </div>
+      <div class="login-feature">
+        <div class="login-feature-icon"><i class="fas fa-users"></i></div>
+        <div class="login-feature-text">
+          <h4>Team Collaboration</h4>
+          <p>Learn together, grow together as a unified workforce</p>
+        </div>
+      </div>
+      <div class="login-feature">
+        <div class="login-feature-icon"><i class="fas fa-award"></i></div>
+        <div class="login-feature-text">
+          <h4>Certifications & Badges</h4>
+          <p>Earn recognition for every milestone you hit</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="login-left-footer">
+    &copy; {{ 2025 }} TrainIQ &mdash; All rights reserved
+  </div>
+</div>
+
+<!-- Right Panel -->
+<div class="login-right">
+
+  <!-- Mobile brand -->
+  <div style="display:none;align-items:center;gap:10px;margin-bottom:2rem;" class="mobile-brand">
+    <div style="width:36px;height:36px;background:var(--tiq-gradient);border-radius:9px;display:flex;align-items:center;justify-content:center;color:white;font-size:0.9rem;"><i class="fas fa-brain"></i></div>
+    <div style="font-size:1.25rem;font-weight:800;letter-spacing:-0.04em;">Train<span style="color:var(--tiq-secondary)">IQ</span></div>
+  </div>
+
+  <div class="login-form-header">
+    <h1>Create Account</h1>
+    <p>Join an existing organization or <a href="{{ url_for('auth_routes.onboarding', plan='trial') }}">start a 30-day free trial</a> for your company.</p>
+  </div>
+
+  <!-- Flash alerts inline -->
+  {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="tiq-alert tiq-alert-{{ 'danger' if category in ('error','danger') else ('success' if category == 'success' else 'info') }}" style="margin-bottom:1rem;">
+          <i class="fas {{ 'fa-circle-exclamation' if category in ('error','danger') else ('fa-circle-check' if category == 'success' else 'fa-circle-info') }}"></i>
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <form class="login-form" action="{{ url_for('auth_routes.register') }}" method="POST" id="registerForm" onsubmit="return validateRegisterForm()">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    <!-- First Name / Last Name -->
+    <div class="tiq-grid-2">
+      <div class="tiq-form-group">
+        <label class="tiq-label" for="first_name">First Name</label>
+        <div class="tiq-input-wrapper">
+          <i class="fas fa-user tiq-input-icon"></i>
+          <input type="text" class="tiq-input" id="first_name" name="first_name"
+                 placeholder="Jane" required autocomplete="given-name"/>
+        </div>
+      </div>
+      <div class="tiq-form-group">
+        <label class="tiq-label" for="last_name">Last Name</label>
+        <div class="tiq-input-wrapper">
+          <i class="fas fa-user tiq-input-icon"></i>
+          <input type="text" class="tiq-input" id="last_name" name="last_name"
+                 placeholder="Doe" required autocomplete="family-name"/>
+        </div>
       </div>
     </div>
 
-    <!-- Main Content -->
-    <main>
-      <div class="register-card">
-        <h2>Register</h2>
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages() %} {% if messages %}
-        <div class="alert alert-danger" id="errorAlert">
-          <ul class="mb-0">
-            {% for message in messages %}
-            <li>{{ message }}</li>
-            {% endfor %}
-          </ul>
-        </div>
-        {% endif %} {% endwith %}
-
-        <!-- Registration Form -->
-        <form
-          action="{{ url_for('auth_routes.register') }}"
-          method="POST"
-          onsubmit="return validateForm()"
-        >
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-
-          <!-- First Name -->
-          <div class="mb-3">
-            <label for="first_name" class="form-label"
-              ><strong>First Name</strong></label
-            >
-            <input
-              type="text"
-              class="form-control"
-              id="first_name"
-              name="first_name"
-              required
-            />
-          </div>
-
-          <!-- Last Name -->
-          <div class="mb-3">
-            <label for="last_name" class="form-label"
-              ><strong>Last Name</strong></label
-            >
-            <input
-              type="text"
-              class="form-control"
-              id="last_name"
-              name="last_name"
-              required
-            />
-          </div>
-
-          <!-- Employee Email -->
-          <div class="mb-3">
-            <label for="employee_email" class="form-label"
-              ><strong>Employee Email</strong></label
-            >
-            <input
-              type="email"
-              class="form-control"
-              id="employee_email"
-              name="employee_email"
-              required
-            />
-          </div>
-
-          <!-- Password -->
-          <div class="mb-3">
-            <label for="password" class="form-label"
-              ><strong>Password</strong></label
-            >
-            <input
-              type="password"
-              class="form-control"
-              id="password"
-              name="password"
-              required
-            />
-            <small class="text-muted">
-              Must be at least 8 characters long, with 1 uppercase letter, 1
-              symbol, and 1 number.
-            </small>
-          </div>
-
-          <!-- Confirm Password -->
-          <div class="mb-3">
-            <label for="confirm_password" class="form-label"
-              ><strong>Confirm Password</strong></label
-            >
-            <input
-              type="password"
-              class="form-control"
-              id="confirm_password"
-              name="confirm_password"
-              required
-            />
-          </div>
-
-          <!-- Department (Dynamic from DB) -->
-          <div class="mb-3">
-            <label for="departments" class="form-label"
-              ><strong>Departments</strong></label
-            >
-            <select
-              class="form-control"
-              id="departments"
-              name="departments"
-              multiple
-              required
-            >
-              {% for dept in departments %}
-              <option value="{{ dept.id }}">{{ dept.name }}</option>
-              {% endfor %}
-            </select>
-            <small class="text-muted">
-              Hold down Ctrl (Windows) or Command (Mac) to select multiple
-              departments.
-            </small>
-          </div>
-
-          <!-- Designation (Dynamic from DB) -->
-          <div class="mb-3">
-            <label for="designation" class="form-label"
-              ><strong>Designation</strong></label
-            >
-            <select
-              class="form-control"
-              id="designation"
-              name="designation"
-              required
-            >
-              <option value="" disabled selected>Select Designation</option>
-              {% for desig in designations %}
-              <option value="{{ desig.id }}">{{ desig.title }}</option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <!-- Clients (Dynamic Multi-select from DB) -->
-          <div class="mb-3">
-            <label for="client" class="form-label"
-              ><strong>Clients</strong></label
-            >
-            <select
-              class="form-control"
-              id="client"
-              name="clients"
-              multiple
-              required
-            >
-              {% for client in clients %}
-              <option value="{{ client.id }}">{{ client.name }}</option>
-              {% endfor %}
-            </select>
-            <small class="text-muted">
-              Hold down Ctrl (Windows) or Command (Mac) to select multiple
-              options.
-            </small>
-          </div>
-
-          <!-- Employee ID -->
-          <div class="mb-3">
-            <label for="employee_id" class="form-label"
-              ><strong>Employee ID</strong></label
-            >
-            <input
-              type="text"
-              class="form-control"
-              id="employee_id"
-              name="employee_id"
-              required
-            />
-          </div>
-
-          <!-- Join Date -->
-          <div class="mb-3">
-            <label for="join_date" class="form-label"
-              ><strong>Join Date</strong></label
-            >
-            <input
-              type="date"
-              class="form-control"
-              id="join_date"
-              name="join_date"
-              required
-            />
-          </div>
-
-          <!-- Simple Captcha (Math) -->
-          <div class="mb-3">
-            <label class="form-label"><strong>Captcha</strong></label>
-            <p
-              id="captchaQuestion"
-              style="
-                font-weight: bold;
-                background-color: #f1f1f1;
-                padding: 8px;
-                border-radius: 4px;
-              "
-            >
-              <!-- Generated by JS -->
-            </p>
-            <input
-              type="text"
-              class="form-control"
-              id="captchaAnswer"
-              name="captchaAnswer"
-              placeholder="Enter the answer"
-              required
-            />
-          </div>
-
-          <!-- Register & Cancel Buttons -->
-          <button type="submit" class="btn btn-primary btn-register">
-            <i class="fas fa-user-plus"></i> Register
-          </button>
-          <a
-            href="{{ url_for('general_routes.home') }}"
-            class="btn btn-secondary btn-cancel"
-          >
-            <i class="fas fa-times"></i> Cancel
-          </a>
-        </form>
+    <!-- Work Email -->
+    <div class="tiq-form-group">
+      <label class="tiq-label" for="employee_email">Work Email</label>
+      <div class="tiq-input-wrapper">
+        <i class="fas fa-envelope tiq-input-icon"></i>
+        <input type="email" class="tiq-input" id="employee_email" name="employee_email"
+               placeholder="you@company.com" required autocomplete="email"/>
       </div>
-    </main>
+    </div>
 
-    <!-- Footer -->
-    <footer>
-      <p class="mb-0">Collective Intranet© 2024</p>
-    </footer>
+    <!-- Company Name -->
+    <div class="tiq-form-group">
+      <label class="tiq-label" for="company_name">Company Name</label>
+      <div class="tiq-input-wrapper">
+        <i class="fas fa-building tiq-input-icon"></i>
+        <input type="text" class="tiq-input" id="company_name" name="company_name"
+               placeholder="e.g. Acme Corp" required/>
+      </div>
+      <div class="tiq-field-hint">Enables joining your existing company or creating a new workspace.</div>
+    </div>
 
-    <!-- JS for form validation & captcha -->
-    <script>
-      let captchaCorrectAnswer = 0;
+    <!-- Password -->
+    <div class="tiq-form-group">
+      <label class="tiq-label" for="password">Password</label>
+      <div class="tiq-input-wrapper">
+        <i class="fas fa-lock tiq-input-icon"></i>
+        <input type="password" class="tiq-input" id="password" name="password"
+               placeholder="••••••••" required autocomplete="new-password"/>
+        <button type="button" class="tiq-input-action" data-password-toggle="password"
+                aria-label="Toggle password visibility">
+          <i class="fas fa-eye"></i>
+        </button>
+      </div>
+      <div class="tiq-field-hint">Min 8 chars · 1 uppercase · 1 number · 1 symbol</div>
+    </div>
 
-      // Generate a simple math captcha
-      function generateCaptcha() {
-        const a = Math.floor(Math.random() * 10) + 1;
-        const b = Math.floor(Math.random() * 10) + 1;
-        document.getElementById(
-          "captchaQuestion"
-        ).textContent = `What is ${a} + ${b}?`;
-        captchaCorrectAnswer = a + b;
-      }
+    <!-- Confirm Password -->
+    <div class="tiq-form-group">
+      <label class="tiq-label" for="confirm_password">Confirm Password</label>
+      <div class="tiq-input-wrapper">
+        <i class="fas fa-lock tiq-input-icon"></i>
+        <input type="password" class="tiq-input" id="confirm_password" name="confirm_password"
+               placeholder="••••••••" required autocomplete="new-password"/>
+        <button type="button" class="tiq-input-action" data-password-toggle="confirm_password"
+                aria-label="Toggle password visibility">
+          <i class="fas fa-eye"></i>
+        </button>
+      </div>
+    </div>
 
-      // Validate entire form (password & captcha)
-      function validateForm() {
-        const password = document.getElementById("password").value;
-        const confirmPassword =
-          document.getElementById("confirm_password").value;
-        if (password !== confirmPassword) {
-          alert("Passwords do not match.");
-          return false;
-        }
-        const passwordPattern =
-          /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-        if (!passwordPattern.test(password)) {
-          alert(
-            "Password must be at least 8 characters long and contain 1 uppercase letter, 1 symbol, and 1 number."
-          );
-          return false;
-        }
-        const userCaptcha = parseInt(
-          document.getElementById("captchaAnswer").value,
-          10
-        );
-        if (userCaptcha !== captchaCorrectAnswer) {
-          alert("Captcha answer is incorrect. Please try again.");
-          generateCaptcha();
-          return false;
-        }
-        return true;
-      }
+    <!-- Captcha -->
+    <div class="tiq-form-group">
+      <label class="tiq-label">Security Check</label>
+      <div class="captcha-question" id="captchaQuestion">What is {{ session.get('captcha_a', 0) }} + {{ session.get('captcha_b', 0) }}?</div>
+      <div class="tiq-input-wrapper">
+        <i class="fas fa-shield-halved tiq-input-icon"></i>
+        <input type="text" class="tiq-input" id="captchaAnswer" name="captchaAnswer"
+               placeholder="Enter the answer" required inputmode="numeric"/>
+      </div>
+    </div>
 
-      document.addEventListener("DOMContentLoaded", function () {
-        generateCaptcha();
-        const errorAlert = document.getElementById("errorAlert");
-        if (errorAlert) {
-          setTimeout(() => {
-            errorAlert.style.transition = "opacity 0.5s";
-            errorAlert.style.opacity = "0";
-          }, 3000);
-        }
-      });
-    </script>
+    <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-lg tiq-w-full" id="registerBtn"
+            style="justify-content:center;margin-top:0.75rem;">
+      <span id="registerBtnText"><i class="fas fa-user-plus" style="margin-right:6px;"></i>Create Account</span>
+      <span id="registerSpinner" class="tiq-spinner tiq-spinner-sm" style="display:none;border-top-color:white;border-color:rgba(255,255,255,0.3)"></span>
+    </button>
+  </form>
 
-    <!-- Bootstrap 5 JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-  </body>
+  <div class="login-footer-links">
+    Already have an account? <a href="{{ url_for('auth_routes.login') }}">Sign in</a>
+  </div>
+
+  <div style="margin-top:auto;padding-top:1.5rem;text-align:center;">
+    <a href="{{ url_for('general_routes.home') }}" class="tiq-btn-back" style="display:inline-flex;">
+      <i class="fas fa-arrow-left"></i> Back to TrainIQ.com
+    </a>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/trainiq.js') }}"></script>
+<script>
+  function validateRegisterForm() {
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+    if (password !== confirmPassword) {
+      alert('Passwords do not match.');
+      return false;
+    }
+    const passwordPattern = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordPattern.test(password)) {
+      alert('Password must be at least 8 characters and contain 1 uppercase letter, 1 symbol, and 1 number.');
+      return false;
+    }
+    // Show spinner
+    document.getElementById('registerBtnText').innerHTML = 'Creating account…';
+    document.getElementById('registerSpinner').style.display = 'inline-block';
+    document.getElementById('registerBtn').disabled = true;
+    return true;
+  }
+
+  // Show mobile brand
+  if (window.innerWidth <= 768) {
+    document.querySelector('.mobile-brand').style.display = 'flex';
+  }
+</script>
+</body>
 </html>

@@ -1,226 +1,290 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-    />
-    <title>Verify 2FA – COLLECTIVE</title>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Verify 2FA – TrainIQ</title>
+  <meta name="description" content="Verify two-factor authentication code."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--tiq-gradient-hero);
+      position: relative;
+      overflow: hidden;
+      padding: 2rem 1rem;
+    }
 
-    <!-- Bootstrap CSS -->
-    <link
-      rel="stylesheet"
-      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
-    />
-    <!-- Animate.css -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
-    />
-    <!-- Font Awesome (for icons) -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
+    /* Animated orbs */
+    .fa-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+      animation: orbDrift 10s ease-in-out infinite alternate;
+    }
+    .fa-orb-1 { width: 500px; height: 500px; background: rgba(79,70,229,0.5); top: -150px; left: -150px; }
+    .fa-orb-2 { width: 400px; height: 400px; background: rgba(6,182,212,0.35); bottom: -100px; right: -100px; animation-delay: -5s; }
+    .fa-orb-3 { width: 300px; height: 300px; background: rgba(139,92,246,0.25); top: 40%; left: 40%; }
+    @keyframes orbDrift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(30px, 30px) scale(1.07); }
+    }
 
-    <!-- Custom CSS -->
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='css/verify_2fa.css') }}"
-    />
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='30'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
 
-    <style>
-      .form-container {
-        max-width: 360px;
-        width: 100%;
-        padding: 2rem;
-        background: #fff;
-        border-radius: 0.5rem;
-        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1);
-      }
-      .logo-title h1 {
-        font-size: 1.75rem;
-        margin: 0;
-      }
-      .btn-verify .fa-check-circle {
-        margin-right: 0.5rem;
-      }
-      #resendBtn {
-        font-size: 0.9rem;
-        display: inline-flex;
-        align-items: center;
-      }
-      #resendBtn .fa-redo-alt {
-        margin-right: 0.3rem;
-      }
-      .countdown-finish {
-        animation: pulse 1s ease-in-out infinite;
-      }
-      /* Ensure multiple alerts stack nicely */
-      .flash-container .alert {
-        margin-bottom: 1rem;
-      }
-    </style>
-  </head>
+    .fa-card {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 440px;
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 24px;
+      padding: 2.75rem 2.5rem;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+      animation: cardIn 0.5s cubic-bezier(0.22,1,0.36,1) both;
+    }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(28px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
 
-  <body>
-    <div class="background-overlay"></div>
+    .fa-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 2rem;
+    }
+    .fa-logo-icon {
+      width: 52px; height: 52px;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; font-weight: 900; color: white;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .fa-logo-name {
+      font-size: 1.6rem; font-weight: 800; color: white;
+      letter-spacing: -0.04em;
+    }
+    .fa-logo-name span { color: #67e8f9; }
 
-    <div
-      class="container d-flex align-items-center justify-content-center vh-100"
-    >
-      <div class="form-container animate__animated animate__fadeInDown">
-        <!-- Logo + Title -->
-        <div
-          class="logo-title text-center mb-4 animate__animated animate__bounceIn"
-        >
-          <img
-            src="{{ url_for('static', filename='images/logo.png') }}"
-            alt="Collective Logo"
-            width="50"
-            class="mb-2"
-          />
-          <h1>
-            <span class="black-part">COLLECT</span
-            ><span class="red-part">IVE</span>
-          </h1>
+    .fa-icon-ring {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1.5rem;
+      font-size: 1.5rem; color: #a5f3fc;
+    }
+    .fa-title {
+      font-size: 1.5rem; font-weight: 800;
+      color: white; text-align: center;
+      letter-spacing: -0.04em; margin-bottom: 0.5rem;
+    }
+    .fa-subtitle {
+      font-size: 0.9375rem; color: rgba(255,255,255,0.6);
+      text-align: center; line-height: 1.6; margin-bottom: 2rem;
+    }
+
+    .fa-card .tiq-input-wrapper .tiq-input {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.2);
+      color: white;
+      font-size: 1.25rem;
+      letter-spacing: 0.2em;
+      text-align: center;
+      padding-left: 1rem;
+    }
+    .fa-card .tiq-input-wrapper .tiq-input::placeholder { color: rgba(255,255,255,0.3); letter-spacing: normal; text-align: center; }
+    .fa-card .tiq-input-wrapper .tiq-input:focus {
+      background: rgba(255,255,255,0.15);
+      border-color: rgba(255,255,255,0.5);
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.12);
+    }
+    .fa-card .tiq-label { color: rgba(255,255,255,0.8); text-align: center; display: block; }
+
+    .fa-submit {
+      width: 100%;
+      justify-content: center;
+      margin-top: 0.25rem;
+    }
+
+    .fa-back {
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px; margin-top: 1.25rem;
+      font-size: 0.875rem; color: rgba(255,255,255,0.6);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .fa-back:hover { color: white; }
+
+    .fa-card .tiq-alert {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.2);
+      color: white;
+      margin-bottom: 1.25rem;
+    }
+
+    .resend-container {
+      display: flex;
+      justify-content: center;
+      margin-top: 1rem;
+    }
+    .resend-btn {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.6);
+      font-size: 0.875rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0.5rem 1rem;
+      border-radius: var(--tiq-radius);
+      transition: all 0.2s;
+    }
+    .resend-btn:hover:not(:disabled) {
+      color: white;
+      background: rgba(255,255,255,0.08);
+    }
+    .resend-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    .countdown-finish {
+      animation: pulse 1.5s ease-in-out infinite;
+      color: #67e8f9;
+      font-weight: 600;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.8; }
+      50% { opacity: 1; }
+      100% { opacity: 0.8; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="fa-orb fa-orb-1"></div>
+<div class="fa-orb fa-orb-2"></div>
+<div class="fa-orb fa-orb-3"></div>
+
+<div class="fa-card">
+
+  <!-- Logo -->
+  <div class="fa-logo">
+    <div class="fa-logo-icon" style="overflow:hidden; display:flex; align-items:center; justify-content:center;">
+      {% if global_logo_url %}
+        <img src="{{ global_logo_url }}" alt="Logo" style="width:100%; height:100%; object-fit:cover;">
+      {% else %}
+        <i class="fas fa-brain"></i>
+      {% endif %}
+    </div>
+    <div class="fa-logo-name">
+      {% if is_platform_brand %}
+        Train<span>IQ</span>
+      {% else %}
+        {{ display_org_name }}
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="tiq-alert tiq-alert-{{ 'danger' if category in ('error','danger') else ('success' if category == 'success' else 'info') }}">
+          <i class="fas {{ 'fa-circle-exclamation' if category in ('error','danger') else ('fa-circle-check' if category == 'success' else 'fa-circle-info') }}"></i>
+          {{ message }}
         </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
 
-        <!-- Subtitle -->
-        <h2 class="text-center mb-3">Verify 2FA</h2>
+  <div class="fa-icon-ring">
+    <i class="fas fa-shield-halved"></i>
+  </div>
+  <h1 class="fa-title">Security Verification</h1>
+  <p class="fa-subtitle">Enter the 6-digit verification code sent to your registered authenticator or email.</p>
 
-        <!-- Flash Messages Container -->
-        <div class="flash-container">
-          {% for category, message in get_flashed_messages(with_categories=true)
-          %} {% if category == "error" %}
-          <div
-            class="alert alert-danger alert-dismissible fade show animate__animated animate__shakeX"
-            role="alert"
-          >
-            {{ message }}
-            <button
-              type="button"
-              class="close"
-              data-dismiss="alert"
-              aria-label="Close"
-            >
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          {% elif category == "warning" %}
-          <div
-            class="alert alert-warning alert-dismissible fade show animate__animated animate__fadeInDown"
-            role="alert"
-          >
-            {{ message }}
-            <button
-              type="button"
-              class="close"
-              data-dismiss="alert"
-              aria-label="Close"
-            >
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          {% elif category == "info" %}
-          <div
-            class="alert alert-info alert-dismissible fade show animate__animated animate__fadeInDown"
-            role="alert"
-          >
-            {{ message }}
-            <button
-              type="button"
-              class="close"
-              data-dismiss="alert"
-              aria-label="Close"
-            >
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          {% endif %} {% endfor %}
-        </div>
+  <!-- Form -->
+  <form action="{{ url_for('auth_routes.verify_2fa') }}" method="POST" id="verifyForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-        <!-- Verification Form -->
-        <form
-          id="verifyForm"
-          action="{{ url_for('auth_routes.verify_2fa') }}"
-          method="POST"
-        >
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <div class="form-group">
-            <label for="2fa_code">Verification Code</label>
-            <input
-              type="text"
-              class="form-control"
-              id="2fa_code"
-              name="2fa_code"
-              placeholder="Enter code"
-              autocomplete="one-time-code"
-              required
-            />
-          </div>
-          <button
-            id="verifyBtn"
-            type="submit"
-            class="btn btn-primary btn-verify w-100 animate__animated animate__fadeInUp"
-          >
-            <i class="fas fa-check-circle"></i> Verify
-          </button>
-        </form>
-
-        <!-- Resend & Back -->
-        <div class="text-center mt-3">
-          <button
-            id="resendBtn"
-            type="button"
-            class="btn btn-link resend-link animate__animated animate__fadeIn"
-            disabled
-          >
-            <i class="fas fa-redo-alt"></i>
-            <span id="timer">30</span>s
-          </button>
-          <a
-            href="{{ url_for('auth_routes.login') }}"
-            class="btn btn-secondary btn-back w-100 mt-2 animate__animated animate__fadeIn"
-          >
-            <i class="fas fa-arrow-left"></i> Back
-          </a>
-        </div>
-
-        <div class="footer text-center mt-4 text-muted small">
-          Collective Intranet © 2024
-        </div>
+    <div class="tiq-form-group">
+      <label class="tiq-label" for="2fa_code">Verification Code</label>
+      <div class="tiq-input-wrapper">
+        <input type="text" class="tiq-input" id="2fa_code" name="2fa_code"
+               placeholder="000000" required autocomplete="one-time-code" autofocus maxlength="8"/>
       </div>
     </div>
 
-    <!-- jQuery & Bootstrap JS -->
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-lg fa-submit" id="verifyBtn">
+      <span id="btnText"><i class="fas fa-circle-check" style="margin-right:6px;"></i>Verify Code</span>
+      <span id="spinner" class="tiq-spinner tiq-spinner-sm" style="display:none;border-top-color:white;border-color:rgba(255,255,255,0.3)"></span>
+    </button>
+  </form>
 
-    <script>
-      console.log("2FA script loaded");
-      document.addEventListener("DOMContentLoaded", () => {
-        // Countdown timer
-        let countdown = 30;
-        const timerEl = document.getElementById("timer");
-        const resendBtn = document.getElementById("resendBtn");
+  <div class="resend-container">
+    <button id="resendBtn" type="button" class="resend-btn" disabled>
+      <i class="fas fa-redo-alt"></i> Resend code in <span id="timer">30</span>s
+    </button>
+  </div>
 
-        const tick = setInterval(() => {
-          countdown--;
-          timerEl.textContent = countdown > 0 ? countdown : 0;
+  <a href="{{ url_for('auth_routes.login') }}" class="fa-back">
+    <i class="fas fa-arrow-left"></i> Back to Sign In
+  </a>
 
-          if (countdown <= 0) {
-            clearInterval(tick);
-            resendBtn.disabled = false;
-            resendBtn.classList.add("countdown-finish");
-            resendBtn.innerHTML = '<i class="fas fa-redo-alt"></i> Resend Code';
-            resendBtn.addEventListener("click", () => {
-              window.location.href = "{{ url_for('auth_routes.resend_2fa') }}";
-            });
-          }
-        }, 1000);
-      });
-    </script>
-  </body>
+</div>
+
+<script src="{{ url_for('static', filename='js/trainiq.js') }}"></script>
+<script>
+  document.getElementById('verifyForm').addEventListener('submit', function () {
+    document.getElementById('btnText').textContent = 'Verifying…';
+    document.getElementById('spinner').style.display = 'inline-block';
+    document.getElementById('verifyBtn').disabled = true;
+  });
+
+  document.addEventListener("DOMContentLoaded", () => {
+    let countdown = 30;
+    const timerEl = document.getElementById("timer");
+    const resendBtn = document.getElementById("resendBtn");
+
+    const tick = setInterval(() => {
+      countdown--;
+      if (timerEl) {
+        timerEl.textContent = countdown > 0 ? countdown : 0;
+      }
+
+      if (countdown <= 0) {
+        clearInterval(tick);
+        resendBtn.disabled = false;
+        resendBtn.classList.add("countdown-finish");
+        resendBtn.innerHTML = '<i class="fas fa-redo-alt"></i> Resend Verification Code';
+        resendBtn.addEventListener("click", () => {
+          window.location.href = "{{ url_for('auth_routes.resend_2fa') }}";
+        });
+      }
+    }, 1000);
+  });
+</script>
+</body>
 </html>

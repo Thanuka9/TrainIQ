@@ -1,0 +1,128 @@
+{% extends 'admin_base.html' %}
+{% block title %}Billing &amp; Plans{% endblock %}
+{% block breadcrumb %}Billing{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;">
+  <div>
+    <h1 style="font-size:1.75rem;font-weight:800;margin:0 0 0.25rem;">Billing &amp; Plans</h1>
+    <p style="color:var(--tiq-text-3);margin:0;font-size:0.9rem;">
+      User-based packages — upgrade when your team grows.
+    </p>
+  </div>
+  <a href="{{ url_for('admin_routes.tenant_settings') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">
+    <i class="fas fa-cog"></i> Org Settings
+  </a>
+</div>
+
+{% if upgrade_hint %}
+<div class="tiq-alert tiq-alert-warning" style="margin-bottom:1.5rem;">
+  <i class="fas fa-users"></i>
+  You've reached your user limit. Choose a higher plan below to add more team members.
+</div>
+{% endif %}
+
+{% if usage.trial_expired %}
+<div class="tiq-alert tiq-alert-danger" style="margin-bottom:1.5rem;">
+  <i class="fas fa-clock"></i>
+  Your free trial has ended. Select a paid plan to restore full access for your organization.
+</div>
+{% elif usage.trial_days_left is not none and tenant.plan == 'trial' %}
+<div class="tiq-alert tiq-alert-info" style="margin-bottom:1.5rem;">
+  <i class="fas fa-hourglass-half"></i>
+  Free trial: <strong>{{ usage.trial_days_left }} day{{ 's' if usage.trial_days_left != 1 else '' }}</strong> remaining
+  ({{ usage.users }}/{{ usage.max_users }} seats used).
+</div>
+{% endif %}
+
+<!-- Current usage -->
+<div class="tiq-card" style="margin-bottom:1.5rem;">
+  <div class="tiq-card-header">
+    <h3 class="tiq-card-title"><i class="fas fa-chart-pie" style="margin-right:8px;"></i>Current subscription</h3>
+  </div>
+  <div class="tiq-card-body">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1.25rem;margin-bottom:1.5rem;">
+      <div>
+        <div style="font-size:0.75rem;color:var(--tiq-text-3);text-transform:uppercase;font-weight:600;">Plan</div>
+        <div style="font-size:1.25rem;font-weight:800;">{{ current_plan.name }}</div>
+      </div>
+      <div>
+        <div style="font-size:0.75rem;color:var(--tiq-text-3);text-transform:uppercase;font-weight:600;">Status</div>
+        <div style="font-size:1.25rem;font-weight:800;">{{ tenant.status|capitalize }}</div>
+      </div>
+      <div>
+        <div style="font-size:0.75rem;color:var(--tiq-text-3);text-transform:uppercase;font-weight:600;">Team seats</div>
+        <div style="font-size:1.25rem;font-weight:800;">{{ usage.users }} / {{ usage.max_users }}</div>
+      </div>
+      <div>
+        <div style="font-size:0.75rem;color:var(--tiq-text-3);text-transform:uppercase;font-weight:600;">Storage cap</div>
+        <div style="font-size:1.25rem;font-weight:800;">{{ tenant.max_storage_mb }} MB</div>
+      </div>
+    </div>
+    <div style="background:var(--tiq-surface-2);border-radius:8px;height:10px;overflow:hidden;">
+      <div style="height:100%;width:{{ usage.usage_percent }}%;background:{% if usage.at_limit %}#ef4444{% elif usage.usage_percent > 80 %}#f59e0b{% else %}var(--tiq-primary){% endif %};transition:width 0.3s;"></div>
+    </div>
+    <p style="font-size:0.8rem;color:var(--tiq-text-3);margin:0.5rem 0 0;">
+      {{ usage.remaining_seats }} seat{{ 's' if usage.remaining_seats != 1 else '' }} remaining on {{ current_plan.name }}.
+      {% if usage.at_limit %}Upgrade to add more users.{% endif %}
+    </p>
+  </div>
+</div>
+
+<!-- Plan cards -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.25rem;margin-bottom:2rem;">
+  {% for plan in plans %}
+  <div class="tiq-card" style="{% if plan.popular %}border:2px solid var(--tiq-primary);{% endif %}position:relative;">
+    {% if plan.popular %}
+    <span style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--tiq-primary);color:#fff;font-size:0.7rem;font-weight:700;padding:0.2rem 0.75rem;border-radius:999px;">POPULAR</span>
+    {% endif %}
+    <div class="tiq-card-body">
+      <h3 style="margin:0 0 0.25rem;font-size:1.1rem;font-weight:800;">{{ plan.name }}</h3>
+      <p style="margin:0 0 1rem;font-size:0.85rem;color:var(--tiq-text-3);min-height:2.5rem;">{{ plan.tagline }}</p>
+      <div style="margin-bottom:1rem;">
+        {% if plan.contact_sales %}
+        <span style="font-size:2rem;font-weight:900;">Custom</span>
+        {% else %}
+        <span style="font-size:2rem;font-weight:900;">${{ plan.price_monthly }}</span>
+        <span style="color:var(--tiq-text-3);font-size:0.9rem;">/ mo</span>
+        <div style="font-size:0.75rem;color:var(--tiq-text-3);">${{ plan.price_yearly_per_month }}/mo billed yearly{% if plan.effective_per_user_yearly %} · ≈ ${{ plan.effective_per_user_yearly }}/user{% endif %}</div>
+        {% endif %}
+      </div>
+      <ul style="list-style:none;padding:0;margin:0 0 1.25rem;font-size:0.85rem;">
+        {% for f in plan.features %}
+        <li style="padding:0.35rem 0;display:flex;gap:8px;align-items:flex-start;">
+          <i class="fas fa-check" style="color:var(--tiq-success);margin-top:3px;"></i>{{ f }}
+        </li>
+        {% endfor %}
+      </ul>
+      {% if plan.contact_sales %}
+      <a href="mailto:{{ sales_email }}?subject=TrainIQ%20Enterprise%20—%20{{ tenant.name|urlencode }}" class="tiq-btn tiq-btn-secondary" style="width:100%;text-align:center;">
+        Contact Sales
+      </a>
+      {% elif tenant.plan == plan.id %}
+      <button type="button" class="tiq-btn tiq-btn-secondary" style="width:100%;" disabled>Current plan</button>
+      {% else %}
+      <form method="post" action="{{ url_for('billing_routes.billing_upgrade') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="plan_id" value="{{ plan.id }}">
+        <input type="hidden" name="billing_cycle" value="monthly" id="cycle-{{ plan.id }}">
+        <button type="submit" class="tiq-btn tiq-btn-primary" style="width:100%;">
+          {% if tenant.plan == 'trial' %}Start {{ plan.name }}{% else %}Upgrade to {{ plan.name }}{% endif %}
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="tiq-card">
+  <div class="tiq-card-body" style="font-size:0.875rem;color:var(--tiq-text-2);line-height:1.7;">
+    <strong>How billing works:</strong> TrainIQ charges by organization size (registered users).
+    Your first {{ usage.max_users if tenant.plan == 'trial' else '10' }}-user trial lasts 30 days with full features.
+    When you hit your seat cap, invites and new sign-ups are blocked until you upgrade.
+    Payment processing (Stripe) will be connected soon — upgrades apply immediately for now.
+    Questions? Email <a href="mailto:{{ sales_email }}">{{ sales_email }}</a>.
+  </div>
+</div>
+{% endblock %}

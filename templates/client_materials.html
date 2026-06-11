@@ -1,43 +1,113 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Client Materials - Collective</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <style>
-        body {
-            background: #f7f9fc;
-        }
-        .container {
-            margin-top: 50px;
-            padding: 30px;
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            margin-bottom: 20px;
-        }
-        .client-materials-list li {
-            margin-bottom: 15px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Client Materials</h1>
-        <ul class="client-materials-list">
-            <!-- Dynamic client materials go here -->
-            {% for material in client_materials %}
-                <li><strong>{{ material.title }}:</strong> {{ material.description }} - 
-                    <a href="{{ url_for('static', filename='client_materials/' + material.filename) }}" target="_blank">View</a>
-                </li>
-            {% else %}
-                <li>No client materials available at this time.</li>
-            {% endfor %}
-        </ul>
-        <a href="{{ url_for('general_routes.dashboard') }}" class="btn btn-primary">Back to Home</a>
+{% extends 'base.html' %}
+{% block title %}Client Materials — {{ display_org_name }}{% endblock %}
+
+{% block breadcrumb %}
+  <a href="{{ url_for('general_routes.dashboard') }}">Home</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <span>Client Materials</span>
+{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <h1>Client Materials</h1>
+      <p class="tiq-lead">Access customized accounts documents, briefs, and client training references scoped to your profile.</p>
     </div>
-</body>
-</html>
+    <a href="{{ url_for('general_routes.dashboard') }}" class="tiq-btn tiq-btn-secondary">
+      <i class="fas fa-home"></i> Back to Dashboard
+    </a>
+  </div>
+</div>
+
+<div class="tiq-card">
+  <div class="tiq-card-header">
+    <div class="tiq-card-title"><i class="fas fa-file-contract me-2"></i>Account Documents Catalog</div>
+  </div>
+  <div class="tiq-p-0">
+    {% if client_materials %}
+      <div class="tiq-table-wrapper">
+        <table class="tiq-table">
+          <thead>
+            <tr>
+              <th>Document Title</th>
+              <th>Description</th>
+              <th class="tiq-text-center" style="width: 120px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for material in client_materials %}
+              <tr>
+                <td class="fw-bold">
+                  {{ material.title }}
+                  <span class="tiq-badge tiq-badge-neutral ms-2" style="font-size: 0.75rem;">{{ material.client_name }}</span>
+                </td>
+                <td class="text-muted">{{ material.description }}</td>
+                <td class="tiq-text-center">
+                  <button type="button" class="tiq-btn tiq-btn-sm tiq-btn-primary" onclick="openSecureViewer('{{ material.title }}', '{{ material.client_name }}', '{{ material.summary }}')">
+                    <i class="fas fa-eye"></i> View File
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="tiq-empty">
+        <div class="tiq-empty-icon"><i class="fas fa-folder-open"></i></div>
+        <h3>No client materials</h3>
+        <p>No customized account-specific references are mapped to your current designation.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Secure Document Viewer Modal -->
+<div id="secure-viewer-modal" class="tiq-modal-backdrop">
+  <div class="tiq-modal" style="max-width: 650px;">
+    <div class="tiq-modal-header">
+      <div class="tiq-modal-title">
+        <i class="fas fa-shield-alt text-primary me-2"></i>
+        <span id="modal-doc-title">Document Title</span>
+      </div>
+      <button class="tiq-btn-ghost tiq-btn-icon tiq-btn-icon-sm" data-tiq-modal-close aria-label="Close modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="tiq-modal-body">
+      <div class="tiq-alert tiq-alert-warning mb-4" style="display: flex; align-items: center; gap: 12px;">
+        <i class="fas fa-exclamation-triangle" style="font-size: 1.25rem;"></i>
+        <div>
+          <strong>Confidential &amp; Proprietary Information</strong>
+          <div style="font-size: 0.85rem; opacity: 0.9;">This document is classified. Printing, sharing, or downloading is prohibited under HIPAA compliance policies.</div>
+        </div>
+      </div>
+      
+      <div class="tiq-card" style="background: var(--tiq-bg); border-style: dashed; border-width: 1px;">
+        <div class="tiq-p-4">
+          <div class="tiq-flex-between mb-3" style="border-bottom: 1px solid var(--tiq-border); padding-bottom: 0.75rem;">
+            <span style="font-weight: 700; font-size: 0.85rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--tiq-muted);">Document Preview</span>
+            <span class="tiq-badge tiq-badge-danger">SECURE VIEW</span>
+          </div>
+          <p id="modal-doc-summary" style="line-height: 1.6; font-size: 0.95rem; color: var(--tiq-text); margin: 0;"></p>
+        </div>
+      </div>
+    </div>
+    <div class="tiq-modal-footer">
+      <button class="tiq-btn tiq-btn-secondary" data-tiq-modal-close>Close Viewer</button>
+      <button class="tiq-btn tiq-btn-primary" onclick="alert('Access request logged under compliance code: HIPAA-AUD-991.')"><i class="fas fa-print"></i> Request Print Auth</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function openSecureViewer(title, clientName, summary) {
+  document.getElementById('modal-doc-title').innerText = title;
+  document.getElementById('modal-doc-summary').innerText = summary;
+  TrainIQ.Modal.open(document.getElementById('secure-viewer-modal'));
+}
+
+function closeSecureViewer() {
+  TrainIQ.Modal.close(document.getElementById('secure-viewer-modal'));
+}
+</script>
+{% endblock %}

@@ -1,103 +1,129 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>404 - Page Not Found</title>
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-    />
-    <style>
-      body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #ffe5e5, #f8d7da);
-        color: #721c24;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
-      }
-      .top-bar {
-        background-color: #fff;
-        border-bottom: 1px solid #ddd;
-        padding: 10px 20px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-      .top-bar img {
-        height: 40px;
-        margin-right: 10px;
-      }
-      .brand {
-        font-size: 1.5rem;
-        font-weight: bold;
-      }
-      .brand .black {
-        color: black;
-      }
-      .brand .red {
-        color: red;
-      }
-      .container {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        flex-direction: column;
-        padding: 50px 20px;
-      }
-      h1 {
-        font-size: 2.5rem;
-        margin-bottom: 20px;
-      }
-      p {
-        font-size: 1.2rem;
-      }
-      a {
-        color: #721c24;
-        text-decoration: underline;
-      }
-      footer {
-        background-color: #343a40;
-        color: white;
-        text-align: center;
-        padding: 15px 0;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="top-bar">
-      <div class="d-flex align-items-center">
-        <img
-          src="{{ url_for('static', filename='images/logo.png') }}"
-          alt="Logo"
-        />
-        <div class="brand">
-          <span class="black">Collect</span><span class="red">ive</span>
-        </div>
-      </div>
-    </div>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>404 - Page Not Found | TrainIQ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--tiq-gradient-hero);
+      color: white;
+      font-family: var(--tiq-font-sans);
+      text-align: center;
+      padding: 2rem 1rem;
+      position: relative;
+      overflow: hidden;
+    }
 
-    <div class="container">
-      <h1><i class="fas fa-exclamation-circle"></i> 404 - Page Not Found</h1>
-      <p>The page you're looking for doesn't exist or has been moved.</p>
-      <p>
-        <a href="{{ url_for('root') }}" aria-label="Go to homepage"
-          >Go back to the homepage</a
-        >
-      </p>
-    </div>
+    /* Animated orbs */
+    .err-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(90px);
+      pointer-events: none;
+      z-index: 0;
+      animation: orbDrift 12s ease-in-out infinite alternate;
+    }
+    .err-orb-1 { width: 550px; height: 550px; background: rgba(79,70,229,0.45); top: -200px; left: -150px; }
+    .err-orb-2 { width: 450px; height: 450px; background: rgba(6,182,212,0.3); bottom: -150px; right: -100px; animation-delay: -6s; }
 
-    <footer>
-      <p class="mb-0">© 2024 Collective Intranet</p>
-    </footer>
-  </body>
+    @keyframes orbDrift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(40px, 40px) scale(1.08); }
+    }
+
+    .err-container {
+      position: relative;
+      z-index: 1;
+      max-width: 540px;
+      padding: 3rem;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(20px);
+      border-radius: 32px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.4);
+    }
+
+    .err-code {
+      font-size: 8.5rem;
+      font-weight: 950;
+      line-height: 1;
+      margin: 0 0 1rem;
+      letter-spacing: -0.06em;
+      background: var(--tiq-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: pulseText 3s ease-in-out infinite;
+    }
+
+    @keyframes pulseText {
+      0%, 100% { filter: drop-shadow(0 0 15px rgba(6,182,212,0.3)); }
+      50% { filter: drop-shadow(0 0 25px rgba(79,70,229,0.55)); }
+    }
+
+    .err-title {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      letter-spacing: -0.03em;
+    }
+
+    .err-desc {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 1.0625rem;
+      line-height: 1.6;
+      margin-bottom: 2.5rem;
+    }
+
+    .err-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .tiq-btn-ghost-white {
+      background: transparent;
+      color: white;
+      border: 1.5px solid rgba(255, 255, 255, 0.25);
+    }
+    .tiq-btn-ghost-white:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: white;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+<div class="err-orb err-orb-1"></div>
+<div class="err-orb err-orb-2"></div>
+
+<div class="err-container">
+  <div class="err-code">404</div>
+  <h1 class="err-title">Page Not Found</h1>
+  <p class="err-desc">The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.</p>
+  
+  <div class="err-actions">
+    <a href="{{ url_for('root') }}" class="tiq-btn tiq-btn-primary">
+      <i class="fas fa-home"></i> Go to Homepage
+    </a>
+    <a href="javascript:history.back()" class="tiq-btn tiq-btn-ghost-white">
+      <i class="fas fa-arrow-left"></i> Go Back
+    </a>
+  </div>
+</div>
+
+</body>
 </html>

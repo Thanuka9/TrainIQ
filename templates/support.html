@@ -1,181 +1,173 @@
-{% extends "base.html" %} {% block content %}
-<div class="container my-5">
-  <!-- Header & Intro Card -->
-  <div class="card shadow-sm mb-5">
-    <div class="card-body">
-      <h2 class="card-title mb-3">
-        <i class="fas fa-headset text-danger fs-3 me-2"></i>
-        Support Center
-      </h2>
-      <p class="card-text text-secondary">
-        If you're facing technical difficulties, system errors, or need
-        assistance with any feature or content, you're in the right place.
-        Browse existing tickets below or submit a new request.
-      </p>
-    </div>
-  </div>
+{% extends "base.html" %}
 
-  <!-- Contact Information Card -->
-  <div class="card shadow-sm mb-4">
-    <div class="card-body">
-      <h5 class="card-subtitle text-primary mb-3">Contact Information</h5>
-      <div class="row">
-        <div class="col-md-4 mb-3">
-          <div>
-            <h6 class="fw-semibold">General Intranet Issues</h6>
-            <p class="mb-0">
-              📧
-              <a href="mailto:intranet@collectivercm.com">
-                intranet@collectivercm.com
-              </a>
-            </p>
-          </div>
-        </div>
-        <div class="col-md-4 mb-3">
-          <div>
-            <h6 class="fw-semibold">Report a Bug / Broken Page</h6>
-            <p class="mb-0">
-              📧
-              <a href="mailto:intranet@collectivercm.com">
-                intranet@collectivercm.com </a
-              ><br />
-              Or message <strong>Thanuka Ellepola</strong> directly via internal
-              channels.
-            </p>
-          </div>
-        </div>
-        <div class="col-md-4 mb-3">
-          <div>
-            <h6 class="fw-semibold">Device / Infrastructure</h6>
-            <p class="mb-0">
-              Contact your <strong>IT Department</strong> for hardware or
-              network issues.
-            </p>
-          </div>
-        </div>
+{% block title %}Support Center — {{ display_org_name }}{% endblock %}
+
+{% block breadcrumb %}Support{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <div class="tiq-breadcrumb">
+        <a href="{{ url_for('general_routes.dashboard') }}">Home</a>
+        <span class="tiq-breadcrumb-sep">/</span>
+        <span>Support</span>
+      </div>
+      <h1>Support Center</h1>
+      <p class="tiq-lead" style="margin: 0;">Troubleshoot technical issues, report system anomalies, or request feature assistance.</p>
+    </div>
+    <a href="{{ url_for('general_routes.request_support') }}" class="tiq-btn tiq-btn-primary">
+      <i class="fas fa-paper-plane"></i> Submit a New Ticket
+    </a>
+  </div>
+</div>
+
+<div class="tiq-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
+  
+  <!-- Contact Info Card -->
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <h2 class="tiq-card-title"><i class="fas fa-address-book" style="margin-right:8px; color:var(--tiq-primary);"></i>Support Contact Points</h2>
+    </div>
+    <div class="tiq-card-body" style="font-size:0.875rem; color:var(--tiq-text-2); line-height:1.6;">
+      <div style="margin-bottom:1rem;">
+        <h4 style="font-size:0.9rem; font-weight:700; color:var(--tiq-text); margin-bottom:0.25rem;">Platform Support Email</h4>
+        <p style="margin:0;"><a href="mailto:support@trainiq.com">support@trainiq.com</a></p>
+      </div>
+      <div style="margin-bottom:1rem;">
+        <h4 style="font-size:0.9rem; font-weight:700; color:var(--tiq-text); margin-bottom:0.25rem;">Bug Reports & Feedback</h4>
+        <p style="margin:0;">Use the feedback tool or message system admins directly through internal chat channels.</p>
+      </div>
+      <div>
+        <h4 style="font-size:0.9rem; font-weight:700; color:var(--tiq-text); margin-bottom:0.25rem;">Hardware & Network IT</h4>
+        <p style="margin:0;">Please contact your local organization's IT Helpdesk for physical hardware or network connectivity issues.</p>
       </div>
     </div>
   </div>
 
   <!-- Ticket Response Time Card -->
-  <div class="card shadow-sm mb-4">
-    <div class="card-body">
-      <h5 class="card-subtitle text-primary mb-3">
-        <i class="fas fa-clock fs-2 me-2"></i>Ticket Response Time
-      </h5>
-      <ul class="list-group list-group-flush">
-        <li class="list-group-item ps-0 border-0">
-          <i class="fas fa-bolt text-danger fs-5 me-2"></i>
-          <strong>High Priority:</strong> Within 2 business hours
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <h2 class="tiq-card-title"><i class="fas fa-clock" style="margin-right:8px; color:var(--tiq-accent);"></i>Response Times</h2>
+    </div>
+    <div class="tiq-card-body" style="font-size:0.875rem; color:var(--tiq-text-2); line-height:1.6;">
+      <ul style="list-style:none; padding:0; margin:0;">
+        <li style="display:flex; align-items:flex-start; gap:10px; margin-bottom:1rem;">
+          <span class="tiq-badge tiq-badge-danger" style="margin-top:2px;"><i class="fas fa-bolt"></i></span>
+          <div>
+            <strong>High Priority Tasks:</strong>
+            <p style="margin:0; font-size:0.8rem; color:var(--tiq-text-3);">System down or critical blockages. Resolved within 2 business hours.</p>
+          </div>
         </li>
-        <li class="list-group-item ps-0 border-0">
-          <i class="fas fa-tasks text-warning fs-5 me-2"></i>
-          <strong>Standard Issues:</strong> 1–2 business days
+        <li style="display:flex; align-items:flex-start; gap:10px; margin-bottom:1rem;">
+          <span class="tiq-badge tiq-badge-warning" style="margin-top:2px;"><i class="fas fa-wrench"></i></span>
+          <div>
+            <strong>Standard Queries:</strong>
+            <p style="margin:0; font-size:0.8rem; color:var(--tiq-text-3);">Functional issues, content corrections. Addressed within 1–2 business days.</p>
+          </div>
         </li>
-        <li class="list-group-item ps-0 border-0">
-          <i class="fas fa-info-circle text-secondary fs-5 me-2"></i>
-          <strong>General Queries:</strong> Usually same day
+        <li style="display:flex; align-items:flex-start; gap:10px;">
+          <span class="tiq-badge tiq-badge-info" style="margin-top:2px;"><i class="fas fa-circle-info"></i></span>
+          <div>
+            <strong>General Inquiries:</strong>
+            <p style="margin:0; font-size:0.8rem; color:var(--tiq-text-3);">Feature requests, suggestions, credentials support. Usually same business day.</p>
+          </div>
         </li>
       </ul>
     </div>
   </div>
 
-  <!-- Submit New Ticket Button -->
-  <div class="text-center mb-5">
-    <a
-      href="{{ url_for('general_routes.request_support') }}"
-      class="btn btn-lg btn-danger px-5 shadow-sm"
-      style="position: relative; z-index: 10"
-    >
-      <i class="fas fa-paper-plane me-2"></i>Submit a New Ticket
-    </a>
-  </div>
-
-  <!-- Your Submitted Tickets Header -->
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0">
-      <i class="fas fa-ticket-alt text-primary fs-3 me-2"></i>
-      Your Submitted Tickets
-    </h4>
-    <div class="input-group w-50">
-      <span class="input-group-text bg-light border-end-0">
-        <i class="fas fa-search text-muted fs-5"></i>
-      </span>
-      <input
-        id="ticketSearch"
-        type="text"
-        class="form-control border-start-0"
-        placeholder="Search tickets by title..."
-        onkeyup="filterTickets()"
-      />
-    </div>
-  </div>
-
-  <!-- Ticket Table -->
-  {% if user_tickets %}
-  <div class="table-responsive shadow-sm">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="table-light">
-        <tr>
-          <th scope="col">Ticket ID</th>
-          <th scope="col">Title</th>
-          <th scope="col">Status</th>
-          <th scope="col">Created At</th>
-          <th scope="col">Assigned To</th>
-          <th scope="col">Attachments</th>
-        </tr>
-      </thead>
-      <tbody id="ticketTableBody">
-        {% for ticket in user_tickets %}
-        <tr data-ticket-title="{{ ticket.title | lower }}">
-          <td>#{{ ticket.id }}</td>
-          <td>{{ ticket.title }}</td>
-          <td>
-            {% if ticket.status == 'Resolved' %}
-            <span class="badge bg-success">Resolved</span>
-            {% elif ticket.status == 'In Progress' %}
-            <span class="badge bg-warning text-dark">In Progress</span>
-            {% else %}
-            <span class="badge bg-secondary">Open</span>
-            {% endif %}
-          </td>
-          <td>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-          <td>
-            {% if ticket.assignee %} {{ ticket.assignee.name }} {% else %}
-            <em>Unassigned</em>
-            {% endif %}
-          </td>
-          <td>
-            {% if ticket.attachments %} {% for att in ticket.attachments %}
-            <a
-              href="{{ url_for('general_routes.download_attachment', attachment_id=att.id) }}"
-              class="text-decoration-none me-2"
-              title="Download {{ att.filename }}"
-            >
-              <i class="fas fa-paperclip text-muted fs-5"></i>
-            </a>
-            {% endfor %} {% else %}
-            <span class="text-muted">—</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <div class="card shadow-sm border-0">
-    <div class="card-body text-center text-muted">
-      <i class="fas fa-inbox fa-3x mb-3"></i>
-      <p class="mb-0 fs-5">You have not submitted any support tickets.</p>
-      <p class="small">
-        Click “Submit a New Ticket” above to create your first request.
-      </p>
-    </div>
-  </div>
-  {% endif %}
 </div>
-{% endblock %} {% block extra_scripts %}
+
+<!-- Your Submitted Tickets Header -->
+<div class="tiq-flex-between" style="margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+  <h2 style="font-size:1.3rem; font-weight:800; color:var(--tiq-text); margin:0;">
+    <i class="fas fa-ticket-alt" style="margin-right:8px; color:var(--tiq-primary);"></i>
+    Your Submitted Tickets
+  </h2>
+  
+  <div class="tiq-search" style="width:100%; max-width:360px;">
+    <i class="fas fa-search search-icon"></i>
+    <input id="ticketSearch" type="text" placeholder="Search tickets by title..." onkeyup="filterTickets()" aria-label="Search support tickets"/>
+  </div>
+</div>
+
+<!-- Ticket Table -->
+{% if user_tickets %}
+<div class="tiq-card">
+  <div class="tiq-card-body" style="padding:0;">
+    <div class="tiq-table-wrapper">
+      <table class="tiq-table">
+        <thead>
+          <tr>
+            <th style="padding-left:1.5rem; width:120px;">Ticket ID</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Created At</th>
+            <th>Assigned To</th>
+            <th class="tiq-text-center" style="width:120px;">Attachments</th>
+          </tr>
+        </thead>
+        <tbody id="ticketTableBody">
+          {% for ticket in user_tickets %}
+          <tr data-ticket-title="{{ ticket.title | lower }}">
+            <td style="padding-left:1.5rem; font-weight:600;">#{{ ticket.id }}</td>
+            <td style="font-weight:600; color:var(--tiq-text);">{{ ticket.title }}</td>
+            <td>
+              {% if ticket.status == 'Resolved' %}
+                <span class="tiq-badge tiq-badge-success">Resolved</span>
+              {% elif ticket.status == 'In Progress' %}
+                <span class="tiq-badge tiq-badge-warning">In Progress</span>
+              {% else %}
+                <span class="tiq-badge tiq-badge-info">Open</span>
+              {% endif %}
+            </td>
+            <td style="font-size:0.8125rem; color:var(--tiq-text-3);">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td style="font-size:0.875rem; color:var(--tiq-text-2);">
+              {% if ticket.assignee %}
+                {{ ticket.assignee.name }}
+              {% else %}
+                <span style="font-style:italic; color:var(--tiq-text-3);">Unassigned</span>
+              {% endif %}
+            </td>
+            <td class="tiq-text-center">
+              {% if ticket.attachments %}
+                <div class="tiq-flex tiq-flex-center" style="gap:6px;">
+                  {% for att in ticket.attachments %}
+                  <a href="{{ url_for('general_routes.download_attachment', attachment_id=att.id) }}"
+                     class="tiq-btn tiq-btn-sm tiq-btn-secondary tiq-btn-icon"
+                     style="width:24px; height:24px; font-size:0.75rem;"
+                     title="Download {{ att.filename }}">
+                    <i class="fas fa-paperclip"></i>
+                  </a>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <span style="color:var(--tiq-text-3);">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="tiq-card">
+  <div class="tiq-card-body">
+    <div class="tiq-empty">
+      <div class="tiq-empty-icon"><i class="fas fa-ticket"></i></div>
+      <h3>No Tickets Found</h3>
+      <p>You have not submitted any support tickets. If you need help, click "Submit a New Ticket" above.</p>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
 <script>
   function filterTickets() {
     const query = document.getElementById("ticketSearch").value.toLowerCase();

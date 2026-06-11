@@ -1,11 +1,6 @@
 # utils/progress_utils.py
-from models import (
-    UserProgress,
-    StudyMaterial,
-    UserScore,
-    UserLevelProgress,   # still referenced elsewhere in the app
-    LevelArea,
-)
+from utils.exam_grading import DEFAULT_PASSING_SCORE, get_passing_score
+from models import Exam, LevelArea, StudyMaterial, UserProgress, UserScore
 from extensions import db
 
 
@@ -57,7 +52,7 @@ def has_finished_study(user_id: int, level_id: int, area_id: int) -> bool:
 # ---------------------------------------------------------------------
 def has_passed_exam(user_id: int, level_id: int, area_id: int) -> bool:
     """
-    True ⇢ the user’s **best recorded score** for this area & level is ≥ 56 %.
+    True ⇢ the user's **best recorded score** for this area & level meets the exam passing threshold.
     (Change `.order_by(UserScore.score.desc())` to
      `.order_by(UserScore.created_at.desc())` if you prefer *latest attempt wins*.)
     """
@@ -70,7 +65,11 @@ def has_passed_exam(user_id: int, level_id: int, area_id: int) -> bool:
     .first()
 )
 
-    return bool(best_attempt and best_attempt.score >= 56)
+    return bool(best_attempt and best_attempt.score >= (
+        get_passing_score(Exam.query.get(best_attempt.exam_id))
+        if best_attempt.exam_id and Exam.query.get(best_attempt.exam_id)
+        else DEFAULT_PASSING_SCORE
+    ))
 
 
 # ---------------------------------------------------------------------
@@ -80,7 +79,7 @@ def is_level_done(user, level_id: int) -> bool:
     """
     A level is complete when, for **every** required area,
       • study materials are 100 % read  AND
-      • exam score ≥ 56 %
+      • exam score meets the passing threshold for that area
     …unless the user’s designation allows skipping that specific exam.
     """
     for la in LevelArea.query.filter_by(level_id=level_id):

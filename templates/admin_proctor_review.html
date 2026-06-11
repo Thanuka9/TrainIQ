@@ -1,0 +1,63 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}ProctorIQ Review{% endblock %}
+
+{% block breadcrumb %}
+<a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+<span class="tiq-breadcrumb-sep">/</span>
+<span>ProctorIQ Review</span>
+{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <h1><i class="fas fa-shield-halved" style="color:var(--tiq-danger);margin-right:8px"></i>ProctorIQ Review</h1>
+      <p class="tiq-lead">Privacy-first exam integrity checks. Sessions with trust scores below 70 are flagged for review.</p>
+    </div>
+  </div>
+</div>
+
+<div class="tiq-card">
+  <div class="tiq-card-body">
+    {% if sessions %}
+    <div class="tiq-table-wrapper">
+      <table class="tiq-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Exam</th>
+            <th>Score</th>
+            <th>Trust Score</th>
+            <th>Date</th>
+            <th>AI Assessment</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sessions %}
+          <tr>
+            <td>{{ s.user.first_name }} {{ s.user.last_name }}</td>
+            <td>{{ s.exam.title if s.exam else '—' }}</td>
+            <td>{{ s.score }}%</td>
+            <td>
+              <span class="tiq-badge {% if s.trust_score >= 70 %}tiq-badge-warning{% else %}tiq-badge-danger{% endif %}">
+                {{ s.trust_score }}/100
+              </span>
+            </td>
+            <td>{{ s.created_at.strftime('%Y-%m-%d %H:%M') if s.created_at else '—' }}</td>
+            <td style="max-width:320px;font-size:0.85rem">{{ s.proctor_narrative or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="tiq-empty" style="padding:3rem">
+      <div class="tiq-empty-icon"><i class="fas fa-shield-check"></i></div>
+      <h3>No flagged sessions</h3>
+      <p>All recent exam sessions have trust scores above the review threshold.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

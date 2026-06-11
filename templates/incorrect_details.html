@@ -1,92 +1,109 @@
-{% extends 'admin_base.html' %} {% block title %}{{ user.first_name }}’s
-Incorrect Answers{% endblock %} {% block content %}
-<div class="container py-4">
-  <div class="card shadow-sm">
-    <div
-      class="card-header bg-light d-flex justify-content-between align-items-center"
-    >
-      <h3 class="mb-0">{{ user.first_name }}’s Incorrect Answers</h3>
-      <a
-        href="{{ url_for('admin_routes.incorrect_summary') }}"
-        class="btn btn-sm btn-outline-secondary"
-      >
-        ← Back to Summary
-      </a>
-    </div>
+{% extends 'admin_base.html' %}
 
-    <div class="card-body">
-      {% if grouped %} {% for exam_title, records in grouped.items() %}
-      <div class="mb-5">
-        <h5 class="mb-3 text-primary">{{ exam_title }}</h5>
-        <div class="table-responsive">
-          <table class="table table-hover table-bordered align-middle mb-0">
-            <thead class="table-light">
+{% block title %}{{ user.first_name }}’s Incorrect Answers{% endblock %}
+
+{% block breadcrumb %}
+<a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+<span class="tiq-breadcrumb-sep">/</span>
+<a href="{{ url_for('admin_routes.incorrect_summary') }}">Incorrect Answers</a>
+<span class="tiq-breadcrumb-sep">/</span>
+<span>{{ user.first_name }}’s Details</span>
+{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <div class="tiq-breadcrumb">
+        <a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+        <span class="tiq-breadcrumb-sep">/</span>
+        <a href="{{ url_for('admin_routes.incorrect_summary') }}">Incorrect Answers</a>
+        <span class="tiq-breadcrumb-sep">/</span>
+        <span>Details</span>
+      </div>
+      <h1>{{ user.first_name }}’s Incorrect Answers</h1>
+    </div>
+    <a href="{{ url_for('admin_routes.incorrect_summary') }}" class="tiq-btn tiq-btn-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Summary
+    </a>
+  </div>
+</div>
+
+<div class="tiq-card">
+  <div class="tiq-card-header">
+    <h2 class="tiq-card-title">
+      <i class="fas fa-circle-exclamation" style="margin-right:8px; color:var(--tiq-danger);"></i>
+      Incorrect Answers Log for {{ user.first_name }} {{ user.last_name }} ({{ user.employee_email }})
+    </h2>
+  </div>
+  <div class="tiq-card-body">
+    {% if grouped %}
+      {% for exam_title, records in grouped.items() %}
+      <div style="margin-bottom: 2.5rem;">
+        <h3 style="font-size:1.15rem; color:var(--tiq-primary); font-weight:700; margin-bottom:1rem;">
+          <i class="fas fa-file-signature" style="margin-right:8px;"></i>{{ exam_title }}
+        </h3>
+        <div class="tiq-table-wrapper">
+          <table class="tiq-table">
+            <thead>
               <tr>
-                <th scope="col">When</th>
-                <th scope="col">Q-ID</th>
-                <th scope="col">Question</th>
-                <th scope="col">Their Answer</th>
-                <th scope="col">Correct Answer</th>
+                <th style="padding-left:1.25rem; width:150px;">When</th>
+                <th style="width:100px;">Q-ID</th>
+                <th>Question</th>
+                <th>Their Answer</th>
+                <th>Correct Answer</th>
               </tr>
             </thead>
             <tbody>
               {% for r in records %}
               <tr>
-                <td>{{ r.answered_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                <td>{{ r.question_id_val }}</td>
-                <td>
-                  {% if r.question_text %} {{ r.question_text }} {% else %}
-                  <span class="text-muted">N/A (Special Exam Question)</span>
+                <td style="padding-left:1.25rem; font-size:0.8rem; color:var(--tiq-text-2);">
+                  {{ r.answered_at.strftime('%Y-%m-%d %H:%M') }}
+                </td>
+                <td><code style="background:var(--tiq-surface-2); padding:2px 6px; border-radius:4px; font-size:0.8rem;">Q-{{ r.question_id_val }}</code></td>
+                <td style="max-width:350px;">
+                  {% if r.question_text %}
+                    {{ r.question_text }}
+                  {% else %}
+                    <span style="color:var(--tiq-text-3); font-style:italic;">N/A (Special Exam Question)</span>
                   {% endif %}
                 </td>
-                <td>{{ r.user_answer }}</td>
-                <td>{{ r.correct_answer }}</td>
+                <td style="color:var(--tiq-danger); font-weight:500;">{{ r.user_answer }}</td>
+                <td style="color:var(--tiq-success); font-weight:600;">{{ r.correct_answer }}</td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
       </div>
-      {% endfor %} {% else %}
-      <div class="alert alert-info mb-0">
-        No incorrect answers found for this user.
+      {% endfor %}
+    {% else %}
+      <div class="tiq-empty">
+        <div class="tiq-empty-icon"><i class="fas fa-shield-cat" style="color:var(--tiq-success); opacity:1;"></i></div>
+        <h3>No Incorrect Answers</h3>
+        <p>This user has not answered any questions incorrectly.</p>
       </div>
-      {% endif %} {% if pagination %}
-      <nav aria-label="Page navigation">
-        <ul class="pagination justify-content-center my-3">
-          <li
-            class="page-item{% if not pagination.has_prev %} disabled{% endif %}"
-          >
-            <a
-              class="page-link"
-              href="{{ url_for('admin_routes.view_incorrect_answers',
-                                  user_id=user.id,
-                                  page=pagination.prev_num) }}"
-            >
-              Previous
-            </a>
-          </li>
-          <li class="page-item disabled">
-            <span class="page-link">
-              Page {{ pagination.page }} of {{ pagination.pages }}
-            </span>
-          </li>
-          <li
-            class="page-item{% if not pagination.has_next %} disabled{% endif %}"
-          >
-            <a
-              class="page-link"
-              href="{{ url_for('admin_routes.view_incorrect_answers',
-                                  user_id=user.id,
-                                  page=pagination.next_num) }}"
-            >
-              Next
-            </a>
-          </li>
-        </ul>
-      </nav>
-      {% endif %}
-    </div>
+    {% endif %}
+
+    {% if pagination %}
+    <nav aria-label="Page navigation" class="tiq-flex-center" style="margin-top: 1.5rem;">
+      <div class="tiq-flex" style="gap: 12px; align-items: center;">
+        <a class="tiq-btn tiq-btn-secondary tiq-btn-sm {% if not pagination.has_prev %}disabled{% endif %}"
+           href="{% if pagination.has_prev %}{{ url_for('admin_routes.view_incorrect_answers', user_id=user.id, page=pagination.prev_num) }}{% else %}#{% endif %}"
+           {% if not pagination.has_prev %}style="opacity:0.5; pointer-events:none;"{% endif %}>
+          <i class="fas fa-chevron-left"></i> Previous
+        </a>
+        <span style="font-size:0.875rem; color:var(--tiq-text-2)">
+          Page <strong>{{ pagination.page }}</strong> of <strong>{{ pagination.pages }}</strong>
+        </span>
+        <a class="tiq-btn tiq-btn-secondary tiq-btn-sm {% if not pagination.has_next %}disabled{% endif %}"
+           href="{% if pagination.has_next %}{{ url_for('admin_routes.view_incorrect_answers', user_id=user.id, page=pagination.next_num) }}{% else %}#{% endif %}"
+           {% if not pagination.has_next %}style="opacity:0.5; pointer-events:none;"{% endif %}>
+          Next <i class="fas fa-chevron-right"></i>
+        </a>
+      </div>
+    </nav>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

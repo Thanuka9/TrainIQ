@@ -1,470 +1,290 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Available Exams</title>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-    />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <style>
-      body {
-        font-family: "Poppins", sans-serif;
-        background: #f1f3f6;
-        margin: 0;
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
-      }
-      .top-bar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 30px;
-        background: #ffffff;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-      }
-      .top-bar img {
-        height: 40px;
-      }
-      .brand {
-        font-size: 1.6rem;
-        font-weight: 600;
-      }
-      .brand .black {
-        color: #222;
-      }
-      .brand .red {
-        color: #e63946;
-      }
-      .back-btn-top {
-        padding: 8px 16px;
-        background: #6c757d;
-        color: #fff;
-        border-radius: 6px;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .container {
-        max-width: 1150px;
-        margin: 40px auto;
-        padding: 30px;
-        background: #ffffff;
-        border-radius: 12px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-        flex: 1;
-      }
-      h1 {
-        text-align: center;
-        font-size: 1.8rem;
-        margin-bottom: 30px;
-        color: #343a40;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      thead {
-        background: #e03f09;
-        color: #fff;
-      }
-      th,
-      td {
-        padding: 14px 12px;
-        text-align: center;
-      }
-      tr:nth-child(even) {
-        background-color: #f9fafb;
-      }
-      .status-badge {
-        display: inline-block;
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 0.875rem;
-        font-weight: 500;
-      }
-      .badge-warning {
-        background: #fff3cd;
-        color: #856404;
-      }
-      .badge-info {
-        background: #d1ecf1;
-        color: #0c5460;
-      }
-      .badge-danger {
-        background: #f8d7da;
-        color: #721c24;
-      }
-      .badge-default {
-        background: #e2e3e5;
-        color: #383d41;
-      }
-      .action-btn {
-        padding: 8px 10px;
-        border-radius: 6px;
-        font-size: 0.9rem;
-        color: #fff;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .action-btn i {
-        font-size: 14px;
-      }
-      .start {
-        background: #28a745;
-      }
-      .start:hover {
-        background: #218838;
-      }
-      .retry {
-        background: #dc3545;
-      }
-      .retry:hover {
-        background: #c82333;
-      }
-      .take-anyway {
-        background: #17a2b8;
-      }
-      .take-anyway:hover {
-        background: #138496;
-      }
-      .no-action,
-      .no-action-fail {
-        background: #adb5bd;
-        cursor: not-allowed;
-        opacity: 0.45;
-        color: #fff;
-      }
-      .no-action-fail {
-        background: #dc3545;
-      }
-      footer {
-        background: #343a40;
-        color: #fff;
-        text-align: center;
-        padding: 15px 0;
-      }
-      .toast-container {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 1080;
-      }
-    </style>
-  </head>
+{% extends 'base.html' %}
 
-  <body>
-    <div class="top-bar">
-      <a href="/study_materials" class="back-btn-top">
-        <i class="fas fa-arrow-left"></i> Back
-      </a>
-      <div class="d-flex align-items-center gap-2">
-        <img src="/static/images/logo.png" alt="Logo" height="40" />
-        <div class="brand">
-          <span class="black">Collect</span><span class="red">ive</span>
-        </div>
+{% block title %}Available Exams — {{ display_org_name }}{% endblock %}
+
+{% block breadcrumb %}Exams{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <div class="tiq-breadcrumb">
+        <a href="{{ url_for('general_routes.dashboard') }}">Home</a>
+        <span class="tiq-breadcrumb-sep">/</span>
+        <span>Exams</span>
       </div>
+      <h1>Available Exams</h1>
+      <p class="tiq-lead" style="margin: 0;">Test your knowledge, complete course levels, and view retry windows.</p>
     </div>
+  </div>
+</div>
 
-    <div class="container">
-      <h1><i class="fas fa-clipboard-list"></i> Available Exams</h1>
-      <table>
+<!-- Level Unlocked Notification (Toast fallback/handling via flash-data) -->
+{% if unlocked_level %}
+  <div class="tiq-alert tiq-alert-success tiq-animate-fade-in" style="margin-bottom: 1.5rem;">
+    <i class="fas fa-trophy" style="font-size: 1.25rem;"></i>
+    <div>
+      <strong>Level Up!</strong> Congratulations, you have successfully unlocked <strong>Level {{ unlocked_level }}</strong>!
+    </div>
+  </div>
+{% endif %}
+
+<!-- Search & Filtering Control Bar -->
+<div class="tiq-card" style="margin-bottom: 1.5rem; padding: 1rem;">
+  <div class="tiq-flex-between" style="gap: 1rem; flex-wrap: wrap;">
+    <div class="tiq-search" style="max-width: 400px; flex-grow: 1;">
+      <span class="search-icon"><i class="fas fa-search"></i></span>
+      <input type="text" id="examSearchInput" placeholder="Search exams by title or category..." onkeyup="filterExams()" />
+    </div>
+    <div style="font-size: 0.875rem; color: var(--tiq-text-2); font-weight: 600;">
+      Showing <span id="activeExamsCount" style="color: var(--tiq-primary);">0</span> evaluation(s)
+    </div>
+  </div>
+</div>
+
+<!-- ── Regular Exams Section ──────────────── -->
+<div class="tiq-card" style="margin-bottom: 2rem;">
+  <div class="tiq-card-header">
+    <h2 class="tiq-card-title"><i class="fas fa-file-invoice" style="margin-right:8px; color:var(--tiq-primary);"></i>Regular Course Evaluations</h2>
+  </div>
+  <div class="tiq-card-body" style="padding:0;">
+    <div class="tiq-table-wrapper">
+      <table class="tiq-table" id="regularExamsTable">
         <thead>
           <tr>
-            <th>Exam Title</th>
+            <th style="padding-left: 1.5rem; text-align: left;">Exam Title</th>
             <th>Category</th>
-            <th>Duration <i class="fas fa-clock"></i></th>
+            <th>Duration</th>
             <th>Status</th>
-            <th>Retry Date</th>
+            <th>Retry Window</th>
             <th>Attempts</th>
-            <th>Action</th>
+            <th class="tiq-text-center" style="width:120px;">Action</th>
           </tr>
         </thead>
         <tbody>
-          {# ────────── Regular Exams ────────── #} {% for exam in exams %} {%
-          set is_skipped = exam.status.startswith('Skipped') %}
-          <tr>
-            <td>{{ exam.title }}</td>
-            <td>{{ exam.category }}</td>
-            <td>{{ exam.duration }}</td>
-            <td>
-              {% if exam.status == 'Study Material Not Completed' %}
-              <span class="status-badge badge-warning">
-                <i class="fas fa-book"></i> {{ exam.status }}
-              </span>
-
-              {% elif exam.status == 'Level Completed' %}
-              <span class="status-badge badge-info">
-                <i class="fas fa-check-double"></i> Level Completed
-              </span>
-
-              {% elif is_skipped %} {# Show it as “Optional (Can Skip)” but it’s
-              still gated by study completion #}
-              <span class="status-badge badge-info">
-                <i class="fas fa-arrow-right"></i> {{ exam.status }}
-              </span>
-
-              {% elif exam.status == 'Passed' %}
-              <span class="status-badge badge-info">
-                <i class="fas fa-check-circle"></i> Passed
-              </span>
-
-              {% elif exam.status == 'Retry available' %}
-              <span class="status-badge badge-danger">
-                <i class="fas fa-redo-alt"></i> Retry available
-              </span>
-
-              {% elif exam.status == 'Failed' %}
-              <span class="status-badge badge-default">
-                <i class="fas fa-exclamation-circle"></i> Failed
-              </span>
-
-              {% elif exam.status == 'Start Exam' %}
-              <span class="status-badge badge-default">
-                <i class="fas fa-play-circle"></i> Start Exam
-              </span>
-
-              {% else %}
-              <span class="status-badge badge-default">{{ exam.status }}</span>
-              {% endif %}
-            </td>
-            <td>{{ exam.retry_date or '-' }}</td>
-            <td>{{ exam.attempts or '0' }}</td>
-            <td>
-              {# —— Regular Exam Action Buttons —— #} {% if exam.status ==
-              'Start Exam' %}
-              <a
-                href="{{ url_for('exams_routes.start_exam', exam_id=exam.exam_id) }}"
-                class="action-btn start"
-                title="Start Exam"
-              >
-                <i class="fas fa-play"></i>
-              </a>
-
-              {% elif exam.status == 'Access Required' %} {% if exam.can_request
-              %}
-              <form
-                action="{{ url_for('exams_routes.request_exam_access', exam_id=exam.exam_id) }}"
-                method="POST"
-                style="display: inline-block"
-              >
-                <input
-                  type="hidden"
-                  name="csrf_token"
-                  value="{{ csrf_token() }}"
-                />
-                <button
-                  type="submit"
-                  class="action-btn take-anyway"
-                  title="Request Access"
-                >
-                  <i class="fas fa-envelope-open-text"></i>
-                </button>
-              </form>
-              {% else %}
-              <span class="action-btn no-action" title="Pending Request">
-                <i class="fas fa-ban"></i>
-              </span>
-              {% endif %} {% elif exam.status == 'Retry available' %}
-              <a
-                href="{{ url_for('exams_routes.start_exam', exam_id=exam.exam_id) }}"
-                class="action-btn retry"
-                title="Retry Exam"
-              >
-                <i class="fas fa-redo-alt"></i>
-              </a>
-
-              {% else %}
-              <span class="action-btn no-action" title="Unavailable">
-                <i class="fas fa-ban"></i>
-              </span>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %} {# ────────── Special Exams ────────── #} {% for spex in
-          special_exams %}
-          <tr>
-            <td>{{ spex.title }}</td>
-            <td>{{ spex.category or 'Special' }}</td>
-            <td>{{ spex.duration }}</td>
-            <td>
-              {% if spex.status == 'Passed' %}
-              <span class="status-badge badge-info">
-                <i class="fas fa-check-circle"></i> Passed
-              </span>
-
-              {% elif spex.status == 'Retry available' %}
-              <span class="status-badge badge-danger">
-                <i class="fas fa-redo-alt"></i> Retry available
-              </span>
-
-              {% elif spex.status == 'Failed' %}
-              <span class="status-badge badge-default">
-                <i class="fas fa-exclamation-circle"></i> Failed
-              </span>
-
-              {% elif spex.status == 'Start Exam' %}
-              <span class="status-badge badge-default">
-                <i class="fas fa-play-circle"></i> Start Exam
-              </span>
-
-              {% else %}
-              <span class="status-badge badge-default">{{ spex.status }}</span>
-              {% endif %}
-            </td>
-            <td>{{ spex.retry_date or '-' }}</td>
-            <td>{{ spex.attempts or '0' }}</td>
-            <td>
-              {# —— Special Exam Action Buttons —— #} {% if spex.status ==
-              'Access Required' and spex.can_request %}
-              <form
-                action="{{ url_for('special_exams_routes.request_special_exam_access', exam_id=spex.exam_id) }}"
-                method="POST"
-                style="display: inline-block"
-              >
-                <input
-                  type="hidden"
-                  name="csrf_token"
-                  value="{{ csrf_token() }}"
-                />
-                <button
-                  type="submit"
-                  class="action-btn take-anyway"
-                  title="Request Access"
-                >
-                  <i class="fas fa-envelope-open-text"></i>
-                </button>
-              </form>
-
-              {% elif spex.status in ['Start Exam', 'Retry available'] and not
-              spex.can_request %}
-              <a
-                href="{{ url_for(spex.route) }}"
-                class="action-btn start"
-                title="Start Special Exam"
-              >
-                <i class="fas fa-play"></i>
-              </a>
-
-              {% elif spex.status == 'Retry available' and spex.can_request %}
-              <form
-                action="{{ url_for('special_exams_routes.request_special_exam_access', exam_id=spex.exam_id) }}"
-                method="POST"
-                style="display: inline-block"
-              >
-                <input
-                  type="hidden"
-                  name="csrf_token"
-                  value="{{ csrf_token() }}"
-                />
-                <button
-                  type="submit"
-                  class="action-btn retry"
-                  title="Request Access to Retry"
-                >
-                  <i class="fas fa-redo-alt"></i>
-                </button>
-              </form>
-
-              {% else %}
-              <span class="action-btn no-action" title="Unavailable">
-                <i class="fas fa-ban"></i>
-              </span>
-              {% endif %}
-            </td>
-          </tr>
+          {% for exam in exams %}
+            {% set is_skipped = exam.status.startswith('Skipped') %}
+            <tr class="exam-row">
+              <td style="padding-left: 1.5rem; text-align: left; font-weight: 600;">{{ exam.title }}</td>
+              <td>
+                {% if exam.category %}
+                  <span class="tiq-badge tiq-badge-neutral">{{ exam.category }}</span>
+                {% else %}
+                  <span style="color:var(--tiq-text-3);">—</span>
+                {% endif %}
+              </td>
+              <td><span class="tiq-badge tiq-badge-neutral"><i class="far fa-clock" style="margin-right:4px;"></i>{{ exam.duration }} min</span></td>
+              <td>
+                {% if exam.status == 'Study Material Not Completed' %}
+                  <span class="tiq-badge tiq-badge-warning"><i class="fas fa-lock" style="margin-right:4px;"></i>Locked</span>
+                {% elif exam.status == 'Level Completed' or exam.status == 'Passed' %}
+                  <span class="tiq-badge tiq-badge-success"><i class="fas fa-circle-check" style="margin-right:4px;"></i>Passed</span>
+                {% elif is_skipped %}
+                  <span class="tiq-badge tiq-badge-info"><i class="fas fa-circle-info" style="margin-right:4px;"></i>{{ exam.status }}</span>
+                {% elif exam.status == 'Retry available' %}
+                  <span class="tiq-badge tiq-badge-danger"><i class="fas fa-redo" style="margin-right:4px;"></i>Retry available</span>
+                {% elif exam.status == 'Failed' %}
+                  <span class="tiq-badge tiq-badge-neutral"><i class="fas fa-triangle-exclamation" style="margin-right:4px;"></i>Failed</span>
+                {% elif exam.status == 'Start Exam' %}
+                  <span class="tiq-badge tiq-badge-info"><i class="fas fa-circle-play" style="margin-right:4px;"></i>Ready</span>
+                {% else %}
+                  <span class="tiq-badge tiq-badge-neutral">{{ exam.status }}</span>
+                {% endif %}
+              </td>
+              <td style="font-size:0.875rem; color:var(--tiq-text-2);">{{ exam.retry_date or 'Immediate' }}</td>
+              <td style="font-weight: 600;">{{ exam.attempts or '0' }}</td>
+              <td class="tiq-text-center">
+                {% if exam.status == 'Start Exam' %}
+                  <a href="{{ url_for('exams_routes.start_exam', exam_id=exam.exam_id) }}"
+                     class="tiq-btn tiq-btn-sm tiq-btn-success tiq-btn-icon"
+                     title="Start Exam">
+                     <i class="fas fa-play"></i>
+                  </a>
+                {% elif exam.status == 'Access Required' %}
+                  {% if exam.can_request %}
+                    <form action="{{ url_for('exams_routes.request_exam_access', exam_id=exam.exam_id) }}" method="POST" style="display:inline;">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                      <button type="submit" class="tiq-btn tiq-btn-sm tiq-btn-primary tiq-btn-icon" title="Request Access">
+                        <i class="fas fa-paper-plane"></i>
+                      </button>
+                    </form>
+                  {% else %}
+                    <span class="tiq-badge tiq-badge-neutral" style="text-transform:none;" title="Pending Approval">Pending Request</span>
+                  {% endif %}
+                {% elif exam.status == 'Retry available' %}
+                  <a href="{{ url_for('exams_routes.start_exam', exam_id=exam.exam_id) }}"
+                     class="tiq-btn tiq-btn-sm tiq-btn-danger tiq-btn-icon"
+                     title="Retry Exam">
+                     <i class="fas fa-redo"></i>
+                  </a>
+                {% else %}
+                  <span class="tiq-btn tiq-btn-sm tiq-btn-secondary tiq-btn-icon" style="opacity:0.4; cursor:not-allowed;" title="Locked">
+                    <i class="fas fa-lock"></i>
+                  </span>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="7" class="tiq-text-center" style="padding: 3rem; color: var(--tiq-text-3);">
+                No regular course exams available.
+              </td>
+            </tr>
           {% endfor %}
+          <tr class="no-match-row" style="display:none;">
+            <td colspan="7" class="tiq-text-center" style="padding: 3rem; color: var(--tiq-text-3);">
+              <i class="fas fa-search" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: var(--tiq-text-3);"></i>
+              No course evaluations match your search.
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
+  </div>
+</div>
 
-    <!-- Toast Messages -->
-    <div class="toast-container">
-      {% with messages = get_flashed_messages(with_categories=true) %} {% if
-      messages %} {% for category, message in messages %}
-      <div
-        class="toast align-items-center bg-light text-dark border-0 shadow-lg show mb-2"
-        role="alert"
-        aria-live="assertive"
-        aria-atomic="true"
-      >
-        <div class="d-flex">
-          <div class="toast-body">{{ message }}</div>
-          <button
-            type="button"
-            class="btn-close m-2"
-            data-bs-dismiss="toast"
-            aria-label="Close"
-          ></button>
-        </div>
-      </div>
-      {% endfor %} {% endif %} {% if unlocked_level %}
-      <div
-        class="toast align-items-center bg-success text-white border-0 shadow-lg show mb-2"
-        role="alert"
-        aria-live="assertive"
-        aria-atomic="true"
-      >
-        <div class="d-flex">
-          <div class="toast-body">
-            🎉 Congratulations! You've unlocked Level {{ unlocked_level }}.
-          </div>
-          <button
-            type="button"
-            class="btn-close btn-close-white m-2"
-            data-bs-dismiss="toast"
-            aria-label="Close"
-          ></button>
-        </div>
-      </div>
-      {% endif %} {% endwith %}
+<!-- ── Special Exams Section ──────────────── -->
+<div class="tiq-card">
+  <div class="tiq-card-header">
+    <h2 class="tiq-card-title"><i class="fas fa-star" style="margin-right:8px; color:var(--tiq-accent);"></i>Special / Advanced Evaluations</h2>
+  </div>
+  <div class="tiq-card-body" style="padding:0;">
+    <div class="tiq-table-wrapper">
+      <table class="tiq-table" id="specialExamsTable">
+        <thead>
+          <tr>
+            <th style="padding-left: 1.5rem; text-align: left;">Exam Title</th>
+            <th>Category</th>
+            <th>Duration</th>
+            <th>Status</th>
+            <th>Retry Window</th>
+            <th>Attempts</th>
+            <th class="tiq-text-center" style="width:120px;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for spex in special_exams %}
+            <tr class="exam-row">
+              <td style="padding-left: 1.5rem; text-align: left; font-weight: 600;">{{ spex.title }}</td>
+              <td><span class="tiq-badge tiq-badge-neutral">{{ spex.category or 'Special' }}</span></td>
+              <td><span class="tiq-badge tiq-badge-neutral"><i class="far fa-clock" style="margin-right:4px;"></i>{{ spex.duration }} min</span></td>
+              <td>
+                {% if spex.status == 'Passed' %}
+                  <span class="tiq-badge tiq-badge-success"><i class="fas fa-circle-check" style="margin-right:4px;"></i>Passed</span>
+                {% elif spex.status == 'Retry available' %}
+                  <span class="tiq-badge tiq-badge-danger"><i class="fas fa-redo" style="margin-right:4px;"></i>Retry available</span>
+                {% elif spex.status == 'Failed' %}
+                  <span class="tiq-badge tiq-badge-neutral"><i class="fas fa-triangle-exclamation" style="margin-right:4px;"></i>Failed</span>
+                {% elif spex.status == 'Start Exam' %}
+                  <span class="tiq-badge tiq-badge-info"><i class="fas fa-circle-play" style="margin-right:4px;"></i>Ready</span>
+                {% else %}
+                  <span class="tiq-badge tiq-badge-neutral">{{ spex.status }}</span>
+                {% endif %}
+              </td>
+              <td style="font-size:0.875rem; color:var(--tiq-text-2);">{{ spex.retry_date or 'Immediate' }}</td>
+              <td style="font-weight: 600;">{{ spex.attempts or '0' }}</td>
+              <td class="tiq-text-center">
+                {% if spex.status == 'Access Required' %}
+                  {% if spex.can_request %}
+                    <form action="{{ url_for('special_exams_routes.request_special_exam_access', exam_id=spex.exam_id) }}" method="POST" style="display:inline;">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                      <button type="submit" class="tiq-btn tiq-btn-sm tiq-btn-primary tiq-btn-icon" title="Request Access">
+                        <i class="fas fa-paper-plane"></i>
+                      </button>
+                    </form>
+                  {% else %}
+                    <span class="tiq-badge tiq-badge-neutral" style="text-transform:none;" title="Pending Approval">Pending Request</span>
+                  {% endif %}
+                {% elif spex.status in ['Start Exam', 'Retry available'] and not spex.can_request %}
+                  <a href="{{ url_for(spex.route) }}"
+                     class="tiq-btn tiq-btn-sm tiq-btn-success tiq-btn-icon"
+                     title="Start Special Exam">
+                     <i class="fas fa-play"></i>
+                  </a>
+                {% elif spex.status == 'Retry available' and spex.can_request %}
+                  <form action="{{ url_for('special_exams_routes.request_special_exam_access', exam_id=spex.exam_id) }}" method="POST" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="tiq-btn tiq-btn-sm tiq-btn-danger tiq-btn-icon" title="Request Access to Retry">
+                      <i class="fas fa-redo"></i>
+                    </button>
+                  </form>
+                {% else %}
+                  <span class="tiq-btn tiq-btn-sm tiq-btn-secondary tiq-btn-icon" style="opacity:0.4; cursor:not-allowed;" title="Locked">
+                    <i class="fas fa-lock"></i>
+                  </span>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="7" class="tiq-text-center" style="padding: 3rem; color: var(--tiq-text-3);">
+                No special/advanced evaluations assigned to your level.
+              </td>
+            </tr>
+          {% endfor %}
+          <tr class="no-match-row" style="display:none;">
+            <td colspan="7" class="tiq-text-center" style="padding: 3rem; color: var(--tiq-text-3);">
+              <i class="fas fa-search" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: var(--tiq-text-3);"></i>
+              No special evaluations match your search.
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
+  </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  function filterExams() {
+    const query = document.getElementById("examSearchInput").value.toLowerCase();
+    
+    // Filter regular exams
+    let regularCount = 0;
+    const regularRows = document.querySelectorAll("#regularExamsTable tbody tr.exam-row");
+    regularRows.forEach(row => {
+      const title = row.cells[0].textContent.toLowerCase();
+      const category = row.cells[1].textContent.toLowerCase();
+      if (title.includes(query) || category.includes(query)) {
+        row.style.display = "";
+        regularCount++;
+      } else {
+        row.style.display = "none";
+      }
+    });
+    
+    const regularNoMatch = document.querySelector("#regularExamsTable tbody tr.no-match-row");
+    if (regularNoMatch) {
+      regularNoMatch.style.display = (regularCount === 0 && regularRows.length > 0) ? "" : "none";
+    }
 
-    <script>
-      // Show toasts automatically
-      document.querySelectorAll(".toast").forEach((toastEl) => {
-        new bootstrap.Toast(toastEl, { delay: 6000 }).show();
-      });
+    // Filter special exams
+    let specialCount = 0;
+    const specialRows = document.querySelectorAll("#specialExamsTable tbody tr.exam-row");
+    specialRows.forEach(row => {
+      const title = row.cells[0].textContent.toLowerCase();
+      const category = row.cells[1].textContent.toLowerCase();
+      if (title.includes(query) || category.includes(query)) {
+        row.style.display = "";
+        specialCount++;
+      } else {
+        row.style.display = "none";
+      }
+    });
 
-      // Show access denied modal if flashed
-      {% with msgs = get_flashed_messages(category_filter=['access_denied']) %}
-        {% if msgs %}
-          window.addEventListener('load', () => {
-            const modal = document.getElementById('accessDeniedModal');
-            if (modal) {
-              new bootstrap.Modal(modal).show();
-            }
-          });
-        {% endif %}
-      {% endwith %}
+    const specialNoMatch = document.querySelector("#specialExamsTable tbody tr.no-match-row");
+    if (specialNoMatch) {
+      specialNoMatch.style.display = (specialCount === 0 && specialRows.length > 0) ? "" : "none";
+    }
 
-      // Keep session alive for active users
-      setInterval(() => {
-        fetch('/ping', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        });
-      }, 300000); // every 5 minutes
-    </script>
+    // Update count display
+    const totalVisible = regularCount + specialCount;
+    document.getElementById("activeExamsCount").textContent = totalVisible;
+  }
 
-    <footer>Collective Intranet © 2024</footer>
-  </body>
-</html>
+  // Initial count
+  window.addEventListener("DOMContentLoaded", () => {
+    const totalExams = document.querySelectorAll(".exam-row").length;
+    document.getElementById("activeExamsCount").textContent = totalExams;
+  });
+</script>
+{% endblock %}

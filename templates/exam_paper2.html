@@ -1,136 +1,662 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Exam Paper - Billing & Coding</title>
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-    />
-    <style>
-      html,
-      body {
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <title>Evaluation: Special Paper 2 — {{ display_org_name }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}" />
+        <style>
+      :root {
+        --exam-primary: var(--tiq-primary);
+        --exam-primary-light: rgba(var(--tiq-primary-rgb), 0.1);
+        --exam-primary-border: rgba(var(--tiq-primary-rgb), 0.3);
+        --exam-warning: #f59e0b;
+        --exam-danger: #ef4444;
+      }
+      
+      html, body {
         height: 100%;
         margin: 0;
-        font-family: "Segoe UI", sans-serif;
-        background: #f2f6fa;
-      }
-      body {
+        background: #090d16;
+        background-image: 
+          radial-gradient(at 0% 0%, rgba(var(--tiq-primary-rgb), 0.12) 0px, transparent 50%), 
+          radial-gradient(at 100% 100%, rgba(var(--tiq-secondary-rgb), 0.12) 0px, transparent 50%), 
+          radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.04) 0px, transparent 50%);
+        font-family: var(--tiq-font-sans);
+        color: #f1f5f9;
         display: flex;
         flex-direction: column;
-        min-height: 100vh;
+        overflow-x: hidden;
       }
+      
+      @keyframes orbDrift {
+        0% { transform: translate(0, 0) scale(1); }
+        50% { transform: translate(40px, -20px) scale(1.05); }
+        100% { transform: translate(-20px, 30px) scale(0.95); }
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        top: -10%;
+        left: -10%;
+        width: 60%;
+        height: 60%;
+        background: radial-gradient(circle, rgba(var(--tiq-primary-rgb), 0.08) 0%, transparent 70%);
+        z-index: -1;
+        pointer-events: none;
+        animation: orbDrift 20s infinite alternate ease-in-out;
+      }
+      body::after {
+        content: "";
+        position: fixed;
+        bottom: -10%;
+        right: -10%;
+        width: 60%;
+        height: 60%;
+        background: radial-gradient(circle, rgba(var(--tiq-secondary-rgb), 0.08) 0%, transparent 70%);
+        z-index: -1;
+        pointer-events: none;
+        animation: orbDrift 25s infinite alternate-reverse ease-in-out;
+      }
+
+      /* Visual Timer Progress Bar */
+      .timer-progress-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 5px;
+        background: rgba(255, 255, 255, 0.05);
+        z-index: 10000;
+      }
+      
+      .timer-progress-bar {
+        height: 100%;
+        width: 100%;
+        background: linear-gradient(90deg, #10b981, var(--tiq-secondary));
+        box-shadow: 0 1px 10px rgba(16, 185, 129, 0.5);
+        transition: width 1s linear, background-color 0.5s ease;
+      }
+
+      .timer-progress-bar.warning {
+        background: linear-gradient(90deg, var(--exam-warning), #ef4444);
+        box-shadow: 0 1px 10px rgba(245, 158, 11, 0.5);
+      }
+
+      .timer-progress-bar.danger {
+        background: var(--exam-danger);
+        box-shadow: 0 1px 12px rgba(239, 68, 68, 0.8);
+        animation: pulseTimer 1s infinite alternate;
+      }
+
+      @keyframes pulseTimer {
+        from { opacity: 0.6; }
+        to { opacity: 1; }
+      }
+
+      /* Premium Top Bar */
       .top-bar {
+        height: 64px;
+        background: rgba(10, 15, 30, 0.7);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 2rem;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+        position: sticky;
+        top: 0;
+        z-index: 99;
+      }
+      
+      .logo-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      
+      .logo-brand .logo-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--tiq-gradient);
+        color: white;
+        font-weight: 800;
+        font-size: 1.1rem;
+        box-shadow: 0 4px 12px rgba(var(--tiq-primary-rgb), 0.3);
+      }
+      
+      .logo-brand .logo-text {
+        font-weight: 800;
+        font-size: 1.25rem;
+        letter-spacing: -0.03em;
+        color: white;
+      }
+      
+      .logo-brand .logo-text span {
+        color: var(--tiq-secondary);
+      }
+
+      .top-bar-timer {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .timer-display {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--exam-primary);
+        padding: 0.5rem 1.25rem;
+        border-radius: var(--tiq-radius-full);
+        background: rgba(var(--tiq-primary-rgb), 0.1);
+        border: 1px solid rgba(var(--tiq-primary-rgb), 0.25);
+        box-shadow: 0 0 15px rgba(var(--tiq-primary-rgb), 0.15);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s;
+      }
+
+      .timer-display.warning {
+        color: var(--exam-warning);
+        background: rgba(245, 158, 11, 0.12);
+        border-color: rgba(245, 158, 11, 0.35);
+        box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
+      }
+
+      .timer-display.danger {
+        color: var(--exam-danger);
+        background: rgba(239, 68, 68, 0.15);
+        border-color: rgba(239, 68, 68, 0.4);
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+        animation: shake 0.5s ease-in-out infinite alternate;
+      }
+
+      @keyframes shake {
+        0% { transform: translateX(0); }
+        25% { transform: translateX(-2px); }
+        75% { transform: translateX(2px); }
+        100% { transform: translateX(0); }
+      }
+
+      .exam-grid-container {
+        max-width: 800px;
+        margin: 2.5rem auto;
+        width: 92%;
+        display: block;
+        flex: 1;
+      }
+      .progress-sidebar-card { display: none !important; }
+
+      /* Card styles */
+      .tiq-card {
+        background: rgba(17, 24, 39, 0.5) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 20px !important;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
+      }
+
+      .question {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+      }
+
+      /* Question Card Details */
+      .question-container {
+        display: none;
+        animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+
+      .question-container.active {
+        display: block;
+      }
+
+      @keyframes slideIn {
+        from { opacity: 0; transform: translateY(16px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .question-title-meta {
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--tiq-secondary);
+        margin-bottom: 0.25rem;
+      }
+
+      .question-text, .question h3 {
+        font-size: 1.35rem !important;
+        font-weight: 700 !important;
+        line-height: 1.5 !important;
+        color: #ffffff !important;
+        margin-top: 0;
+        margin-bottom: 2rem !important;
+      }
+
+      .choice-list {
+        list-style: none;
+        padding-left: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      /* Unified styling for choice-item and form-check */
+      .choice-item, .form-check {
+        background: rgba(255, 255, 255, 0.03) !important;
+        border: 1.5px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 16px !important;
+        padding: 1.25rem 1.5rem !important;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        font-weight: 600;
+        font-size: 1.05rem;
+        color: #cbd5e1 !important;
+        user-select: none;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1) !important;
+        position: relative;
+        margin-bottom: 0;
+      }
+
+      /* Adjust padding for form-check in special exams */
+      .form-check {
+        padding-left: 3.5rem !important;
+        margin-bottom: 1rem !important;
+      }
+
+      .choice-item:hover, .form-check:hover {
+        border-color: rgba(var(--tiq-primary-rgb), 0.45) !important;
+        background: rgba(255, 255, 255, 0.06) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
+        color: #ffffff !important;
+      }
+
+      .choice-item.selected, .form-check.selected {
+        border-color: var(--tiq-primary) !important;
+        background: rgba(var(--tiq-primary-rgb), 0.12) !important;
+        box-shadow: 0 0 20px rgba(var(--tiq-primary-rgb), 0.22) !important;
+        color: #ffffff !important;
+      }
+
+      /* Custom Check/Radio Circle for choice-item */
+      .choice-radio-indicator {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.25);
+        background: rgba(0, 0, 0, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: all 0.2s;
+      }
+
+      .choice-item.selected .choice-radio-indicator {
+        border-color: var(--tiq-primary);
+        background: var(--tiq-primary);
+        box-shadow: 0 0 8px rgba(var(--tiq-primary-rgb), 0.5);
+      }
+
+      .choice-radio-indicator::after {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: white;
+        transform: scale(0);
+        transition: transform 0.2s;
+      }
+
+      .choice-item.selected .choice-radio-indicator::after {
+        transform: scale(1);
+      }
+
+      /* Custom Check/Radio Circle for form-check */
+      .form-check::before {
+        content: '';
+        position: absolute;
+        left: 1.25rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.25) !important;
+        background: rgba(0, 0, 0, 0.2) !important;
+        transition: all 0.2s;
+      }
+
+      .form-check.selected::before {
+        border-color: var(--tiq-primary) !important;
+        background: var(--tiq-primary) !important;
+        box-shadow: 0 0 8px rgba(var(--tiq-primary-rgb), 0.5);
+      }
+
+      .form-check::after {
+        content: '';
+        position: absolute;
+        left: 1.7rem;
+        top: 50%;
+        transform: translate(-50%, -50%) scale(0) !important;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: white !important;
+        transition: transform 0.2s;
+      }
+
+      .form-check.selected::after {
+        transform: translate(-50%, -50%) scale(1) !important;
+      }
+
+      .choice-item input[type="radio"], .form-check input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .form-check-label {
+        cursor: pointer;
+        display: block;
+        width: 100%;
+        margin-bottom: 0;
+        color: inherit !important;
+      }
+
+      /* Navigation Actions */
+      .navigation-controls {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 10px 30px;
-        background-color: #fff;
-        border-bottom: 1px solid #ddd;
+        margin-top: 2rem;
       }
-      .top-bar img {
-        height: 40px;
-        margin-right: 10px;
+
+      /* Sidebar Assessment Progress Panel */
+      .progress-sidebar-card {
+        position: sticky;
+        top: 100px;
+        background: rgba(17, 24, 39, 0.5) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 20px !important;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
+        padding: 1.75rem;
       }
-      .brand {
-        font-size: 1.5rem;
-        font-weight: 600;
-      }
-      .brand .black {
-        color: #000;
-      }
-      .brand .red {
-        color: red;
-      }
-      .main-container {
-        max-width: 900px;
-        margin: 30px auto;
-        background: #fff;
-        padding: 30px;
-        border-radius: 10px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        flex: 1;
-        animation: fadeIn 0.5s ease-in-out;
-      }
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      .header {
-        text-align: center;
-        margin-bottom: 20px;
-      }
-      .header h1 {
-        font-size: 2rem;
-        margin-bottom: 10px;
-        color: #007bff;
-      }
-      .timer {
-        font-size: 1.2rem;
-        color: #dc3545;
-        text-align: center;
-        margin-bottom: 20px;
-      }
-      .question-container {
-        display: none;
-      }
-      .question-container.active {
-        display: block;
-        animation: fadeIn 0.4s ease-in-out;
-      }
-      .question {
-        margin-bottom: 20px;
-        padding: 15px;
-        background: #f8f9fa;
-        border-radius: 8px;
-        border: 1px solid #dee2e6;
-      }
-      .question h3 {
-        margin-bottom: 10px;
-      }
-      .navigation {
+
+      .sidebar-section-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #94a3b8;
+        margin-bottom: 1.25rem;
         display: flex;
-        justify-content: space-between;
-        margin-top: 20px;
+        align-items: center;
+        gap: 8px;
       }
-      .navigation button {
-        padding: 10px 20px;
-        font-size: 1rem;
+
+      .nav-badge-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 10px;
+        margin-bottom: 1.75rem;
       }
-      .actions {
-        text-align: center;
-        margin-top: 30px;
-      }
-      .actions button,
-      .actions a {
-        margin: 5px;
-      }
-      footer {
-        background: #343a40;
-        color: #fff;
-        text-align: center;
-        padding: 15px 0;
-        margin-top: auto;
-      }
-      /* disable text selection on questions */
-      .question,
-      .question * {
+
+      .nav-badge {
+        aspect-ratio: 1;
+        border-radius: 12px;
+        border: 1.5px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.03);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: #94a3b8;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         user-select: none;
       }
+
+      .nav-badge:hover {
+        border-color: rgba(var(--tiq-primary-rgb), 0.5);
+        background: rgba(var(--tiq-primary-rgb), 0.12);
+        color: white;
+        transform: scale(1.08) translateY(-1px);
+      }
+
+      .nav-badge.active {
+        border-color: var(--exam-warning);
+        background: rgba(245, 158, 11, 0.12);
+        color: #fbbf24;
+        box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+      }
+
+      .nav-badge.answered {
+        background: var(--tiq-primary);
+        border-color: var(--tiq-primary);
+        color: white;
+        box-shadow: 0 4px 10px rgba(var(--tiq-primary-rgb), 0.25);
+      }
+
+      .nav-badge.answered.active {
+        border-color: var(--exam-warning);
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.4), 0 4px 10px rgba(var(--tiq-primary-rgb), 0.25);
+      }
+
+      .progress-stats {
+        font-size: 0.9rem;
+        color: #94a3b8;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding-top: 1.25rem;
+      }
+
+      .progress-stat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .progress-stat-row strong {
+        color: #f1f5f9;
+      }
+
+      /* Instruction Overlay */
+      #instructionOverlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(4, 6, 12, 0.85);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+      }
+
+      #instructionOverlay ul {
+        list-style: none;
+        padding-left: 0;
+        margin: 1.5rem 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+      }
+
+      #instructionOverlay ul li {
+        position: relative;
+        padding-left: 1.8rem;
+        line-height: 1.5;
+        font-weight: 500;
+        color: #94a3b8;
+        font-size: 0.95rem;
+      }
+
+      #instructionOverlay ul li::before {
+        content: "05e";
+        font-family: "Font Awesome 6 Free";
+        font-weight: 900;
+        position: absolute;
+        left: 0;
+        top: 2px;
+        color: var(--exam-danger);
+      }
+
+      #instructionOverlay .tiq-card-title {
+        color: var(--exam-danger) !important;
+      }
+      #instructionOverlay p, #instructionOverlay label {
+        color: #cbd5e1 !important;
+      }
+      #instructionOverlay li {
+        color: #94a3b8 !important;
+      }
+      #instructionOverlay .tiq-card {
+        border-color: rgba(255, 255, 255, 0.12) !important;
+      }
+      #instructionOverlay .tiq-card-header {
+        border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+      }
+
+      /* Custom warning modal overlay for security failures */
+      #securityWarningOverlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(4, 6, 12, 0.9);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        z-index: 10001;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+      }
+
+      .security-card {
+        background: rgba(17, 24, 39, 0.7);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 2px solid var(--exam-danger);
+        box-shadow: 0 24px 64px rgba(239, 68, 68, 0.3);
+        border-radius: 24px;
+        max-width: 500px;
+        width: 100%;
+        padding: 2.5rem;
+        text-align: center;
+        animation: scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+      }
+
+      @keyframes scaleUp {
+        from { transform: scale(0.9); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+
+      .security-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        color: var(--exam-danger);
+        margin: 0 auto 1.5rem;
+        animation: pulseViolation 1.5s infinite alternate;
+      }
+
+      @keyframes pulseViolation {
+        from { transform: scale(1); box-shadow: 0 0 0 0px rgba(239,68,68,0.4); }
+        to { transform: scale(1.08); box-shadow: 0 0 15px 5px rgba(239,68,68,0.2); }
+      }
+
+      .tiq-btn-primary {
+        background: var(--tiq-primary) !important;
+        border: 1px solid var(--tiq-primary) !important;
+        box-shadow: 0 4px 14px rgba(var(--tiq-primary-rgb), 0.35) !important;
+        color: white !important;
+        font-weight: 700 !important;
+        border-radius: 12px !important;
+        transition: all 0.2s !important;
+      }
+      .tiq-btn-primary:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 6px 20px rgba(var(--tiq-primary-rgb), 0.5) !important;
+        background: rgba(var(--tiq-primary-rgb), 0.9) !important;
+      }
+      .tiq-btn-secondary {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        color: #cbd5e1 !important;
+        font-weight: 700 !important;
+        border-radius: 12px !important;
+      }
+      .tiq-btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.1) !important;
+        color: white !important;
+      }
+      .tiq-btn-success {
+        background: #10b981 !important;
+        border: 1px solid #10b981 !important;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
+        color: white !important;
+        font-weight: 700 !important;
+        border-radius: 12px !important;
+      }
+      .tiq-btn-success:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5) !important;
+        background: #059669 !important;
+      }
+
+      footer {
+        background: rgba(10, 15, 30, 0.5) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+        color: #64748b !important;
+        padding: 1.5rem !important;
+        text-align: center;
+        font-size: 0.875rem;
+        margin-top: auto;
+      }
+
+      /* Disable Text Selection on questions */
+      .exam-main-panel {
+        user-select: none;
+        -webkit-user-select: none;
+      }
     </style>
+
   </head>
   <script>
+    // Ping backend to keep session alive
     setInterval(function () {
       fetch("{{ url_for('ping') }}", {
         method: "POST",
@@ -138,47 +664,68 @@
       });
     }, 5 * 60 * 1000);
   </script>
-
   <body>
-    <div class="top-bar">
-      <a
-        href="{{ url_for('exams_routes.list_exams') }}"
-        class="btn btn-secondary"
-      >
-        <i class="fas fa-arrow-left"></i> Back
-      </a>
-      <div class="d-flex align-items-center">
-        <img src="/static/images/logo.png" alt="Logo" />
-        <div class="brand">
-          <span class="black">Collect</span><span class="red">ive</span>
+    <!-- Timer Progress Bar -->
+    <div class="timer-progress-container">
+      <div class="timer-progress-bar" id="progressBar"></div>
+    </div>
+
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <div class="logo-brand">
+        <div class="logo-icon" style="overflow:hidden; display:flex; align-items:center; justify-content:center;">
+          {% if global_logo_url %}
+            <img src="{{ global_logo_url }}" alt="Logo" style="width:100%; height:100%; object-fit:cover;">
+          {% else %}
+            {% if is_platform_brand %}
+              <i class="fas fa-brain" style="font-size:0.9rem;"></i>
+            {% else %}
+              {{ org_initial }}
+            {% endif %}
+          {% endif %}
+        </div>
+        <div class="logo-text">
+          {% if is_platform_brand %}
+            Train<span>IQ</span>
+          {% else %}
+            {{ display_org_name }}
+          {% endif %}
         </div>
       </div>
-    </div>
-    <div class="container">
-      <!-- Header Section -->
-      <div class="header">
-        <h1>Exam Paper 2 - Billing &amp; Coding</h1>
-        <p><strong>Time Allowed:</strong> 60 minutes</p>
-        <div class="timer" id="timer">Time Remaining: 60:00</div>
-        <p>
-          Instructions: Answer all 40 questions. Use the Next/Previous buttons
-          to navigate. You may review and change your answers before submitting.
-        </p>
+
+      <!-- Middle Header Section (relocated from main panel card) -->
+      <div class="top-bar-middle-header" style="display: flex; align-items: center; gap: 0.75rem; margin: 0 1.5rem; max-width: 450px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
+        <span class="tiq-badge tiq-badge-ghost" style="font-size: 0.75rem; text-transform: uppercase; border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.5); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600;">
+          <i class="fas fa-graduation-cap me-1"></i>Special Evaluation
+        </span>
+        <h2 style="font-size: 1.05rem; font-weight: 800; margin: 0; color: #fff; letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis;">
+          Special Paper 2 - Billing &amp; Coding
+        </h2>
+        <span class="tiq-badge tiq-badge-info" style="font-size: 0.7rem; font-weight:700; background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.3); color: #22d3ee; padding: 0.2rem 0.5rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;">
+          <i class="fas fa-shield-halved"></i> Proctored
+        </span>
       </div>
 
-      <!-- Exam Form -->
-      <form
-        id="examForm"
-        action="{{ url_for('special_exams_routes.submit_paper2') }}"
-        method="POST"
-      >
-        <!-- Hidden Fields -->
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-        <input type="hidden" name="start_time" value="{{ start_time }}" />
-        <input type="hidden" id="timeSpentInput" name="time_spent" />
+      <div class="top-bar-timer">
+        <button type="button" onclick="toggleFullScreen()" class="tiq-btn tiq-btn-sm tiq-btn-secondary" style="border: 1px solid var(--tiq-border);">
+          <i class="fas fa-expand me-1"></i> Fullscreen
+        </button>
+        <div class="timer-display" id="timer">
+          <i class="fas fa-clock"></i> Time Remaining: --:--
+        </div>
+      </div>
+    </header>
 
-        <!-- Question Containers -->
-        <div id="questionWrapper">
+    <div class="exam-grid-container">
+      <!-- Main exam panel -->
+      <div class="exam-main-panel">
+
+        <form id="examForm" action="{{ url_for('special_exams_routes.submit_paper2') }}" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <input type="hidden" id="timeSpentInput" name="time_spent" />
+          <input type="hidden" name="start_time" value="{{ start_time }}" />
+
+          <div id="questionWrapper">
           <!-- Question 1 -->
           <div class="question-container active" data-question-index="0">
             <div class="question">
@@ -2346,298 +2893,510 @@
           </div>
         </div>
 
-        <!-- Navigation Buttons -->
-        <div class="navigation">
-          <button type="button" id="prevBtn" class="btn btn-secondary" disabled>
-            Previous
-          </button>
-          <button type="button" id="nextBtn" class="btn btn-secondary">
-            Next
-          </button>
-        </div>
+          <div class="navigation-controls">
+            <button type="button" id="prevBtn" class="tiq-btn tiq-btn-secondary" style="border:1px solid var(--tiq-border); color:var(--tiq-text);" disabled>
+              <i class="fas fa-chevron-left me-1"></i> Previous
+            </button>
+            <button type="button" id="nextBtn" class="tiq-btn tiq-btn-primary">
+              Next <i class="fas fa-chevron-right ms-1"></i>
+            </button>
+            <button type="submit" id="submitBtn" class="tiq-btn tiq-btn-success" style="display: none;">
+              <i class="fas fa-paper-plane me-1"></i> Submit Assessment
+            </button>
+          </div>
+        </form>
+      </div>
 
-        <!-- Submission Button -->
-        <div class="actions">
-          <button
-            type="submit"
-            id="submitBtn"
-            class="btn btn-primary"
-            style="display: none"
-          >
-            Submit Exam Paper 2
-          </button>
+      <!-- Right Progress Sidebar -->
+      <aside class="progress-sidebar-card">
+        <h4 class="sidebar-section-title">
+          <i class="fas fa-table-cells" style="color:var(--exam-primary)"></i>
+          Question Grid
+        </h4>
+        <div class="nav-badge-grid" id="navBadgeGrid">
+          <!-- Dynamically populated -->
         </div>
-      </form>
+        
+        <div class="progress-stats">
+          <div class="progress-stat-row">
+            <span>Total Questions:</span>
+            <strong style="color:var(--tiq-text);">40</strong>
+          </div>
+          <div class="progress-stat-row">
+            <span>Completed:</span>
+            <strong id="completedStat" style="color:var(--exam-primary);">0</strong>
+          </div>
+          <div class="progress-stat-row">
+            <span>Remaining:</span>
+            <strong id="remainingStat" style="color:var(--tiq-text-2);">40</strong>
+          </div>
+        </div>
+      </aside>
     </div>
 
-    <!-- ...your previous HTML... -->
+    <footer style="background: white; border-top: 1px solid var(--tiq-border); text-align: center; padding: 1.5rem; font-size: 0.875rem; font-weight: 500; color: var(--tiq-text-2); margin-top: auto;">
+      &copy; 2026 {{ display_org_name }}. All rights reserved.
+    </footer>
 
-    <footer>Collective Intranet© 2024</footer>
-
-    <!-- INSTRUCTION OVERLAY -->
-    <div
-      id="instructionOverlay"
-      style="
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: #fff;
-        z-index: 9999;
-        overflow: auto;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 2rem;
-      "
-    >
-      <div style="max-width: 600px; text-align: left">
-        <h2>Please Read These Rules Before Starting</h2>
-        <ul>
-          <li>No changing pages once the exam starts.</li>
-          <li>
-            Copy/paste, right-click, screenshots and PrintScreen are disabled.
-          </li>
-          <li>Switching tabs twice will auto-submit and disqualify you.</li>
-          <li>
-            Reloading or closing this tab will auto-submit your current answers.
-          </li>
-          <li>
-            You must pick an answer to move to the next question. If you're
-            unsure, choose one — you can return and change it later.
-          </li>
-        </ul>
-        <div style="margin-top: 1.5rem">
-          <input type="checkbox" id="agreeCheckbox" />
-          <label for="agreeCheckbox"
-            >I have read and agree to these rules.</label
-          >
+    <!-- RULES INSTRUCTION OVERLAY -->
+    <div id="instructionOverlay">
+      <div class="tiq-card" style="max-width: 560px; width: 95%; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border-radius: 16px;">
+        <div class="tiq-card-header text-center" style="border-bottom: 1px solid var(--tiq-border); padding: 1.5rem;">
+          <div class="tiq-card-title" style="font-size: 1.25rem; font-weight:800; color:var(--exam-danger);">
+            <i class="fas fa-shield-halved me-2"></i>Assessment Rules &amp; Proctoring
+          </div>
         </div>
-        <button
-          id="agreeBtn"
-          disabled
-          style="margin-top: 1rem; padding: 0.5rem 1rem; font-size: 1rem"
-        >
-          Agree &amp; Start Exam
-        </button>
+        <div class="tiq-card-body" style="padding: 2rem 1.5rem;">
+          <p style="font-size: 0.95rem; font-weight:600; color: var(--tiq-text-2); line-height: 1.5;">
+            This special evaluation is monitored by **ProctorIQ**. The following rules must be strictly adhered to:
+          </p>
+          <ul>
+            <li>No navigating away from this assessment tab or window.</li>
+            <li>Clipboard copy, cut, paste, and right-click functions are strictly disabled.</li>
+            <li>Focus loss (switching tabs) will trigger a warning. Exiting a second time will cause **immediate disqualification and automatic submission**.</li>
+            <li>Reloading the page, clicking back, or closing the tab will trigger immediate automatic submission.</li>
+          </ul>
+          
+          <div class="tiq-divider" style="margin: 1.5rem 0;"></div>
+          
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <input type="checkbox" id="agreeCheckbox" style="width: 20px; height: 20px; accent-color: var(--exam-primary); cursor: pointer; margin-top: 2px;" />
+            <label for="agreeCheckbox" style="font-size: 0.9rem; font-weight: 700; cursor: pointer; color: var(--tiq-text); line-height: 1.4;">
+              I certify that I am the registered account user and agree to follow these examination rules.
+            </label>
+          </div>
+          
+          <button id="agreeBtn" class="tiq-btn tiq-btn-primary tiq-w-full mt-4" style="justify-content: center; padding: 0.8rem;" disabled>
+            Agree &amp; Start Exam
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- ALL EXAM JS: Shuffle, Timer, Navigation & Anti-Cheating -->
+    <!-- SECURITY WARNING OVERLAY -->
+    <div id="securityWarningOverlay">
+      <div class="security-card">
+        <div class="security-icon"><i class="fas fa-triangle-exclamation"></i></div>
+        <h2 style="font-size:1.35rem; font-weight:800; color:var(--exam-danger); margin-bottom:0.75rem;">Leave Exam?</h2>
+        <p style="font-size:1rem; color:var(--tiq-text-2); line-height:1.6; margin-bottom:2rem;" id="warningText">
+          Hey, you are leaving the exam! Your progress will be submitted if you exit. Do you want to continue the exam?
+        </p>
+        <div style="display:flex; flex-direction:column; gap:0.75rem;">
+          <button type="button" class="tiq-btn tiq-btn-primary tiq-w-full" style="justify-content:center; padding: 0.75rem;" onclick="dismissWarning()">Yes, Return to Exam</button>
+          <button type="button" class="tiq-btn tiq-btn-secondary tiq-w-full" style="justify-content:center; padding: 0.75rem;" onclick="submitAndExit()">No, Submit &amp; Exit</button>
+        </div>
+      </div>
+    </div>
+
     <script>
-      document.addEventListener("DOMContentLoaded", () => {
-        // Overlay + one-time “agree” per session
-        const overlay = document.getElementById("instructionOverlay"),
-          agreeCb = document.getElementById("agreeCheckbox"),
-          agreeBtn = document.getElementById("agreeBtn");
+      window.__EXAM_TIMER__ = {
+        startMs: {{ start_time_epoch_ms }},
+        durationSec: {{ duration_seconds }},
+      };
+    </script>
+    <script src="{{ url_for('static', filename='js/exam-timer.js') }}"></script>
+    <script>
+      let submitted       = false,
+          tabSwitches     = {{ proctor_events.get('tab_switches', 0) if proctor_events else 0 }},
+          focusLossCount  = {{ proctor_events.get('focus_losses', 0) if proctor_events else 0 }},
+          copyAttempts    = {{ proctor_events.get('copy_attempts', 0) if proctor_events else 0 }},
+          contextAttempts = {{ proctor_events.get('right_clicks', 0) if proctor_events else 0 }},
+          keyViolations   = 0,
+          currentQuestion = 0,
+          totalQuestions  = 40,
+          remainingSeconds= ExamTimer.calcRemaining(),
+          totalDuration   = {{ duration_seconds }},
+          examStartTime   = 0;
 
-        function startExam() {
-          // grab DOM elements
-          const wrapper = document.getElementById("questionWrapper"),
-            timerEl = document.getElementById("timer"),
-            prevBtn = document.getElementById("prevBtn"),
-            nextBtn = document.getElementById("nextBtn"),
-            submitBtn = document.getElementById("submitBtn"),
-            form = document.getElementById("examForm"),
-            timeInp = document.getElementById("timeSpentInput");
+      const form          = document.getElementById("examForm"),
+            prevBtn       = document.getElementById("prevBtn"),
+            nextBtn       = document.getElementById("nextBtn"),
+            submitBtn     = document.getElementById("submitBtn"),
+            timerEl       = document.getElementById("timer"),
+            progressBar   = document.getElementById("progressBar"),
+            timeInp       = document.getElementById("timeSpentInput"),
+            overlay       = document.getElementById("instructionOverlay"),
+            agreeCb       = document.getElementById("agreeCheckbox"),
+            agreeBtn      = document.getElementById("agreeBtn"),
+            warnOverlay   = document.getElementById("securityWarningOverlay"),
+            warnText      = document.getElementById("warningText");
 
-          let submitted = false,
-            tabSwitches = 0,
-            current = 0,
-            remaining = 60 * 60; // ← 60 minutes
+      let questions = [];
 
-          // grab all the question containers once
-          const questions = wrapper
-            ? Array.from(wrapper.querySelectorAll(".question-container"))
-            : [];
+      function reportViolation(violationType) {
+        fetch("/exams/log_violation", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').getAttribute("content")
+          },
+          body: JSON.stringify({ violation_type: violationType })
+        }).catch(err => console.error("Error logging violation:", err));
+      }
 
-          // 1) Shuffle & cosmetic renumber
-          function shuffleQuestions() {
-            for (let i = questions.length - 1; i > 0; i--) {
-              const j = Math.floor(Math.random() * (i + 1));
-              [questions[i], questions[j]] = [questions[j], questions[i]];
-            }
-            wrapper.innerHTML = "";
-            questions.forEach((qc, idx) => {
-              // update only the visible <h3> numbering
-              const h3 = qc.querySelector("h3");
-              if (h3) {
-                const raw = h3.textContent.replace(/^\d+\.\s*/, "").trim();
-                h3.textContent = `${idx + 1}. ${raw}`;
-              }
-              // show only the first question at start
-              qc.classList.toggle("active", idx === 0);
-              wrapper.appendChild(qc);
-            });
+      function tick() {
+        if (remainingSeconds <= 0) {
+          if (!submitted) {
+            submitted = true;
+            timeInp.value = totalDuration;
+            form.submit();
           }
-
-          // 2) Show question #i
-          function show(i) {
-            questions.forEach((q, j) => q.classList.toggle("active", j === i));
-            prevBtn.disabled = i === 0;
-            nextBtn.style.display =
-              i === questions.length - 1 ? "none" : "inline-block";
-            submitBtn.style.display =
-              i === questions.length - 1 ? "inline-block" : "none";
-            current = i;
-          }
-
-          // 3) Has the user answered question #i?
-          function answered(i) {
-            return !!questions[i].querySelector('input[type="radio"]:checked');
-          }
-
-          // 4) startExam wiring
-          if (wrapper) shuffleQuestions();
-          show(0);
-
-          nextBtn.addEventListener("click", () => {
-            if (!answered(current)) {
-              return alert("Please select an answer.");
-            }
-            if (current < questions.length - 1) {
-              show(current + 1);
-            }
-          });
-          prevBtn.addEventListener("click", () => {
-            if (current > 0) show(current - 1);
-          });
-
-          // Timer countdown
-          const timerId = setInterval(() => {
-            remaining--;
-            const m = String(Math.floor(remaining / 60)).padStart(2, "0");
-            const s = String(remaining % 60).padStart(2, "0");
-            if (timerEl) timerEl.textContent = `Time Remaining: ${m}:${s}`;
-            if (remaining <= 0 && !submitted) {
-              clearInterval(timerId);
-              submitted = true;
-              form.submit();
-            }
-          }, 1000);
-
-          // Tab‐switch detection
-          document.addEventListener("visibilitychange", () => {
-            if (document.hidden && !submitted) {
-              tabSwitches++;
-              if (tabSwitches > 1) {
-                submitted = true;
-                form.submit();
-              } else {
-                alert("Switching tabs again will submit your exam.");
-              }
-            }
-          });
-
-          // Block right-click
-          document.addEventListener("contextmenu", (e) => e.preventDefault());
-
-          // Block copy/cut/paste
-          ["copy", "cut", "paste"].forEach((ev) =>
-            document.addEventListener(ev, (e) => {
-              e.preventDefault();
-              alert("Copy/Cut/Paste disabled.");
-            })
-          );
-
-          // Block PrintScreen / reload / devtools / shortcuts
-          document.addEventListener("keydown", (e) => {
-            const k = e.key.toLowerCase(),
-              c = e.keyCode;
-            if (
-              e.key === "PrintScreen" ||
-              c === 116 ||
-              ((e.ctrlKey || e.metaKey) && k === "r") ||
-              ((e.ctrlKey || e.metaKey) && e.shiftKey && k === "i") ||
-              ((e.ctrlKey || e.metaKey) &&
-                ["c", "x", "v", "u", "s", "p"].includes(k))
-            ) {
-              e.preventDefault();
-              alert("Exam shortcuts & screenshot disabled.");
-              if (c === 116 || ((e.ctrlKey || e.metaKey) && k === "r")) {
-                const fd = new FormData(form);
-                fd.append("time_spent", 60 * 60 - remaining);
-                navigator.sendBeacon(form.action, fd);
-                submitted = true;
-              }
-            }
-          });
-
-          // Add event listener for form submission
-          if (form) {
-            form.addEventListener("submit", function () {
-              submitted = true;
-              if (timeInp) {
-                timeInp.value = 60 * 60 - remaining;
-              }
-              window.removeEventListener("beforeunload", handleBeforeUnload); // Remove warning on submit
-            });
-          }
-
-          // ---- Enhanced beforeunload logic tracking answers ----
-          let answeredQuestions = new Set();
-          const totalQuestions = 40;
-
-          // Track answer selections
-          document.querySelectorAll("input[type='radio']").forEach((input) => {
-            input.addEventListener("change", () => {
-              answeredQuestions.add(input.name);
-              if (answeredQuestions.size >= totalQuestions) {
-                window.removeEventListener("beforeunload", handleBeforeUnload);
-              }
-            });
-          });
-
-          // Define warning logic
-          function handleBeforeUnload(e) {
-            if (!submitted && answeredQuestions.size < totalQuestions) {
-              const fd = new FormData(form);
-              fd.append("time_spent", 60 * 60 - remaining);
-              navigator.sendBeacon(form.action, fd);
-              e.preventDefault();
-              e.returnValue = "";
-            }
-          }
-
-          // Register warning (initially active)
-          window.addEventListener("beforeunload", handleBeforeUnload);
-
-          // back-button → force submit
-          history.pushState(null, "", location.href);
-          window.addEventListener("popstate", () => {
-            if (!submitted) {
-              const fd = new FormData(form);
-              fd.append("time_spent", 60 * 60 - remaining);
-              navigator.sendBeacon(form.action, fd);
-              submitted = true;
-            }
-            history.pushState(null, "", location.href);
-          });
+          return;
         }
 
-        // MAIN: show overlay or start directly
-        if (sessionStorage.getItem("examAgreed") === "yes") {
+        remainingSeconds--;
+        timeInp.value = totalDuration - remainingSeconds;
+        
+        // Update timer text
+        const m = String(Math.floor(remainingSeconds / 60)).padStart(2, '0');
+        const s = String(remainingSeconds % 60).padStart(2, '0');
+        timerEl.innerHTML = `<i class="fas fa-clock"></i> Time Remaining: ${m}:${s}`;
+
+        // Update progress bar width
+        const ratio = (remainingSeconds / totalDuration) * 100;
+        progressBar.style.width = ratio + "%";
+
+        // Warnings based on timer
+        if (remainingSeconds <= 60) {
+          timerEl.className = "timer-display danger";
+          progressBar.className = "timer-progress-bar danger";
+        } else if (remainingSeconds <= 300) {
+          timerEl.className = "timer-display warning";
+          progressBar.className = "timer-progress-bar warning";
+        }
+      }
+
+      function showQuestion(index) {
+        currentQuestion = index;
+        questions.forEach((q, idx) => q.classList.toggle("active", idx === index));
+        
+        // Update navigation buttons
+        prevBtn.disabled = (index === 0);
+        nextBtn.style.display = (index === totalQuestions - 1) ? 'none' : 'inline-block';
+        submitBtn.style.display = (index === totalQuestions - 1) ? 'inline-block' : 'none';
+
+        // Update grid active classes
+        document.querySelectorAll(".nav-badge").forEach((badge, idx) => {
+          badge.classList.toggle("active", idx === index);
+        });
+      }
+
+      function jumpToQuestion(index) {
+        showQuestion(index);
+      }
+
+      // Add click handlers to form-checks to make them behave like interactive cards
+      function bindChoices() {
+        document.querySelectorAll('.form-check').forEach(card => {
+          card.addEventListener('click', function(e) {
+            const input = this.querySelector('input[type="radio"]');
+            if (e.target !== input) {
+              input.checked = true;
+            }
+            
+            // Highlight selection
+            const questionCard = this.closest('.question');
+            questionCard.querySelectorAll('.form-check').forEach(item => {
+              item.classList.remove('selected');
+            });
+            this.classList.add('selected');
+            
+            // Trigger answer badge updates
+            const qIndex = parseInt(this.closest('.question-container').dataset.questionIndex);
+            const badges = document.querySelectorAll('.nav-badge');
+            if (badges[qIndex]) {
+              badges[qIndex].classList.add('answered');
+            }
+            updateSidebarCounts();
+
+            // Autosave chosen answer via AJAX
+            const nameAttr = input.name; // e.g. "answers[12]"
+            const match = nameAttr.match(/answers\[(\d+)\]/);
+            if (match) {
+              const qid = match[1];
+              const ans = input.value;
+              fetch("/exams/save_answer", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').getAttribute("content")
+                },
+                body: JSON.stringify({ question_id: qid, answer: ans })
+              }).catch(err => console.error("Error autosaving answer:", err));
+            }
+          });
+        });
+      }
+
+      function updateSidebarCounts() {
+        const answeredCount = document.querySelectorAll(".nav-badge.answered").length;
+        document.getElementById("completedStat").innerText = answeredCount;
+        document.getElementById("remainingStat").innerText = totalQuestions - answeredCount;
+      }
+
+      // Enforce full-screen mode toggling
+      function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(err => {
+            console.error("Error enabling full-screen:", err);
+          });
+        } else {
+          document.exitFullscreen();
+        }
+      }
+
+      function isQuestionAnswered(index) {
+        return !!questions[index].querySelector('input[type="radio"]:checked');
+      }
+
+      nextBtn.onclick = () => {
+        if (!isQuestionAnswered(currentQuestion)) {
+          alert("Please select an answer to proceed.");
+          return;
+        }
+        if (currentQuestion < totalQuestions - 1) {
+          showQuestion(currentQuestion + 1);
+        }
+      };
+
+      prevBtn.onclick = () => {
+        if (currentQuestion > 0) {
+          showQuestion(currentQuestion - 1);
+        }
+      };
+
+      // Form validation before submit
+      form.addEventListener("submit", (e) => {
+        for (let i = 0; i < totalQuestions; i++) {
+          if (!isQuestionAnswered(i)) {
+            e.preventDefault();
+            showQuestion(i);
+            alert(`Please answer Question ${i + 1} before submitting.`);
+            return;
+          }
+        }
+        submitted = true;
+        timeInp.value = totalDuration - remainingSeconds;
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+      });
+
+      // Security Warnings & Proctoring
+      let lastFocusLossTime = 0;
+      function triggerSecurityWarning() {
+        if (examStartTime === 0 || (Date.now() - examStartTime < 5000)) {
+          return;
+        }
+        const now = Date.now();
+        if (now - lastFocusLossTime < 3000) {
+          return;
+        }
+        lastFocusLossTime = now;
+        focusLossCount++;
+        reportViolation('focus_losses');
+        if (focusLossCount >= 2) {
+          submitted = true;
+          timeInp.value = totalDuration - remainingSeconds;
+          form.submit();
+        } else {
+          warnOverlay.style.display = "flex";
+        }
+      }
+      function submitAndExit() {
+        submitted = true;
+        timeInp.value = totalDuration - remainingSeconds;
+        form.submit();
+      }
+      function dismissWarning() {
+        warnOverlay.style.display = "none";
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(err => {
+            console.error("Error enabling full-screen:", err);
+          });
+        }
+      }
+
+      // Right-click context menu blocking
+      document.addEventListener("contextmenu", e => {
+        e.preventDefault();
+        contextAttempts++;
+        reportViolation('right_clicks');
+        alert("Security: Right-click context menu is disabled during the assessment.");
+      });
+
+      // Copy-paste operation blocking
+      ["copy", "cut", "paste"].forEach(ev => {
+        document.addEventListener(ev, e => {
+          e.preventDefault();
+          copyAttempts++;
+          reportViolation('copy_attempts');
+          alert(`Security: ${ev.toUpperCase()} operations are disabled during the assessment.`);
+        });
+      });
+
+      // Tab Visibility / Focus Loss
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && !submitted) {
+          triggerSecurityWarning();
+        }
+      });
+
+      window.addEventListener("blur", () => {
+        if (!submitted) triggerSecurityWarning();
+      });
+
+      // Key shortcut blocks
+      document.addEventListener("keydown", e => {
+        const k = e.key.toLowerCase();
+        if (
+          ["f12", "f5", "printscreen"].includes(k) ||
+          ((e.ctrlKey || e.metaKey) && ["r", "u", "i", "c", "v", "x", "s", "p"].includes(k))
+        ) {
+          e.preventDefault();
+          keyViolations++;
+          alert("Security: Special key commands are disabled during the assessment.");
+          
+          if (["f5", "r"].includes(k)) {
+            const fd = new FormData(form);
+            fd.append("time_spent", totalDuration - remainingSeconds);
+            navigator.sendBeacon(form.action, fd);
+            submitted = true;
+            window.location.reload();
+          }
+        }
+      });
+
+      // Prevent navigating back
+      history.pushState(null, "", location.href);
+      window.addEventListener("popstate", () => {
+        if (!submitted) {
+          const fd = new FormData(form);
+          fd.append("time_spent", totalDuration - remainingSeconds);
+          navigator.sendBeacon(form.action, fd);
+          submitted = true;
+        }
+        history.pushState(null, "", location.href);
+      });
+
+      // beforeunload logic warning
+      function handleBeforeUnload(e) {
+        const answeredCount = document.querySelectorAll(".nav-badge.answered").length;
+        if (!submitted && answeredCount < totalQuestions) {
+          const fd = new FormData(form);
+          fd.append("time_spent", totalDuration - remainingSeconds);
+          navigator.sendBeacon(form.action, fd);
+          e.preventDefault();
+          e.returnValue = "";
+        }
+      }
+      window.addEventListener("beforeunload", handleBeforeUnload);
+
+      // Start Exam
+      function startExam() {
+        examStartTime = Date.now();
+        const wrapper = document.getElementById("questionWrapper");
+        const rawQuestions = wrapper ? Array.from(wrapper.querySelectorAll(".question-container")) : [];
+
+        // 1) Shuffle & cosmetic renumber
+        for (let i = rawQuestions.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [rawQuestions[i], rawQuestions[j]] = [rawQuestions[j], rawQuestions[i]];
+        }
+
+        wrapper.innerHTML = "";
+        rawQuestions.forEach((qc, idx) => {
+          qc.dataset.questionIndex = idx;
+          const h3 = qc.querySelector("h3");
+          if (h3) {
+            const raw = h3.textContent.replace(/^\d+[\.\s]*/, "").trim();
+            h3.textContent = `${idx + 1}. ${raw}`;
+          }
+          qc.classList.toggle("active", idx === 0);
+          wrapper.appendChild(qc);
+        });
+
+        questions = rawQuestions;
+
+        // 2) Build grid badges
+        const gridContainer = document.getElementById("navBadgeGrid");
+        gridContainer.innerHTML = "";
+        questions.forEach((_, idx) => {
+          const badge = document.createElement("div");
+          badge.className = "nav-badge";
+          badge.innerText = idx + 1;
+          badge.onclick = () => showQuestion(idx);
+          gridContainer.appendChild(badge);
+        });
+
+        bindChoices();
+        showQuestion(0);
+        updateSidebarCounts();
+
+        // 4) Restore saved answers from session
+        const initialAnswers = {{ answers|tojson if answers else '{}' }};
+        Object.entries(initialAnswers).forEach(([qid, ans]) => {
+          const radio = document.querySelector(`input[name="answers[${qid}]"][value="${ans}"]`);
+          if (radio) {
+            radio.checked = true;
+            const formCheck = radio.closest(".form-check");
+            if (formCheck) {
+              formCheck.classList.add("selected");
+              // Mark navigation badge
+              const qIndex = parseInt(formCheck.closest('.question-container').dataset.questionIndex);
+              const badges = document.querySelectorAll('.nav-badge');
+              if (badges[qIndex]) {
+                badges[qIndex].classList.add('answered');
+              }
+            }
+          }
+        });
+        updateSidebarCounts();
+
+        ExamTimer.start((remaining, total) => {
+          remainingSeconds = remaining;
+          totalDuration = total;
+          timeInp.value = total - remaining;
+        }, () => {
+          if (!submitted) {
+            submitted = true;
+            timeInp.value = totalDuration;
+            form.submit();
+          }
+        });
+
+        // Full Screen request
+        toggleFullScreen();
+      }
+
+      agreeCb.addEventListener("change", () => {
+        agreeBtn.disabled = !agreeCb.checked;
+      });
+
+      agreeBtn.addEventListener("click", () => {
+        sessionStorage.setItem("examAgreed", "yes");
+        overlay.style.display = "none";
+        startExam();
+      });
+
+      window.addEventListener("DOMContentLoaded", () => {
+        ExamTimer.start((remaining, total) => {
+          remainingSeconds = remaining;
+          totalDuration = total;
+          if (timeInp) timeInp.value = total - remaining;
+        }, () => {
+          if (!submitted) {
+            submitted = true;
+            if (timeInp) timeInp.value = totalDuration;
+            form.submit();
+          }
+        });
+        const isResuming = {% if answers %}true{% else %}false{% endif %};
+        if (isResuming || sessionStorage.getItem("examAgreed") === "yes") {
           overlay.style.display = "none";
           startExam();
         } else {
           overlay.style.display = "flex";
-          agreeBtn.disabled = true;
-          agreeCb.addEventListener(
-            "change",
-            () => (agreeBtn.disabled = !agreeCb.checked)
-          );
-          agreeBtn.addEventListener("click", () => {
-            sessionStorage.setItem("examAgreed", "yes");
-            overlay.style.display = "none";
-            startExam();
-          });
         }
       });
     </script>
-
-    <!-- Bootstrap JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
   </body>
 </html>

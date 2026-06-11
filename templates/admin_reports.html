@@ -1,92 +1,153 @@
-{% extends 'admin_base.html' %} {% block title %}Reports{% endblock %} {% block
-content %}
+{% extends 'admin_base.html' %}
 
-<div class="container mt-4">
-  <h1 class="text-center mb-4">User & Organization Reports</h1>
+{% block title %}Reports{% endblock %}
 
-  <!-- Search Form -->
-  <form method="get" class="row g-2 align-items-center mb-4">
-    <div class="col-auto">
-      <input
-        type="text"
-        name="search"
-        class="form-control"
-        placeholder="Search users, departments…"
-        value="{{ search }}"
-      />
+{% block breadcrumb %}
+<a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+<span class="tiq-breadcrumb-sep">/</span>
+<span>Reports</span>
+{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <div class="tiq-breadcrumb">
+        <a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+        <span class="tiq-breadcrumb-sep">/</span>
+        <span>Reports</span>
+      </div>
+      <h1>Reports Center</h1>
     </div>
-    <div class="col-auto">
-      <button type="submit" class="btn btn-primary">Filter</button>
-    </div>
-  </form>
-
-  <!-- Download Section (updated) -->
-  <h3>Download Reports</h3>
-  <div class="list-group mb-4">
-    <a
-      href="{{ url_for('admin_routes.download_report', type='course_progress', search=search) }}"
-      class="list-group-item list-group-item-action"
-      ><i class="fas fa-chart-line me-2"></i> Course Progress</a
-    >
-    <a
-      href="{{ url_for('admin_routes.download_report', type='exam_performance', search=search) }}"
-      class="list-group-item list-group-item-action"
-      ><i class="fas fa-trophy me-2"></i> Exam Performance</a
-    >
-    <a
-      href="{{ url_for('admin_routes.download_report', type='special_exams', search=search) }}"
-      class="list-group-item list-group-item-action"
-      ><i class="fas fa-star-half-alt me-2"></i> Special Exams</a
-    >
-    <a
-      href="{{ url_for('admin_routes.download_report', type='users', search=search) }}"
-      class="list-group-item list-group-item-action"
-      ><i class="fas fa-user me-2"></i> Users</a
-    >
-    <a
-      href="{{ url_for('admin_routes.download_report', type='departments', search=search) }}"
-      class="list-group-item list-group-item-action"
-      ><i class="fas fa-building me-2"></i> Departments</a
-    >
-    <a
-      href="{{ url_for('admin_routes.download_report', type='courses', search=search) }}"
-      class="list-group-item list-group-item-action"
-      ><i class="fas fa-book me-2"></i> Courses</a
-    >
-    <a
-      href="{{ url_for('admin_routes.download_report', type='exams', search=search) }}"
-      class="list-group-item list-group-item-action"
-      ><i class="fas fa-clipboard-check me-2"></i> Exams</a
-    >
-    <a
-      href="{{ url_for('admin_routes.download_report', type='leaderboard', search=search) }}"
-      class="list-group-item list-group-item-action"
-      ><i class="fas fa-medal me-2"></i> Leaderboard</a
-    >
-    <a
-      href="{{ url_for('admin_routes.download_report', type='inactive_users', search=search) }}"
-      class="list-group-item list-group-item-action"
-      ><i class="fas fa-user-slash me-2"></i> Inactive Users</a
-    >
-
-    <!-- Newly added links for Incorrect Answers and Top 10 Missed Questions -->
-    <a
-      href="{{ url_for('admin_routes.download_report', type='incorrect_answers', search=search) }}"
-      class="list-group-item list-group-item-action"
-      ><i class="fas fa-times-circle me-2"></i> Incorrect Answers</a
-    >
-    <a
-      href="{{ url_for('admin_routes.download_report', type='incorrect_top10', search=search) }}"
-      class="list-group-item list-group-item-action"
-      ><i class="fas fa-list-ol me-2"></i> Top 10 Missed Questions</a
-    >
+    <a href="{{ url_for('admin_routes.custom_report', search=search) }}" class="tiq-btn tiq-btn-primary">
+      <i class="fas fa-sliders-h"></i> Custom Report Builder
+    </a>
   </div>
+</div>
 
-  <a
-    href="{{ url_for('admin_routes.custom_report', search=search) }}"
-    class="btn btn-outline-info"
-  >
-    <i class="fas fa-sliders-h"></i> Custom Report Builder
-  </a>
+<div class="tiq-card" style="margin-bottom: 2rem;">
+  <div class="tiq-card-body">
+    <!-- Search Form -->
+    <form method="get" class="tiq-flex" style="gap: 10px; max-width: 480px;">
+      <div class="tiq-search tiq-w-full">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" name="search" placeholder="Search users, departments…" value="{{ search }}" aria-label="Search reports"/>
+      </div>
+      <button type="submit" class="tiq-btn tiq-btn-primary">Filter</button>
+    </form>
+  </div>
+</div>
+
+<div class="tiq-card">
+  <div class="tiq-card-header">
+    <h2 class="tiq-card-title"><i class="fas fa-download" style="margin-right:8px; color:var(--tiq-accent);"></i>Download Export Reports</h2>
+  </div>
+  <div class="tiq-card-body" style="padding:0.5rem 0;">
+    <style>
+      .report-list-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 1rem 1.5rem;
+        color: var(--tiq-text);
+        font-weight: 500;
+        text-decoration: none;
+        border-bottom: 1px solid var(--tiq-border);
+        transition: background var(--tiq-transition);
+      }
+      .report-list-item:last-child {
+        border-bottom: none;
+      }
+      .report-list-item:hover {
+        background: var(--tiq-surface-2);
+        color: var(--tiq-primary);
+      }
+      .report-list-item i {
+        font-size: 1.1rem;
+        color: var(--tiq-text-3);
+        width: 24px;
+        text-align: center;
+        transition: color var(--tiq-transition);
+      }
+      .report-list-item:hover i {
+        color: var(--tiq-primary);
+      }
+    </style>
+    <div class="tiq-grid tiq-stagger" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; padding: 1rem 1.5rem 1.5rem;">
+      <a href="{{ url_for('admin_routes.download_report', type='course_progress', search=search) }}" class="tiq-card report-card" style="text-decoration:none;padding:1.25rem;display:flex;gap:12px;align-items:flex-start;">
+        <div class="stat-icon tiq-icon-primary" style="width:40px;height:40px;font-size:1rem;"><i class="fas fa-chart-line"></i></div>
+        <div><div style="font-weight:700;color:var(--tiq-text);">Course Progress</div><div style="font-size:0.8rem;color:var(--tiq-text-3);margin-top:4px;">Completion % by user and course</div></div>
+      </a>
+      <a href="{{ url_for('admin_routes.download_report', type='exam_performance', search=search) }}" class="tiq-card report-card" style="text-decoration:none;padding:1.25rem;display:flex;gap:12px;align-items:flex-start;">
+        <div class="stat-icon tiq-icon-success" style="width:40px;height:40px;font-size:1rem;"><i class="fas fa-trophy"></i></div>
+        <div><div style="font-weight:700;color:var(--tiq-text);">Exam Performance</div><div style="font-size:0.8rem;color:var(--tiq-text-3);margin-top:4px;">Scores, pass rates, trends</div></div>
+      </a>
+      <a href="{{ url_for('admin_routes.download_report', type='leaderboard', search=search) }}" class="tiq-card report-card" style="text-decoration:none;padding:1.25rem;display:flex;gap:12px;align-items:flex-start;">
+        <div class="stat-icon tiq-icon-warning" style="width:40px;height:40px;font-size:1rem;"><i class="fas fa-medal"></i></div>
+        <div><div style="font-weight:700;color:var(--tiq-text);">Leaderboard</div><div style="font-size:0.8rem;color:var(--tiq-text-3);margin-top:4px;">Top performers across exams</div></div>
+      </a>
+      <a href="{{ url_for('admin_routes.download_report', type='incorrect_top10', search=search) }}" class="tiq-card report-card" style="text-decoration:none;padding:1.25rem;display:flex;gap:12px;align-items:flex-start;">
+        <div class="stat-icon tiq-icon-danger" style="width:40px;height:40px;font-size:1rem;"><i class="fas fa-list-ol"></i></div>
+        <div><div style="font-weight:700;color:var(--tiq-text);">Top Missed Questions</div><div style="font-size:0.8rem;color:var(--tiq-text-3);margin-top:4px;">Knowledge gap analysis</div></div>
+      </a>
+      <a href="{{ url_for('admin_routes.download_report', type='audit_logs', search=search) }}" class="tiq-card report-card" style="text-decoration:none;padding:1.25rem;display:flex;gap:12px;align-items:flex-start;">
+        <div class="stat-icon tiq-icon-secondary" style="width:40px;height:40px;font-size:1rem;"><i class="fas fa-shield"></i></div>
+        <div><div style="font-weight:700;color:var(--tiq-text);">Audit Logs Export</div><div style="font-size:0.8rem;color:var(--tiq-text-3);margin-top:4px;">Security & activity events</div></div>
+      </a>
+      <a href="{{ url_for('admin_routes.custom_report', search=search) }}" class="tiq-card report-card" style="text-decoration:none;padding:1.25rem;display:flex;gap:12px;align-items:flex-start;border-color:var(--tiq-primary-light);">
+        <div class="stat-icon tiq-icon-primary" style="width:40px;height:40px;font-size:1rem;"><i class="fas fa-sliders-h"></i></div>
+        <div><div style="font-weight:700;color:var(--tiq-text);">Custom Report Builder</div><div style="font-size:0.8rem;color:var(--tiq-text-3);margin-top:4px;">Build advanced filtered exports</div></div>
+      </a>
+    </div>
+    <details style="padding:0 1.5rem 1.5rem;">
+      <summary style="cursor:pointer;font-weight:600;color:var(--tiq-text-2);margin-bottom:0.75rem;">All report types (list view)</summary>
+    <div class="tiq-flex" style="flex-direction: column;">
+      <a href="{{ url_for('admin_routes.download_report', type='course_progress', search=search) }}" class="report-list-item">
+        <i class="fas fa-chart-line"></i>
+        <span>Course Progress Report</span>
+      </a>
+      <a href="{{ url_for('admin_routes.download_report', type='exam_performance', search=search) }}" class="report-list-item">
+        <i class="fas fa-trophy"></i>
+        <span>Exam Performance Report</span>
+      </a>
+      <a href="{{ url_for('admin_routes.download_report', type='special_exams', search=search) }}" class="report-list-item">
+        <i class="fas fa-star-half-alt"></i>
+        <span>Special Exams Report</span>
+      </a>
+      <a href="{{ url_for('admin_routes.download_report', type='users', search=search) }}" class="report-list-item">
+        <i class="fas fa-user"></i>
+        <span>Users List Export</span>
+      </a>
+      <a href="{{ url_for('admin_routes.download_report', type='departments', search=search) }}" class="report-list-item">
+        <i class="fas fa-building"></i>
+        <span>Departments Summary</span>
+      </a>
+      <a href="{{ url_for('admin_routes.download_report', type='courses', search=search) }}" class="report-list-item">
+        <i class="fas fa-book"></i>
+        <span>Course Catalog Listing</span>
+      </a>
+      <a href="{{ url_for('admin_routes.download_report', type='exams', search=search) }}" class="report-list-item">
+        <i class="fas fa-clipboard-check"></i>
+        <span>Exams Listing</span>
+      </a>
+      <a href="{{ url_for('admin_routes.download_report', type='leaderboard', search=search) }}" class="report-list-item">
+        <i class="fas fa-medal"></i>
+        <span>Performance Leaderboard</span>
+      </a>
+      <a href="{{ url_for('admin_routes.download_report', type='inactive_users', search=search) }}" class="report-list-item">
+        <i class="fas fa-user-slash"></i>
+        <span>Inactive Users Report</span>
+      </a>
+      <a href="{{ url_for('admin_routes.download_report', type='incorrect_answers', search=search) }}" class="report-list-item">
+        <i class="fas fa-circle-xmark"></i>
+        <span>Incorrect Answers Logs</span>
+      </a>
+      <a href="{{ url_for('admin_routes.download_report', type='incorrect_top10', search=search) }}" class="report-list-item">
+        <i class="fas fa-list-ol"></i>
+        <span>Top 10 Missed Questions Report</span>
+      </a>
+    </div>
+    </details>
+  </div>
 </div>
 {% endblock %}

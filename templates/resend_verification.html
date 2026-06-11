@@ -1,123 +1,212 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Resend Verification</title>
-    <link
-      rel="stylesheet"
-      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
-    />
-    <style>
-      .container {
-        max-width: 500px;
-        margin: 0 auto;
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
-      }
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Resend Verification – TrainIQ</title>
+  <meta name="description" content="Resend your account verification email."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--tiq-gradient-hero);
+      position: relative;
+      overflow: hidden;
+      padding: 2rem 1rem;
+    }
 
-      h2 {
-        font-size: 2rem;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 20px;
-      }
+    /* Animated orbs */
+    .rv-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+      animation: orbDrift 10s ease-in-out infinite alternate;
+    }
+    .rv-orb-1 { width: 500px; height: 500px; background: rgba(79,70,229,0.5); top: -150px; left: -150px; }
+    .rv-orb-2 { width: 400px; height: 400px; background: rgba(6,182,212,0.35); bottom: -100px; right: -100px; animation-delay: -5s; }
+    .rv-orb-3 { width: 300px; height: 300px; background: rgba(139,92,246,0.25); top: 40%; left: 40%; }
+    @keyframes orbDrift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(30px, 30px) scale(1.07); }
+    }
 
-      .form-group label {
-        font-size: 1.1rem;
-        font-weight: bold;
-      }
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='30'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
 
-      .btn-primary {
-        width: 100%;
-        font-size: 1rem;
-      }
+    .rv-card {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 440px;
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 24px;
+      padding: 2.75rem 2.5rem;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+      animation: cardIn 0.5s cubic-bezier(0.22,1,0.36,1) both;
+    }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(28px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
 
-      /* Loading spinner */
-      .loading-spinner {
-        display: none;
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        border: 8px solid #f3f3f3;
-        border-top: 8px solid #3498db;
-        border-radius: 50%;
-        width: 60px;
-        height: 60px;
-        animation: spin 2s linear infinite;
-        z-index: 9999;
-      }
+    .rv-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 2rem;
+    }
+    .rv-logo-icon {
+      width: 52px; height: 52px;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; font-weight: 900; color: white;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .rv-logo-name {
+      font-size: 1.6rem; font-weight: 800; color: white;
+      letter-spacing: -0.04em;
+    }
+    .rv-logo-name span { color: #67e8f9; }
 
-      @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
-      }
+    .rv-icon-ring {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1.5rem;
+      font-size: 1.5rem; color: #a5f3fc;
+    }
+    .rv-title {
+      font-size: 1.5rem; font-weight: 800;
+      color: white; text-align: center;
+      letter-spacing: -0.04em; margin-bottom: 0.5rem;
+    }
+    .rv-subtitle {
+      font-size: 0.9375rem; color: rgba(255,255,255,0.6);
+      text-align: center; line-height: 1.6; margin-bottom: 2rem;
+    }
 
-      .page-content {
-        display: none;
-      }
-    </style>
-  </head>
-  <body>
-    <!-- Loading Spinner -->
-    <div class="loading-spinner" id="loadingSpinner"></div>
+    .rv-card .tiq-input-wrapper .tiq-input {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.2);
+      color: white;
+    }
+    .rv-card .tiq-input-wrapper .tiq-input::placeholder { color: rgba(255,255,255,0.4); }
+    .rv-card .tiq-input-wrapper .tiq-input:focus {
+      background: rgba(255,255,255,0.15);
+      border-color: rgba(255,255,255,0.5);
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.12);
+    }
+    .rv-card .tiq-input-icon { color: rgba(255,255,255,0.5); }
+    .rv-card .tiq-label { color: rgba(255,255,255,0.8); }
 
-    <div class="container mt-5 page-content">
-      <h2>Resend Verification Email</h2>
+    .rv-submit {
+      width: 100%;
+      justify-content: center;
+      margin-top: 0.25rem;
+    }
 
-      <!-- Flash Messages -->
-      {% with messages = get_flashed_messages() %} {% if messages %}
-      <div class="alert alert-danger">
-        <ul>
+    .rv-back {
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px; margin-top: 1.5rem;
+      font-size: 0.875rem; color: rgba(255,255,255,0.6);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .rv-back:hover { color: white; }
+
+    .rv-card .tiq-alert {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.2);
+      color: white;
+      margin-bottom: 1.25rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="rv-orb rv-orb-1"></div>
+<div class="rv-orb rv-orb-2"></div>
+<div class="rv-orb rv-orb-3"></div>
+
+<div class="rv-card">
+
+  <!-- Logo -->
+  <div class="rv-logo">
+    <div class="rv-logo-icon"><i class="fas fa-brain"></i></div>
+    <div class="rv-logo-name">Train<span>IQ</span></div>
+  </div>
+
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="tiq-alert tiq-alert-danger">
+        <i class="fas fa-circle-exclamation"></i>
+        <ul style="margin:0; padding-left:1.25rem;">
           {% for message in messages %}
-          <li>{{ message }}</li>
+            <li>{{ message }}</li>
           {% endfor %}
         </ul>
       </div>
-      {% endif %} {% endwith %}
+    {% endif %}
+  {% endwith %}
 
-      <!-- Resend Verification Form -->
-      <form
-        action="{{ url_for('auth_routes.resend_verification') }}"
-        method="POST"
-      >
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+  <div class="rv-icon-ring">
+    <i class="fas fa-envelope-open-text"></i>
+  </div>
+  <h1 class="rv-title">Resend Verification</h1>
+  <p class="rv-subtitle">Enter your work email address below to resend the account activation instructions.</p>
 
-        <div class="form-group">
-          <label for="employee_email">Employee Email</label>
-          <input
-            type="email"
-            class="form-control"
-            id="employee_email"
-            name="employee_email"
-            required
-          />
-        </div>
-        <button type="submit" class="btn btn-primary">
-          Resend Verification Email
-        </button>
-      </form>
+  <!-- Form -->
+  <form action="{{ url_for('auth_routes.resend_verification') }}" method="POST" id="resendForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    <div class="tiq-form-group">
+      <label class="tiq-label" for="employee_email">Work Email</label>
+      <div class="tiq-input-wrapper">
+        <i class="fas fa-envelope tiq-input-icon"></i>
+        <input type="email" class="tiq-input" id="employee_email" name="employee_email"
+               placeholder="you@company.com" required autocomplete="email"/>
+      </div>
     </div>
 
-    <!-- JavaScript for showing spinner -->
-    <script>
-      document.onreadystatechange = function () {
-        const spinner = document.getElementById("loadingSpinner");
-        const pageContent = document.querySelector(".page-content");
-        if (document.readyState === "interactive") {
-          spinner.style.display = "block";
-        } else if (document.readyState === "complete") {
-          spinner.style.display = "none";
-          pageContent.style.display = "block";
-        }
-      };
-    </script>
-  </body>
+    <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-lg rv-submit" id="rvBtn">
+      <span id="rvBtnText"><i class="fas fa-paper-plane" style="margin-right:6px;"></i>Resend Email</span>
+      <span id="rvSpinner" class="tiq-spinner tiq-spinner-sm" style="display:none;border-top-color:white;border-color:rgba(255,255,255,0.3)"></span>
+    </button>
+  </form>
+
+  <a href="{{ url_for('auth_routes.login') }}" class="rv-back">
+    <i class="fas fa-arrow-left"></i> Back to Sign In
+  </a>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/trainiq.js') }}"></script>
+<script>
+  document.getElementById('resendForm').addEventListener('submit', function () {
+    document.getElementById('rvBtnText').textContent = 'Sending…';
+    document.getElementById('rvSpinner').style.display = 'inline-block';
+    document.getElementById('rvBtn').disabled = true;
+  });
+</script>
+</body>
 </html>

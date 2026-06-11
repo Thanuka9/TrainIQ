@@ -29,10 +29,21 @@ from pymongo import MongoClient
 from gridfs import GridFS
 from sqlalchemy.types import String
 from sqlalchemy import desc
-from IPython.display import HTML
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm  import joinedload
 from collections import defaultdict
+from utils.tenant_utils import (
+    user_tenant_id, assert_tenant_access, filter_by_user_tenant, assert_user_in_tenant,
+    tenant_users_query, tenant_departments_query, tenant_clients_query,
+    tenant_exams_query, tenant_courses_query, require_user_in_tenant,
+    scope_exam_access_requests, normalize_office_key,
+    tenant_user_id_list, filter_scores_by_tenant, filter_progress_by_tenant,
+    tenant_categories_query, tenant_levels_query, tenant_areas_query,
+    tenant_designations_query, scope_support_tickets, scope_audit_logs,
+    count_tenant_super_admins, is_trainiq_staff,
+)
+from utils.special_exams import special_paper_label
+from utils.exam_grading import DEFAULT_PASSING_SCORE
 
 
 
@@ -61,34 +72,46 @@ logging.basicConfig(
 )
 
 # --- Helper to delete files from GridFS and model ---
-def delete_files_from_gridfs(file_refs):
+def delete_files_from_gridfs(file_refs, tenant_id=None):
     """
-    Given a list of 'file_id|filename' strings, delete each from GridFS.
-    Returns list of IDs successfully deleted.
+    Given a list of 'file_id|filename' strings, delete each from tenant GridFS.
+    Falls back to legacy shared DB when tenant_id is None.
     """
+    from utils.mongo_tenant import get_tenant_gridfs
+
     deleted = []
+    gfs = get_tenant_gridfs(tenant_id)
     for ref in file_refs or []:
-        file_id, _ = ref.split("|")
+        file_id, _ = ref.split("|", 1)
         try:
-            grid_fs.delete(file_id)
+            gfs.delete(ObjectId(file_id))
             deleted.append(file_id)
-        except Exception as e:
-            logging.error(f"Failed deleting file {file_id}: {e}")
+        except Exception:
+            if tenant_id is not None:
+                try:
+                    get_tenant_gridfs(None).delete(ObjectId(file_id))
+                    deleted.append(file_id)
+                except Exception as e:
+                    logging.error(f"Failed deleting file {file_id}: {e}")
+            else:
+                logging.error(f"Failed deleting file {file_id}")
     return deleted
 
 # --- Admin Authentication Middleware ---
+def _effective_super_admin():
+    from flask import session
+    if current_user.is_super_admin:
+        return True
+    return bool(session.get('platform_support') and is_trainiq_staff())
+
+
 def admin_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        # 1) Super-admins always pass
-        if current_user.is_super_admin:
+        if _effective_super_admin():
             return func(*args, **kwargs)
-
-        # 2) “Plain” admins: role_id == 2
         if any(role.id == 2 for role in current_user.roles):
             return func(*args, **kwargs)
-
-        # 3) Otherwise block & log
         flash("You don’t have permission to do that.", "access_denied")
         logging.warning(
             f"Unauthorized access attempt by user_id={current_user.id} "
@@ -100,7 +123,7 @@ def admin_required(func):
 def super_admin_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if not current_user.is_super_admin:
+        if not _effective_super_admin():
             flash("You don’t have permission to perform that action.", "access_denied")
             logging.warning(
                 f"Unauthorized super-admin attempt by user_id={current_user.id} "
@@ -158,33 +181,56 @@ def admin_dashboard():
 
     logging.info(f"user_id={user_id} viewed admin dashboard from {request.remote_addr} (search={q})")
     try:
-        # 1) Basic Aggregates
-        total_users            = User.query.count()
-        total_designations     = Designation.query.count()
-        total_clients          = Client.query.count()
-        total_exams            = Exam.query.count()
-        total_questions        = Question.query.count()
-        total_study_materials  = StudyMaterial.query.count()
-        special_exam_count     = SpecialExamRecord.query.count()
+        # 1) Basic Aggregates (tenant-scoped)
+        user_q = filter_by_user_tenant(User.query, User)
+        client_q = filter_by_user_tenant(Client.query, Client)
+        exam_q = filter_by_user_tenant(Exam.query, Exam)
+        course_q = filter_by_user_tenant(StudyMaterial.query, StudyMaterial)
 
-        # 2) Active Users
-        active_user_ids = set(
-            u for (u,) in db.session.query(UserScore.user_id).distinct()
-        ) | set(
-            u for (u,) in db.session.query(UserProgress.user_id).distinct()
+        total_users            = user_q.count()
+        total_designations     = Designation.query.count()
+        total_clients          = client_q.count()
+        total_exams            = exam_q.count()
+        total_study_materials  = course_q.count()
+        total_questions        = (
+            Question.query.join(Exam, Question.exam_id == Exam.id)
+            .filter(Exam.tenant_id == user_tenant_id()).count()
+            if user_tenant_id() else Question.query.count()
         )
+        special_exam_q = SpecialExamRecord.query.join(User, SpecialExamRecord.user_id == User.id)
+        if user_tenant_id():
+            special_exam_q = special_exam_q.filter(User.tenant_id == user_tenant_id())
+        special_exam_count     = special_exam_q.count()
+
+        # 2) Active Users (tenant-scoped)
+        _tuids = tenant_user_id_list()
+        if _tuids is not None:
+            active_user_ids = set(
+                u for (u,) in db.session.query(UserScore.user_id).filter(UserScore.user_id.in_(_tuids)).distinct()
+            ) | set(
+                u for (u,) in db.session.query(UserProgress.user_id).filter(UserProgress.user_id.in_(_tuids)).distinct()
+            )
+        else:
+            active_user_ids = set(
+                u for (u,) in db.session.query(UserScore.user_id).distinct()
+            ) | set(
+                u for (u,) in db.session.query(UserProgress.user_id).distinct()
+            )
         active_users = len(active_user_ids)
 
-        # 3) Performance Stats
-        average_exam_score     = db.session.query(func.avg(UserScore.score)).scalar() or 0
-        passed_exam_count      = UserScore.query.filter(UserScore.score >= 56).count()
-        special_exam_passed_1  = SpecialExamRecord.query.filter_by(paper1_passed=True).count()
-        special_exam_passed_2  = SpecialExamRecord.query.filter_by(paper2_passed=True).count()
+        # 3) Performance Stats (tenant-scoped)
+        score_q = filter_scores_by_tenant(UserScore.query, current_user)
+        average_exam_score     = score_q.with_entities(func.avg(UserScore.score)).scalar() or 0
+        passed_exam_count      = score_q.filter(UserScore.score >= DEFAULT_PASSING_SCORE).count()
+        special_exam_passed_1  = special_exam_q.filter(SpecialExamRecord.paper1_passed.is_(True)).count()
+        special_exam_passed_2  = special_exam_q.filter(SpecialExamRecord.paper2_passed.is_(True)).count()
 
         # 4) Course Progress / Restrictions
-        course_completion_avg  = db.session.query(func.avg(UserProgress.progress_percentage)).scalar() or 0
+        course_completion_avg  = filter_progress_by_tenant(
+            db.session.query(func.avg(UserProgress.progress_percentage)), current_user
+        ).scalar() or 0
         # Count materials that have a minimum_level > 1 (i.e. actually restricted)
-        restricted_courses     = StudyMaterial.query.filter(StudyMaterial.minimum_level > 1).count()
+        restricted_courses     = course_q.filter(StudyMaterial.minimum_level > 1).count()
 
         # 5) Recent Events
         recent_events = Event.query.order_by(Event.date.desc()).limit(5).all()
@@ -192,13 +238,13 @@ def admin_dashboard():
         # 6) Global Search
         search_results = None
         if q:
-            user_hits   = User.query.filter(
+            user_hits   = filter_by_user_tenant(User.query, User).filter(
                 (User.first_name.ilike(f"%{q}%")) |
                 (User.last_name.ilike (f"%{q}%")) |
                 (User.employee_email.ilike(f"%{q}%"))
             ).all()
-            course_hits = StudyMaterial.query.filter(StudyMaterial.title.ilike(f"%{q}%")).all()
-            exam_hits   = Exam.query.filter(Exam.title.ilike(f"%{q}%")).all()
+            course_hits = filter_by_user_tenant(StudyMaterial.query, StudyMaterial).filter(StudyMaterial.title.ilike(f"%{q}%")).all()
+            exam_hits   = filter_by_user_tenant(Exam.query, Exam).filter(Exam.title.ilike(f"%{q}%")).all()
             search_results = {
                 'users':   user_hits,
                 'courses': course_hits,
@@ -223,20 +269,177 @@ def admin_dashboard():
             special_exam_passed_2=special_exam_passed_2,
             course_completion_avg=round(course_completion_avg, 2),
             recent_events=recent_events,
+        audit_events_today=scope_audit_logs(AuditLog.query).filter(
+            AuditLog.created_at >= datetime.combine(datetime.utcnow().date(), datetime.min.time())
+        ).count(),
             # search
             q=q,
             search_results=search_results,
 
             # legacy data (if still needed)
-            courses=StudyMaterial.query.all(),
-            users=User.query.all(),
-            designations=Designation.query.all(),
-            exams=Exam.query.all(),
-            special_exam_records=SpecialExamRecord.query.all()
+            courses=filter_by_user_tenant(StudyMaterial.query, StudyMaterial).all(),
+            users=filter_by_user_tenant(User.query, User).all(),
+            designations=tenant_designations_query().all(),
+            exams=filter_by_user_tenant(Exam.query, Exam).all(),
+            special_exam_records=special_exam_q.all()
         )
     except Exception as e:
         logging.error(f"user_id={user_id} error loading admin dashboard: {e}")
         return render_template('500.html'), 500
+
+@admin_routes.route('/admin/settings', methods=['GET', 'POST'])
+@login_required
+@super_admin_required
+def tenant_settings():
+    from models import Tenant
+    tenant = Tenant.query.get(user_tenant_id())
+    if not tenant:
+        flash("Organization settings not found.", "error")
+        return redirect(url_for('admin_routes.admin_dashboard'))
+        
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        allowed_domain = request.form.get('allowed_domain', '').strip()
+        logo_file = request.files.get('logo_file')
+        
+        if not name:
+            flash("Organization name is required.", "error")
+            return redirect(url_for('admin_routes.tenant_settings'))
+            
+        tenant.name = name
+        tenant.allowed_domain = allowed_domain
+        
+        tenant.portal_tagline = request.form.get('portal_tagline', 'Centralized HR and Performance Hub').strip()
+        tenant.support_email = request.form.get('support_email', 'support@trainiq.com').strip()
+        tenant.primary_color = request.form.get('primary_color', '#4f46e5').strip()
+        tenant.secondary_color = request.form.get('secondary_color', '#06b6d4').strip()
+        tenant.enable_2fa = request.form.get('enable_2fa') == 'true'
+        tenant.enable_proctoring = request.form.get('enable_proctoring') == 'true'
+        tenant.enable_invite_only = request.form.get('enable_invite_only') == 'true'
+        tenant.billing_email = request.form.get('billing_email', '').strip() or tenant.billing_email
+
+        if (tenant.plan or '').lower() == 'enterprise':
+            tenant.sso_enabled = request.form.get('sso_enabled') == 'true'
+            tenant.sso_provider = (request.form.get('sso_provider') or '').strip() or None
+            tenant.sso_client_id = (request.form.get('sso_client_id') or '').strip() or None
+            new_secret = (request.form.get('sso_client_secret') or '').strip()
+            if new_secret:
+                tenant.sso_client_secret = new_secret
+            tenant.sso_issuer_url = (request.form.get('sso_issuer_url') or '').strip() or None
+            tenant.sso_tenant_domain = (request.form.get('sso_tenant_domain') or '').strip() or None
+
+        if logo_file and logo_file.filename:
+            ext = logo_file.filename.rsplit('.', 1)[-1].lower()
+            if ext not in ('png', 'jpg', 'jpeg', 'gif'):
+                flash("Only image files (PNG, JPG, JPEG, GIF) are allowed for the logo.", "error")
+                return redirect(url_for('admin_routes.tenant_settings'))
+            
+            tenant.logo_filename = secure_filename(logo_file.filename)
+            tenant.logo_data = logo_file.read()
+            tenant.logo_mimetype = logo_file.mimetype
+            
+        try:
+            db.session.commit()
+            session['tenant_name'] = name
+            flash("Organization settings updated successfully!", "success")
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Failed to update tenant settings: {e}")
+            flash("Failed to save settings. Please try again.", "error")
+            
+        return redirect(url_for('admin_routes.tenant_settings'))
+        
+    tenant_users = tenant_users_query().order_by(User.first_name, User.last_name).all()
+    super_admins = [u for u in tenant_users if u.is_super_admin]
+    from utils.billing_plans import tenant_usage
+    usage = tenant_usage(tenant)
+    sso_callback_url = url_for('auth_routes.sso_callback', _external=True)
+    return render_template(
+        'admin_settings.html',
+        tenant=tenant,
+        tenant_users=tenant_users,
+        super_admins=super_admins,
+        tenant_usage=usage,
+        sso_callback_url=sso_callback_url,
+    )
+
+
+@admin_routes.route('/admin/exams/<int:exam_id>/ai/generate_questions', methods=['POST'])
+@login_required
+@admin_required
+def ai_generate_exam_questions(exam_id):
+    """JSON API: RAG-grounded questions from one or many study documents."""
+    from utils.exam_rag import generate_questions_from_sources
+    from utils.ai_rate_limit import check_ai_rate_limit
+    from utils.exam_ai import validate_material_ids_for_tenant
+    from utils.local_ai import is_available
+
+    if not is_available():
+        return jsonify({"error": "Local AI is offline."}), 503
+    ok, retry = check_ai_rate_limit()
+    if not ok:
+        return jsonify({"error": f"Rate limit. Retry in {retry}s."}), 429
+
+    exam = Exam.query.get_or_404(exam_id)
+    assert_tenant_access(exam)
+    data = request.get_json(silent=True) or {}
+    count = min(max(int(data.get('count', 5) or 5), 1), 20)
+    material_ids = data.get('material_ids') or []
+    if not material_ids and exam.course_id:
+        material_ids = [exam.course_id]
+    material_ids = validate_material_ids_for_tenant(material_ids, user_tenant_id())
+    if not material_ids:
+        return jsonify({"error": "Select at least one valid study document."}), 400
+
+    question_types = data.get('question_types') or ['single_choice', 'structured']
+    result = generate_questions_from_sources(
+        exam,
+        material_ids=material_ids,
+        count=count,
+        question_types=question_types,
+        tenant_id=user_tenant_id(),
+    )
+    if result.get('error'):
+        return jsonify(result), 400
+    return jsonify(result)
+
+
+@admin_routes.route('/admin/exams/ai/preview_questions', methods=['POST'])
+@login_required
+@super_admin_required
+def ai_preview_exam_questions():
+    """JSON API: preview RAG questions before an exam exists (upload flow)."""
+    from utils.exam_rag import generate_questions_from_sources
+    from utils.ai_rate_limit import check_ai_rate_limit
+    from utils.exam_ai import validate_material_ids_for_tenant
+    from utils.local_ai import is_available
+
+    if not is_available():
+        return jsonify({"error": "Local AI is offline."}), 503
+    ok, retry = check_ai_rate_limit()
+    if not ok:
+        return jsonify({"error": f"Rate limit. Retry in {retry}s."}), 429
+
+    data = request.get_json(silent=True) or {}
+    count = min(max(int(data.get('count', 5) or 5), 1), 20)
+    material_ids = validate_material_ids_for_tenant(data.get('material_ids') or [], user_tenant_id())
+    if not material_ids:
+        return jsonify({"error": "Select at least one study document."}), 400
+
+    question_types = data.get('question_types') or ['single_choice', 'structured']
+    exam_title = (data.get('exam_title') or 'New Exam').strip()
+
+    result = generate_questions_from_sources(
+        None,
+        material_ids=material_ids,
+        count=count,
+        question_types=question_types,
+        exam_title=exam_title,
+        tenant_id=user_tenant_id(),
+    )
+    if result.get('error'):
+        return jsonify(result), 400
+    return jsonify(result)
 
 
 # --- Delete Course ---
@@ -251,11 +454,12 @@ def delete_course(course_id):
     try:
         # 1) Fetch and cascade‐delete related rows
         course = StudyMaterial.query.get_or_404(course_id)
+        assert_tenant_access(course)
         SubTopic.query.filter_by(study_material_id=course_id).delete()
         UserProgress.query.filter_by(study_material_id=course_id).delete()
 
         # 2) Remove files from GridFS and from the model
-        deleted_ids = delete_files_from_gridfs(course.files or [])
+        deleted_ids = delete_files_from_gridfs(course.files or [], course.tenant_id)
         course.files = [
             f for f in (course.files or [])
             if f.split("|", 1)[0] not in deleted_ids
@@ -286,7 +490,7 @@ def generate_reports():
     try:
         # --- 1) User search/filter ---
         search = request.args.get('search', '').strip()
-        users_q = User.query
+        users_q = tenant_users_query()
         if search:
             users_q = users_q.filter(or_(
                 User.first_name.ilike(f'%{search}%'),
@@ -317,7 +521,7 @@ def generate_reports():
                 func.avg(UserScore.score)
             ).filter_by(user_id=u.id).scalar() or 0
             passed = UserScore.query.filter_by(user_id=u.id)\
-                                   .filter(UserScore.score >= 56).count()
+                                   .filter(UserScore.score >= DEFAULT_PASSING_SCORE).count()
             exam_performance_data.append({
                 'user_id': u.id,
                 'user_name': f"{u.first_name} {u.last_name}",
@@ -384,6 +588,7 @@ def edit_course(course_id):
 
     try:
         course = StudyMaterial.query.get_or_404(course_id)
+        assert_tenant_access(course)
 
         # 1) Update metadata
         course.title       = request.form['title']
@@ -406,8 +611,16 @@ def edit_course(course_id):
             course.minimum_level = 1
 
         # 4) Delete checked files
+        from utils.mongo_tenant import get_tenant_gridfs
+        course_gfs = get_tenant_gridfs(course.tenant_id)
         for fid in request.form.getlist('delete_files'):
-            grid_fs.delete(ObjectId(fid))
+            try:
+                course_gfs.delete(ObjectId(fid))
+            except Exception:
+                try:
+                    get_tenant_gridfs(None).delete(ObjectId(fid))
+                except Exception:
+                    pass
             course.files = [f for f in course.files if not f.startswith(fid + '|')]
 
         # 5) Replace files
@@ -415,20 +628,31 @@ def edit_course(course_id):
         replace_files = request.files.getlist('replace_files')
         for fid, new_file in zip(replace_ids, replace_files):
             if new_file and allowed_file(new_file.filename):
-                grid_fs.delete(ObjectId(fid))
+                try:
+                    course_gfs.delete(ObjectId(fid))
+                except Exception:
+                    pass
                 course.files = [f for f in course.files if not f.startswith(fid + '|')]
 
                 filename = secure_filename(new_file.filename)
-                new_fid  = grid_fs.put(new_file, filename=filename,
-                                       content_type=new_file.content_type)
+                new_fid  = course_gfs.put(
+                    new_file.read(),
+                    filename=filename,
+                    content_type=new_file.content_type,
+                    metadata={"tenant_id": course.tenant_id, "study_material_id": course.id},
+                )
                 course.files.append(f"{new_fid}|{filename}")
 
         # 6) Add any brand-new uploads
         for extra in request.files.getlist('new_files'):
             if extra and allowed_file(extra.filename):
                 fn  = secure_filename(extra.filename)
-                fid = grid_fs.put(extra, filename=fn,
-                                  content_type=extra.content_type)
+                fid = course_gfs.put(
+                    extra.read(),
+                    filename=fn,
+                    content_type=extra.content_type,
+                    metadata={"tenant_id": course.tenant_id, "study_material_id": course.id},
+                )
                 course.files.append(f"{fid}|{fn}")
 
         db.session.commit()
@@ -453,6 +677,7 @@ def delete_exam(exam_id):
     logging.info(f"user_id={user_id} deleting exam_id={exam_id} from {ip}")
     try:
         exam = Exam.query.get_or_404(exam_id)
+        assert_tenant_access(exam)
         Question.query.filter_by(exam_id=exam_id).delete()
         UserScore.query.filter_by(exam_id=exam_id).delete()
         db.session.delete(exam)
@@ -473,12 +698,14 @@ def edit_exam(exam_id):
     POST → Read the form data and update the existing exam record.
     """
     exam = Exam.query.get_or_404(exam_id)
+    assert_tenant_access(exam)
 
     if request.method == 'POST':
         # 1) Grab each field from request.form (names must match your form inputs)
         new_title    = request.form.get('title', '').strip()
         new_duration = request.form.get('duration', '').strip()
         new_level    = request.form.get('level', '').strip()  # this is a string ID
+        passing_raw  = request.form.get('passing_score', '').strip()
 
         # 2) Simple validation
         if not new_title:
@@ -491,6 +718,12 @@ def edit_exam(exam_id):
         # Convert duration to int if valid, otherwise leave as-is
         if new_duration.isdigit():
             exam.duration = int(new_duration)
+
+        if passing_raw:
+            try:
+                exam.passing_score = float(passing_raw)
+            except ValueError:
+                pass
 
         # Convert level to int and assign to the foreign-key column
         if new_level.isdigit():
@@ -516,6 +749,8 @@ def edit_exam(exam_id):
 @super_admin_required
 def delete_question(question_id):
     q = Question.query.get_or_404(question_id)
+    exam = Exam.query.get_or_404(q.exam_id)
+    assert_tenant_access(exam)
     exam_id = q.exam_id
     db.session.delete(q)
     db.session.commit()
@@ -530,12 +765,18 @@ def delete_question(question_id):
 @super_admin_required
 def edit_exam_page(exam_id):
     exam      = Exam.query.get_or_404(exam_id)
+    assert_tenant_access(exam)
     questions = Question.query.filter_by(exam_id=exam_id).all()
 
-    # you need these for your select-lists on the form
-    levels     = Level.query.order_by(Level.level_number).all()
-    areas      = Area.query.order_by(Area.name).all()
-    courses    = StudyMaterial.query.order_by(StudyMaterial.title).all()
+    tid = user_tenant_id()
+    levels     = tenant_levels_query().order_by(Level.level_number).all()
+    areas      = tenant_areas_query().order_by(Area.name).all()
+    courses    = (
+        tenant_courses_query()
+        .options(joinedload(StudyMaterial.level), joinedload(StudyMaterial.category))
+        .order_by(StudyMaterial.title)
+        .all()
+    )
     categories = Category.query.order_by(Category.name).all()
 
     return render_template(
@@ -549,21 +790,157 @@ def edit_exam_page(exam_id):
     )
 
 
+@admin_routes.route('/ai/correct_question', methods=['POST'])
+@login_required
+@super_admin_required
+def correct_question_ai():
+    from utils.local_ai import improve_exam_question
+    data = request.get_json(silent=True) or {}
+    qtext = (data.get('question_text') or '').strip()
+    qtype = (data.get('question_type') or 'single_choice').strip()
+    choices = data.get('choices') or []
+    if not qtext:
+        return jsonify({'error': 'Question text is required'}), 400
+    try:
+        improved = improve_exam_question(qtext, choices=choices, question_type=qtype)
+        return jsonify(improved if isinstance(improved, dict) else {'question_text': qtext})
+    except Exception as e:
+        logging.error(f"AI question improve failed: {e}")
+        return jsonify({'error': 'AI service unavailable. Please try again later.'}), 503
+
+
+@admin_routes.route('/exam/<int:exam_id>/generate-ai', methods=['POST'])
+@login_required
+@super_admin_required
+def generate_exam_questions_ai(exam_id):
+    from utils.exam_rag import generate_questions_from_sources
+    from utils.local_ai import is_available
+    from utils.ai_rate_limit import check_ai_rate_limit
+    from utils.exam_ai import validate_material_ids_for_tenant, persist_generated_questions
+
+    exam = Exam.query.get_or_404(exam_id)
+    assert_tenant_access(exam)
+
+    payload = request.get_json(silent=True)
+    is_json = payload is not None
+
+    if payload and payload.get('preview_questions'):
+        generated = payload.get('preview_questions') or []
+        replace_existing = bool(payload.get('replace_existing'))
+        source_count = len(payload.get('material_ids') or [])
+        requested = payload.get('count') or len(generated)
+    else:
+        if not is_available():
+            msg = "Local AI is offline. Start Ollama to generate questions."
+            if is_json:
+                return jsonify({"error": msg}), 503
+            flash(msg, "error")
+            return redirect(url_for('.edit_exam_page', exam_id=exam.id))
+
+        ok, retry = check_ai_rate_limit()
+        if not ok:
+            msg = f"AI rate limit exceeded. Retry in {retry}s."
+            if is_json:
+                return jsonify({"error": msg}), 429
+            flash(msg, "warning")
+            return redirect(url_for('.edit_exam_page', exam_id=exam.id))
+
+        if is_json:
+            count = min(max(int(payload.get('count', 5) or 5), 1), 20)
+            material_ids = payload.get('material_ids') or []
+            question_types = payload.get('question_types') or ['single_choice', 'structured']
+            replace_existing = bool(payload.get('replace_existing'))
+        else:
+            count = min(max(int(request.form.get('question_count', 5) or 5), 1), 20)
+            material_ids = request.form.getlist('material_ids')
+            if not material_ids and request.form.get('material_ids'):
+                material_ids = [request.form.get('material_ids')]
+            question_types = request.form.getlist('question_types') or ['single_choice', 'structured']
+            replace_existing = request.form.get('replace_existing') == '1'
+
+        if not material_ids and exam.course_id:
+            material_ids = [exam.course_id]
+
+        material_ids = validate_material_ids_for_tenant(material_ids, user_tenant_id())
+        if not material_ids:
+            msg = "Select at least one valid study document for your organization."
+            if is_json:
+                return jsonify({"error": msg}), 400
+            flash(msg, "error")
+            return redirect(url_for('.edit_exam_page', exam_id=exam.id))
+
+        result = generate_questions_from_sources(
+            exam,
+            material_ids=material_ids,
+            count=count,
+            question_types=question_types,
+            tenant_id=user_tenant_id(),
+        )
+        if result.get('error'):
+            if is_json:
+                return jsonify(result), 400
+            flash(result['error'], "error")
+            return redirect(url_for('.edit_exam_page', exam_id=exam.id))
+
+        generated = result.get('questions') or []
+        source_count = result.get('source_count', 1)
+        requested = result.get('requested', count)
+        if not generated:
+            msg = "AI returned no questions. Try different documents or fewer questions."
+            if is_json:
+                return jsonify({"error": msg, "questions": []}), 400
+            flash(msg, "warning")
+            return redirect(url_for('.edit_exam_page', exam_id=exam.id))
+
+    if not generated:
+        msg = "No questions to save."
+        if is_json:
+            return jsonify({"error": msg}), 400
+        flash(msg, "warning")
+        return redirect(url_for('.edit_exam_page', exam_id=exam.id))
+
+    try:
+        saved = persist_generated_questions(exam, generated, replace_existing=replace_existing)
+        success_msg = (
+            f"Generated {saved} RAG-grounded question(s) from {source_count or 1} document(s)"
+            + (f" (requested {requested})" if requested else "")
+            + "."
+        )
+        if is_json:
+            return jsonify({"success": True, "saved": saved, "message": success_msg})
+        flash(success_msg, "success")
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Failed to save AI questions: {e}")
+        if is_json:
+            return jsonify({"error": "Failed to save generated questions."}), 500
+        flash("Failed to save generated questions. Please try again.", "error")
+
+    return redirect(url_for('.edit_exam_page', exam_id=exam.id))
+
+
 @admin_routes.route('/update_question/<int:question_id>', methods=['POST'])
 @login_required
 @super_admin_required
 def update_question(question_id):
     q = Question.query.get_or_404(question_id)
+    assert_tenant_access(Exam.query.get_or_404(q.exam_id))
 
-    # store the text
     q.question_text = request.form['question_text'].strip()
+    q.question_type = request.form.get('question_type', 'single_choice').strip() or 'single_choice'
 
-    # rebuild the comma‑separated choices string
-    options = [request.form.get(f'option_{i}', '').strip() for i in range(4)]
-    q.choices = ','.join(options)
-
-    # store the correct letter
-    q.correct_ans = request.form['correct_ans'].strip()
+    if q.question_type == 'structured':
+        q.choices = ''
+        q.correct_answer = request.form.get('reference_answer', '').strip()
+    elif q.question_type == 'multiple_choice':
+        options = [request.form.get(f'option_{i}', '').strip() for i in range(4)]
+        q.choices = ','.join(options)
+        correct_keys = request.form.getlist('correct_ans_multi')
+        q.correct_answer = ','.join(correct_keys) if correct_keys else ''
+    else:
+        options = [request.form.get(f'option_{i}', '').strip() for i in range(4)]
+        q.choices = ','.join(options)
+        q.correct_ans = request.form.get('correct_ans', '').strip()
 
     db.session.commit()
     flash("Question updated.", "success")
@@ -592,7 +969,7 @@ def view_special_exam_record(record_id):
 @super_admin_required
 def view_users():
     status = request.args.get('status')  # 'verified' or 'unverified'
-    qry = User.query.order_by(User.join_date.desc())
+    qry = filter_by_user_tenant(User.query, User).order_by(User.join_date.desc())
 
     if status == 'verified':
         qry = qry.filter_by(is_verified=True)
@@ -600,26 +977,117 @@ def view_users():
         qry = qry.filter_by(is_verified=False)
 
     users           = qry.all()
-    designations    = Designation.query.order_by(Designation.title).all()
-    all_departments = Department.query.order_by(Department.name).all()
+    designations    = tenant_designations_query().order_by(Designation.title).all()
+    all_departments = filter_by_user_tenant(Department.query, Department).order_by(Department.name).all()
 
+    from models import TenantInvite
+    tid = user_tenant_id()
+    pending_invites = []
+    if tid:
+        pending_invites = (
+            TenantInvite.query.filter_by(tenant_id=tid)
+            .filter(TenantInvite.used_at.is_(None))
+            .order_by(TenantInvite.created_at.desc())
+            .limit(50)
+            .all()
+        )
+
+    from utils.billing_plans import tenant_usage
+    from models import Tenant
+    tenant = Tenant.query.get(tid) if tid else None
+    usage = tenant_usage(tenant) if tenant else {}
     return render_template(
         'admin_users.html',
         users=users,
         status=status,
         designations=designations,
-        all_departments=all_departments
+        all_departments=all_departments,
+        current_user_id=current_user.id,
+        pending_invites=pending_invites,
+        tenant_usage=usage,
     )
+
+
+@admin_routes.route('/admin/users/invite', methods=['POST'])
+@login_required
+@super_admin_required
+def send_user_invite():
+    from models import Tenant
+    from utils.tenant_invites import create_tenant_invite, send_invite_email
+    from utils.tenant_limits import assert_tenant_can_invite
+
+    email = (request.form.get('invite_email') or '').strip().lower()
+    if not email or '@' not in email:
+        flash("Enter a valid email address.", "error")
+        return redirect(url_for('admin_routes.view_users', status=request.args.get('status')))
+
+    tid = user_tenant_id()
+    tenant = Tenant.query.get_or_404(tid)
+
+    if not assert_tenant_can_invite(tenant):
+        return redirect(url_for('billing_routes.billing_home', upgrade=1))
+
+    if User.query.filter(db.func.lower(User.employee_email) == email).first():
+        flash("A user with that email already exists.", "error")
+        return redirect(url_for('admin_routes.view_users', status=request.args.get('status')))
+
+    invite = create_tenant_invite(tid, email, current_user.id)
+    try:
+        from extensions import mail
+        send_invite_email(invite, tenant, mail)
+        flash(f"Invitation sent to {email}.", "success")
+    except Exception as e:
+        logging.error(f"Failed to send invite email: {e}")
+        flash(f"Invite created but email failed. Share this link manually: {url_for('auth_routes.accept_invite', token=invite.token, _external=True)}", "warning")
+
+    return redirect(url_for('admin_routes.view_users', status=request.args.get('status')))
+
+
+@admin_routes.route('/admin/user/super_admin/<int:user_id>', methods=['POST'])
+@login_required
+@super_admin_required
+def set_user_super_admin(user_id):
+    """Grant or revoke super-admin for a user in the current organization."""
+    from models import Role
+
+    target = require_user_in_tenant(user_id)
+    action = (request.form.get('action') or '').strip().lower()
+    tid = user_tenant_id()
+
+    if action == 'grant':
+        target.is_super_admin = True
+        for role_name in ('admin', 'super_admin'):
+            role = Role.query.filter_by(name=role_name).first()
+            if role and role not in target.roles:
+                target.roles.append(role)
+        db.session.commit()
+        flash(f"{target.first_name} {target.last_name} is now a Super Admin.", "success")
+    elif action == 'revoke':
+        if target.id == current_user.id and not is_trainiq_staff():
+            flash("You cannot remove your own Super Admin access. Ask another Super Admin.", "error")
+            return redirect(url_for('admin_routes.view_users', status=request.args.get('status')))
+        if count_tenant_super_admins(tid) <= 1:
+            flash("Each organization must keep at least one Super Admin.", "error")
+            return redirect(url_for('admin_routes.view_users', status=request.args.get('status')))
+        target.is_super_admin = False
+        db.session.commit()
+        flash(f"Super Admin access removed for {target.first_name} {target.last_name}.", "success")
+    else:
+        flash("Invalid action.", "error")
+
+    return redirect(url_for('admin_routes.view_users', status=request.args.get('status')))
 
 
 @admin_routes.route('/admin/user/designation/<int:user_id>', methods=['POST'])
 @login_required
 @super_admin_required
 def change_designation(user_id):
-    user = User.query.get_or_404(user_id)
+    user = require_user_in_tenant(user_id)
+    assert_user_in_tenant(user)
     new_desig = request.form.get('designation_id', type=int)
     desig = Designation.query.get(new_desig)
     if desig:
+        assert_tenant_access(desig)
         user.designation_id = new_desig
         db.session.commit()
         flash(f"{user.first_name} {user.last_name} is now {desig.title}.", "success")
@@ -632,14 +1100,14 @@ def change_designation(user_id):
 @login_required
 @super_admin_required
 def change_user_departments(user_id):
-    user = User.query.get_or_404(user_id)
+    user = require_user_in_tenant(user_id)
     dept_ids = request.form.getlist('departments')  # list of strings
     try:
         dept_ids_int = [int(x) for x in dept_ids]
     except ValueError:
         dept_ids_int = []
 
-    selected_departments = Department.query.filter(Department.id.in_(dept_ids_int)).all()
+    selected_departments = tenant_departments_query().filter(Department.id.in_(dept_ids_int)).all()
     user.departments = selected_departments
     db.session.commit()
 
@@ -659,7 +1127,7 @@ def change_user_departments(user_id):
 def view_courses():
     # eager‐load only the remaining FK relationships
     courses = (
-        StudyMaterial.query
+        tenant_courses_query()
         .options(
             db.joinedload(StudyMaterial.category),
             db.joinedload(StudyMaterial.level)
@@ -668,19 +1136,108 @@ def view_courses():
         .all()
     )
 
-    # for filter dropdowns or edit forms
-    categories   = Category.query.order_by(Category.name).all()
-    levels       = Level.query.order_by(Level.level_number).all()
-    # load all designations so the "Minimum Designation" dropdown can show names
-    designations = Designation.query.order_by(Designation.starting_level).all()
+    categories   = tenant_categories_query().order_by(Category.name).all()
+    levels       = tenant_levels_query().order_by(Level.level_number).all()
+    designations = tenant_designations_query().order_by(Designation.starting_level).all()
 
     return render_template(
         'admin_courses.html',
         courses=courses,
         categories=categories,
         levels=levels,
-        designations=designations
+        designations=designations,
     )
+
+
+@admin_routes.route('/admin/courses/generate-outline/start', methods=['POST'])
+@login_required
+@super_admin_required
+def creatoriq_generate_outline_start():
+    """CreatorIQ: start outline generation as a background job."""
+    from utils.local_ai import creatoriq_outline, get_ai_status
+    from utils.ai_jobs import create_job, run_job
+    from utils.ai_rate_limit import check_ai_rate_limit
+
+    ok, retry = check_ai_rate_limit()
+    if not ok:
+        return jsonify({"error": f"Rate limit exceeded. Retry in {retry}s.", "retry_after": retry}), 429
+
+    ai_status = get_ai_status()
+    if not ai_status["available"] or not ai_status["model_ready"]:
+        return jsonify({"error": ai_status["message"], **ai_status}), 503
+
+    data = request.get_json(silent=True) or {}
+    prompt_text = (data.get("prompt") or "").strip()
+    if not prompt_text:
+        return jsonify({"error": "Prompt is required."}), 400
+
+    category = data.get("category")
+    level = data.get("level")
+    job_id = create_job(session.get("user_id"), "creatoriq", tenant_id=user_tenant_id())
+
+    def work():
+        outline = creatoriq_outline(prompt_text, category=category, level=level)
+        if not outline:
+            raise ValueError("AI could not parse a valid outline. Try rephrasing your prompt.")
+        return {"outline": outline, "feature": "CreatorIQ", **get_ai_status()}
+
+    from flask import current_app
+    run_job(job_id, work, app=current_app._get_current_object())
+    return jsonify({"job_id": job_id, "status": "pending"})
+
+
+@admin_routes.route('/admin/courses/generate-outline', methods=['POST'])
+@login_required
+@super_admin_required
+def creatoriq_generate_outline():
+    """CreatorIQ sync fallback."""
+    from utils.local_ai import creatoriq_outline, get_ai_status
+    from utils.ai_rate_limit import check_ai_rate_limit
+
+    ok, retry = check_ai_rate_limit()
+    if not ok:
+        return jsonify({"error": f"Rate limit exceeded. Retry in {retry}s.", "retry_after": retry}), 429
+
+    ai_status = get_ai_status()
+    if not ai_status["available"] or not ai_status["model_ready"]:
+        return jsonify({"error": ai_status["message"], **ai_status}), 503
+
+    data = request.get_json(silent=True) or {}
+    prompt_text = (data.get("prompt") or "").strip()
+    if not prompt_text:
+        return jsonify({"error": "Prompt is required."}), 400
+
+    category = data.get("category")
+    level = data.get("level")
+
+    try:
+        outline = creatoriq_outline(prompt_text, category=category, level=level)
+        if not outline:
+            return jsonify({"error": "AI could not parse a valid outline. Try rephrasing your prompt."}), 422
+        return jsonify({"outline": outline, "feature": "CreatorIQ", **ai_status})
+    except ConnectionError:
+        return jsonify({"error": "AI service is temporarily unavailable. Please try again later."}), 503
+
+
+@admin_routes.route('/admin/proctor-review')
+@login_required
+@super_admin_required
+def proctoriq_review():
+    """ProctorIQ: Admin view of exam sessions flagged by low trust scores."""
+    flagged = (
+        filter_scores_by_tenant(UserScore.query, current_user)
+        .options(
+            db.joinedload(UserScore.user),
+            db.joinedload(UserScore.exam),
+        )
+        .filter(UserScore.trust_score.isnot(None))
+        .filter(UserScore.trust_score < 70)
+        .order_by(UserScore.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return render_template('admin_proctor_review.html', sessions=flagged)
+
 
 # --- Manage Exams page ---
 @admin_routes.route('/admin/exams')
@@ -689,6 +1246,7 @@ def view_courses():
 def view_exams():
     exams = (
         Exam.query
+        .filter(Exam.tenant_id == user_tenant_id())
         .options(
             db.joinedload(Exam.level),
             db.joinedload(Exam.area),
@@ -701,11 +1259,11 @@ def view_exams():
     )
 
     # needed if you plan to offer filters or editing forms
-    levels     = Level.query.order_by(Level.level_number).all()
-    areas      = Area.query.order_by(Area.name).all()
-    courses    = StudyMaterial.query.order_by(StudyMaterial.title).all()
-    categories = Category.query.order_by(Category.name).all()
-    users      = User.query.order_by(User.first_name, User.last_name).all()
+    levels     = tenant_levels_query().order_by(Level.level_number).all()
+    areas      = tenant_areas_query().order_by(Area.name).all()
+    courses    = tenant_courses_query().order_by(StudyMaterial.title).all()
+    categories = tenant_categories_query().order_by(Category.name).all()
+    users      = filter_by_user_tenant(User.query, User).order_by(User.first_name, User.last_name).all()
 
     return render_template(
         'admin_exams.html',
@@ -785,7 +1343,7 @@ def view_analytics():
 
 
     # ── 2) BUILD USER QUERY (apply dept & designation) ───
-    user_query = User.query.filter(User.deleted_at.is_(None))
+    user_query = tenant_users_query().filter(User.deleted_at.is_(None))
 
     if sel_dept:
         user_query = user_query.filter(User.departments.any(Department.name == sel_dept))
@@ -805,7 +1363,7 @@ def view_analytics():
             period          = period,
             start_date      = (start_date.strftime('%Y-%m-%d') if start_date else ''),
             end_date        = (end_date.strftime('%Y-%m-%d')   if end_date   else ''),
-            all_departments = Department.query.order_by(Department.name).all(),
+            all_departments = filter_by_user_tenant(Department.query, Department).order_by(Department.name).all(),
             sel_dept        = sel_dept,
             designations    = Designation.query.order_by(Designation.title).all(),
             sel_desig       = sel_desig,
@@ -862,9 +1420,12 @@ def view_analytics():
 
             # ── EXAM & COURSE BAR DATA (use IDs) ──
             exam_ids            = [],
+            exam_labels         = [],
             exam_avg_scores     = [],
             course_ids          = [],
+            course_labels       = [],
             course_avg_progress = [],
+            period_label        = 'No data',
 
             # ── SCORE TREND ──
             ts_labels           = [],
@@ -942,7 +1503,7 @@ def view_analytics():
     passed_count = date_filter(
         UserScore.query.filter(
             UserScore.user_id.in_([u.id for u in users_filtered]),
-            UserScore.score >= 56
+            UserScore.score >= DEFAULT_PASSING_SCORE
         ),
         UserScore.created_at
     ).count()
@@ -950,7 +1511,7 @@ def view_analytics():
     failed_count = date_filter(
         UserScore.query.filter(
             UserScore.user_id.in_([u.id for u in users_filtered]),
-            UserScore.score < 56
+            UserScore.score < DEFAULT_PASSING_SCORE
         ),
         UserScore.created_at
     ).count()
@@ -1066,7 +1627,7 @@ def view_analytics():
 
     # ── 10) LEVEL PROGRESS FUNNEL (stacked bar) ───────────
     level_stats = []
-    levels_data = Level.query.order_by(Level.level_number).all()
+    levels_data = tenant_levels_query().order_by(Level.level_number).all()
     for lvl in levels_data:
         total_assigned = (
             db.session.query(func.count(UserLevelProgress.user_id.distinct()))
@@ -1094,8 +1655,8 @@ def view_analytics():
     funnel_completed = [l['completed']      for l in level_stats]
 
     # ── 11) TIME SPENT HEATMAP (Plotly) ───────────────────
-    all_departments = Department.query.order_by(Department.name).all()
-    all_courses     = StudyMaterial.query.all()
+    all_departments = filter_by_user_tenant(Department.query, Department).order_by(Department.name).all()
+    all_courses     = tenant_courses_query().all()
     heatmap_labels  = [str(c.id) for c in all_courses]
     heatmap_depts   = [d.name  for d in all_departments]
     heatmap_data    = []
@@ -1329,35 +1890,43 @@ def view_analytics():
         date_filter(
             db.session.query(
                 Exam.id.label("exam_id"),
+                Exam.title.label("exam_title"),
                 func.avg(UserScore.score).label("avg_score")
             )
             .join(UserScore, UserScore.exam_id == Exam.id)
             .filter(UserScore.user_id.in_([u.id for u in users_filtered])),
             UserScore.created_at
         )
-        .group_by(Exam.id)
-        .order_by(Exam.id)
+        .group_by(Exam.id, Exam.title)
+        .order_by(func.avg(UserScore.score).desc())
         .all()
     )
-    exam_ids        = [str(r.exam_id)           for r in exam_data]
+    exam_labels     = [(r.exam_title or f"Exam #{r.exam_id}")[:48] for r in exam_data]
+    exam_ids        = [str(r.exam_id) for r in exam_data]
     exam_avg_scores = [round(r.avg_score, 2) for r in exam_data]
 
     cp_data = (
         date_filter(
             db.session.query(
                 StudyMaterial.id.label("material_id"),
+                StudyMaterial.title.label("material_title"),
                 func.avg(UserProgress.progress_percentage).label("avg_prog")
             )
             .join(UserProgress, UserProgress.study_material_id == StudyMaterial.id)
             .filter(UserProgress.user_id.in_([u.id for u in users_filtered])),
             UserProgress.completion_date
         )
-        .group_by(StudyMaterial.id)
-        .order_by(StudyMaterial.id)
+        .group_by(StudyMaterial.id, StudyMaterial.title)
+        .order_by(func.avg(UserProgress.progress_percentage).desc())
         .all()
     )
-    course_ids         = [str(r.material_id)         for r in cp_data]
+    course_labels       = [(r.material_title or f"Course #{r.material_id}")[:48] for r in cp_data]
+    course_ids          = [str(r.material_id) for r in cp_data]
     course_avg_progress = [round(r.avg_prog, 2) for r in cp_data]
+
+    period_label = 'All Time' if period == 'all' else f'Last {period} days'
+    if start_date_str and end_date_str:
+        period_label = f'{start_date_str} → {end_date_str}'
 
     # ── 17) RENDER TEMPLATE ───────────────────────────────
     return render_template(
@@ -1368,7 +1937,7 @@ def view_analytics():
         period          = period,
         start_date      = (start_date.strftime('%Y-%m-%d') if start_date else ''),
         end_date        = (end_date.strftime('%Y-%m-%d')   if end_date   else ''),
-        all_departments = Department.query.order_by(Department.name).all(),
+        all_departments = filter_by_user_tenant(Department.query, Department).order_by(Department.name).all(),
         sel_dept        = sel_dept,
         designations    = Designation.query.order_by(Designation.title).all(),
         sel_desig       = sel_desig,
@@ -1425,9 +1994,12 @@ def view_analytics():
 
         # ── EXAM & COURSE BAR DATA ──
         exam_ids            = exam_ids,
+        exam_labels         = exam_labels,
         exam_avg_scores     = exam_avg_scores,
         course_ids          = course_ids,
+        course_labels       = course_labels,
         course_avg_progress = course_avg_progress,
+        period_label        = period_label,
 
         # ── SCORE TREND ──
         ts_labels           = ts_labels,
@@ -1443,6 +2015,67 @@ def view_analytics():
         default_z           = default_z
     )
 
+
+@admin_routes.route('/admin/analytics/ai_insights', methods=['POST'])
+@login_required
+@admin_required
+def analytics_ai_insights():
+    from utils.local_ai import analyticsiq_platform_summary, is_available
+    from utils.ai_rate_limit import check_ai_rate_limit
+
+    if not is_available():
+        return jsonify({"error": "Local AI is offline. Start Ollama to use AnalyticsIQ."}), 503
+
+    ok, retry = check_ai_rate_limit()
+    if not ok:
+        return jsonify({"error": f"Rate limit exceeded. Retry in {retry}s.", "retry_after": retry}), 429
+
+    data = request.get_json(silent=True) or {}
+    summary = data.get("summary") or {}
+    if not summary:
+        return jsonify({"error": "No analytics summary provided."}), 400
+
+    try:
+        insights = analyticsiq_platform_summary(summary)
+        return jsonify({"insights": insights, "feature": "AnalyticsIQ"})
+    except ConnectionError:
+        return jsonify({"error": "AI service is temporarily unavailable."}), 503
+    except Exception as e:
+        logging.error(f"analytics_ai_insights error: {e}")
+        return jsonify({"error": "Could not generate insights."}), 500
+
+
+@admin_routes.route('/admin/analytics/export-pdf', methods=['POST'])
+@login_required
+@admin_required
+def analytics_export_pdf():
+    from flask import send_file, g
+    from utils.analytics_pdf import build_analytics_pdf
+    from utils.branding import resolve_display_brand
+
+    data = request.get_json(silent=True) or {}
+    kpis = data.get('kpis') or {}
+    filters = data.get('filters') or {}
+    insights = (data.get('insights') or '').strip()
+    charts = data.get('charts') or []
+
+    tenant = getattr(g, 'tenant', None)
+    org_name, _, _ = resolve_display_brand(tenant)
+
+    try:
+        pdf_bytes = build_analytics_pdf(org_name, filters, kpis, insights, charts)
+    except ImportError:
+        return jsonify({"error": "PDF export requires reportlab. Run: pip install reportlab"}), 503
+    except Exception as e:
+        logging.error(f"analytics_export_pdf error: {e}")
+        return jsonify({"error": "Could not build PDF report."}), 500
+
+    buf = io.BytesIO(pdf_bytes)
+    buf.seek(0)
+    filename = f"analytics-report-{datetime.utcnow().strftime('%Y%m%d')}.pdf"
+    return send_file(buf, mimetype='application/pdf', as_attachment=True, download_name=filename)
+
+
 @admin_routes.route('/admin/analytics/users')
 @login_required
 @admin_required
@@ -1453,7 +2086,7 @@ def analytics_user_list():
     sort = request.args.get('sort', '').strip()
 
     # 2) Base query
-    users_query = User.query
+    users_query = tenant_users_query()
 
     # 3) Apply text search if provided
     if q:
@@ -1511,7 +2144,7 @@ def analytics_user_list():
         user_stats.sort(key=lambda x: x['avg_progress'])
 
     # 8) Fetch all departments for the dropdown
-    departments = Department.query.order_by(Department.name).all()
+    departments = tenant_departments_query().order_by(Department.name).all()
 
     # 9) Render template
     return render_template(
@@ -1529,7 +2162,7 @@ def analytics_user_list():
 @login_required
 @admin_required
 def analytics_user_detail(user_id):
-    user = User.query.get_or_404(user_id)
+    user = require_user_in_tenant(user_id)
 
     # 1) Fetch all “regular” exam attempts (title, score, date)
     exam_scores_query = (
@@ -1629,7 +2262,7 @@ def analytics_user_detail(user_id):
 @login_required
 @super_admin_required
 def deactivate_user(user_id):
-    user = User.query.get_or_404(user_id)
+    user = require_user_in_tenant(user_id)
     try:
         user.is_verified = False
         db.session.commit()
@@ -1644,7 +2277,7 @@ def deactivate_user(user_id):
 @login_required
 @super_admin_required
 def activate_user(user_id):
-    user = User.query.get_or_404(user_id)
+    user = require_user_in_tenant(user_id)
     try:
         user.is_verified = True
         db.session.commit()
@@ -1658,7 +2291,7 @@ def activate_user(user_id):
 @login_required
 @super_admin_required
 def delete_user(user_id):
-    user = User.query.get_or_404(user_id)
+    user = require_user_in_tenant(user_id)
     try:
         db.session.delete(user)
         db.session.commit()
@@ -1670,15 +2303,15 @@ def delete_user(user_id):
     return redirect(url_for('admin_routes.view_analytics'))
 
 # --- Admin Reports Dashboard ---
-@admin_routes.route('/admin/reports', methods=['GET'])
+@admin_routes.route('/admin/reports/overview', methods=['GET'])
 @login_required
 def reports_landing():
     # Example: Custom data for your landing table (replace with your own query/data)
     custom_table = [
-        {"name": "Total Users", "value": User.query.filter(User.deleted_at.is_(None)).count()},
-        {"name": "Total Departments", "value": Department.query.count()},
-        {"name": "Total Courses", "value": StudyMaterial.query.count()},
-        {"name": "Total Exams", "value": Exam.query.count()},
+        {"name": "Total Users", "value": tenant_users_query().filter(User.deleted_at.is_(None)).count()},
+        {"name": "Total Departments", "value": tenant_departments_query().count()},
+        {"name": "Total Courses", "value": tenant_courses_query().count()},
+        {"name": "Total Exams", "value": tenant_exams_query().count()},
     ]
     search = request.args.get('search', '').strip()
     return render_template("admin_reports_landing.html", custom_table=custom_table, search=search)
@@ -1704,7 +2337,7 @@ def download_report():
     # 1) Course Progress
     if rpt_type == 'course_progress':
         cw.writerow(['User ID','Name','Total Courses','Avg Progress (%)'])
-        users = User.query.order_by(User.join_date.desc()).all()
+        users = tenant_users_query().order_by(User.join_date.desc()).all()
         for u in users:
             total = UserProgress.query.filter_by(user_id=u.id).count()
             avg   = db.session.query(func.avg(UserProgress.progress_percentage))\
@@ -1715,13 +2348,13 @@ def download_report():
     # 2) Exam Performance
     elif rpt_type == 'exam_performance':
         cw.writerow(['User ID','Name','Total Attempts','Avg Score','Successful Attempts'])
-        users = User.query.order_by(User.join_date.desc()).all()
+        users = tenant_users_query().order_by(User.join_date.desc()).all()
         for u in users:
             total  = UserScore.query.filter_by(user_id=u.id).count()
             avg    = db.session.query(func.avg(UserScore.score))\
                               .filter_by(user_id=u.id).scalar() or 0
             passed = UserScore.query.filter_by(user_id=u.id)\
-                                    .filter(UserScore.score >= 56).count()
+                                    .filter(UserScore.score >= DEFAULT_PASSING_SCORE).count()
             cw.writerow([u.id, f"{u.first_name} {u.last_name}", total, round(avg,2), passed])
         filename = 'exam_performance.csv'
 
@@ -1732,9 +2365,9 @@ def download_report():
             'Paper1 Score','Paper1 Passed',
             'Paper2 Score','Paper2 Passed'
         ])
-        records = SpecialExamRecord.query
+        records = SpecialExamRecord.query.join(User).filter(User.tenant_id == user_tenant_id())
         if search:
-            records = records.join(User).filter(or_(
+            records = records.filter(or_(
                 User.first_name.ilike(f'%{search}%'),
                 User.last_name.ilike(f'%{search}%'),
                 User.employee_email.ilike(f'%{search}%')
@@ -1756,7 +2389,7 @@ def download_report():
             'Timestamp','Event Type','User ID','Email',
             'IP Address','Target','Details'
         ])
-        ql = AuditLog.query
+        ql = scope_audit_logs(AuditLog.query)
         if start:
             ql = ql.filter(AuditLog.created_at >= start)
         if end:
@@ -1786,7 +2419,7 @@ def download_report():
     # 5) Users
     elif rpt_type == 'users':
         cw.writerow(['User ID','First Name','Last Name','Email','Department','Join Date'])
-        q = User.query
+        q = tenant_users_query()
         if search:
             q = q.filter(or_(
                 User.first_name.ilike(f'%{search}%'),
@@ -1808,9 +2441,9 @@ def download_report():
     # 6) Departments
     elif rpt_type == 'departments':
         cw.writerow(['Department','User Count','Avg Exam Score','Avg Progress','Completion Rate'])
-        departments = Department.query.all()
+        departments = tenant_departments_query().all()
         for d in departments:
-            d_users = User.query.filter(User.departments.any(Department.id == d.id)).all()
+            d_users = tenant_users_query().filter(User.departments.any(Department.id == d.id)).all()
             ids = [u.id for u in d_users]
             if not ids:
                 continue
@@ -1831,7 +2464,7 @@ def download_report():
     # 7) Courses
     elif rpt_type == 'courses':
         cw.writerow(['Course','Assigned','Completed','Avg Progress','Avg Exam Score'])
-        courses = StudyMaterial.query.all()
+        courses = tenant_courses_query().all()
         for c in courses:
             progress = UserProgress.query.filter_by(study_material_id=c.id)
             assigned = progress.count()
@@ -1856,7 +2489,7 @@ def download_report():
             scores = UserScore.query.filter_by(exam_id=ex.id)
             attempts = scores.count()
             avg_score = scores.with_entities(func.avg(UserScore.score)).scalar() or 0
-            pass_count = scores.filter(UserScore.score >= 56).count()
+            pass_count = scores.filter(UserScore.score >= DEFAULT_PASSING_SCORE).count()
             pass_rate = (pass_count / attempts * 100) if attempts else 0
             top_score = scores.order_by(UserScore.score.desc()).first()
             top_user = f"{top_score.user.first_name} {top_score.user.last_name}" if top_score and top_score.user else ""
@@ -1872,7 +2505,7 @@ def download_report():
     # 9) Leaderboard
     elif rpt_type == 'leaderboard':
         cw.writerow(['User','Email','Department','Courses Completed','Avg Score','Time Spent (min)'])
-        users = User.query.filter(User.deleted_at.is_(None)).all()
+        users = tenant_users_query().filter(User.deleted_at.is_(None)).all()
         for u in users:
             completed = UserProgress.query.filter_by(user_id=u.id).filter(UserProgress.progress_percentage >= 100).count()
             avg_score = db.session.query(func.avg(UserScore.score)).filter_by(user_id=u.id).scalar() or 0
@@ -1890,7 +2523,7 @@ def download_report():
     # 10) Inactive Users
     elif rpt_type == 'inactive_users':
         cw.writerow(['User','Email','Department'])
-        users = User.query.filter(User.deleted_at.is_(None)).all()
+        users = tenant_users_query().filter(User.deleted_at.is_(None)).all()
         inactive_days = 30
         today = datetime.utcnow().date()
         for u in users:
@@ -1923,6 +2556,9 @@ def download_report():
         ])
         # Join with User to allow optional filtering by name/email
         records_q = IncorrectAnswer.query.join(User, IncorrectAnswer.user_id == User.id)
+        _tuids = tenant_user_id_list()
+        if _tuids is not None:
+            records_q = records_q.filter(User.tenant_id == user_tenant_id())
         if search:
             records_q = records_q.filter(or_(
                 User.first_name.ilike(f'%{search}%'),
@@ -1930,7 +2566,7 @@ def download_report():
                 User.employee_email.ilike(f'%{search}%')
             ))
         for rec in records_q.order_by(IncorrectAnswer.answered_at.desc()).all():
-            user = User.query.get(rec.user_id)
+            user = tenant_users_query().filter(User.id == rec.user_id).first()
             cw.writerow([
                 rec.user_id,
                 f"{user.first_name} {user.last_name}" if user else 'Unknown User',
@@ -2094,7 +2730,7 @@ def view_roles():
     Show all roles, and for each role list its users.
     """
     roles = Role.query.order_by(Role.name).all()
-    users = User.query.order_by(User.first_name, User.last_name).all()
+    users = tenant_users_query().order_by(User.first_name, User.last_name).all()
     return render_template('admin_roles.html', roles=roles, users=users)
 
 @admin_routes.route('/admin/roles/assign', methods=['POST'])
@@ -2108,7 +2744,7 @@ def assign_role():
     user_id = request.form.get('user_id', type=int)
     role_id = request.form.get('role_id', type=int)
     action  = request.form.get('action')
-    user = User.query.get_or_404(user_id)
+    user = require_user_in_tenant(user_id)
     role = Role.query.get_or_404(role_id)
 
     if action == 'add':
@@ -2133,50 +2769,95 @@ def assign_role():
 @login_required
 @super_admin_required
 def view_audit_logs():
-    # --- Read optional filter params ----
-    start      = request.args.get('start')       # e.g. '2025-05-01'
-    end        = request.args.get('end')         # e.g. '2025-05-07'
+    start      = request.args.get('start')
+    end        = request.args.get('end')
     q          = request.args.get('q', '').strip()
-    event_type = request.args.get('type', '').strip()
+    event_type = request.args.get('event_type', '').strip() or request.args.get('type', '').strip()
     user_id    = request.args.get('user_id', '').strip()
 
-    # --- Build AuditLog query ---
-    ql = AuditLog.query
-    if start:
-        ql = ql.filter(AuditLog.created_at >= start)
-    if end:
-        ql = ql.filter(AuditLog.created_at <= end)
-    if event_type:
-        ql = ql.filter(AuditLog.event_type == event_type)
-    if user_id:
-        ql = ql.filter(AuditLog.actor_user_id == int(user_id))
+    def _apply_filters(query):
+        if start:
+            query = query.filter(AuditLog.created_at >= start)
+        if end:
+            query = query.filter(AuditLog.created_at <= end)
+        if event_type:
+            query = query.filter(AuditLog.event_type == event_type)
+        if user_id:
+            try:
+                query = query.filter(AuditLog.actor_user_id == int(user_id))
+            except ValueError:
+                pass
+        if q:
+            query = query.filter(or_(
+                AuditLog.event_type.ilike(f'%{q}%'),
+                AuditLog.ip_address.ilike(f'%{q}%'),
+                cast(AuditLog.description, String).ilike(f'%{q}%'),
+            ))
+        return query
 
-    # free‐text search over event_type, ip_address, description JSONB
-    if q:
-        ql = ql.filter(or_(
-            AuditLog.event_type.ilike(f'%{q}%'),
-            AuditLog.ip_address.ilike(f'%{q}%'),
-            cast(AuditLog.description, String).ilike(f'%{q}%')
-        ))
+    base_q = _apply_filters(scope_audit_logs(AuditLog.query))
+    total_matching = base_q.count()
 
-    # --- Pagination & ordering ---
-    page     = int(request.args.get('page', 1))
+    today_start = datetime.combine(datetime.utcnow().date(), datetime.min.time())
+    events_today = base_q.filter(AuditLog.created_at >= today_start).count()
+    security_events = base_q.filter(or_(
+        AuditLog.event_type.ilike('%FAIL%'),
+        AuditLog.event_type.ilike('%DELETE%'),
+        AuditLog.event_type.ilike('%DENIED%'),
+    )).count()
+    unique_actors = (
+        base_q.with_entities(func.count(func.distinct(AuditLog.actor_user_id)))
+        .filter(AuditLog.actor_user_id.isnot(None))
+        .scalar() or 0
+    )
+
+    event_type_options = [
+        r[0] for r in
+        db.session.query(AuditLog.event_type)
+        .distinct()
+        .order_by(AuditLog.event_type)
+        .limit(100)
+        .all()
+        if r[0]
+    ]
+
+    breakdown_rows = (
+        _apply_filters(scope_audit_logs(AuditLog.query))
+        .with_entities(AuditLog.event_type, func.count(AuditLog.id))
+        .group_by(AuditLog.event_type)
+        .order_by(func.count(AuditLog.id).desc())
+        .limit(8)
+        .all()
+    )
+    event_breakdown_labels = [r[0] for r in breakdown_rows]
+    event_breakdown_values = [r[1] for r in breakdown_rows]
+
+    page = int(request.args.get('page', 1))
     per_page = 50
-    logs = ql.order_by(AuditLog.created_at.desc()).paginate(
-        page=page, per_page=per_page, error_out=False
+    logs = (
+        base_q.options(joinedload(AuditLog.actor_user))
+        .order_by(AuditLog.created_at.desc())
+        .paginate(page=page, per_page=per_page, error_out=False)
     )
 
     return render_template(
         'admin_audit_logs.html',
         audit_logs=logs.items,
         pagination=logs,
+        total_matching=total_matching,
+        events_today=events_today,
+        security_events=security_events,
+        unique_actors=unique_actors,
+        event_type_options=event_type_options,
+        event_breakdown_labels=event_breakdown_labels,
+        event_breakdown_values=event_breakdown_values,
         filters={
             'start': start,
             'end': end,
             'q': q,
-            'type': event_type,
-            'user_id': user_id
-        }
+            'event_type': event_type,
+            'user_id': user_id,
+        },
     )
 
 @admin_routes.route('/admin/users/bulk-action', methods=['POST'])
@@ -2190,7 +2871,7 @@ def bulk_user_action():
         flash("No users selected.", "warning")
         return redirect(url_for('admin_routes.view_users'))
 
-    users = User.query.filter(User.id.in_(user_ids)).all()
+    users = tenant_users_query().filter(User.id.in_(user_ids)).all()
     if action == 'delete':
         for u in users:
             db.session.delete(u)
@@ -2218,6 +2899,7 @@ def manage_exam_requests():
         req_id = request.form.get('request_id')
         action = request.form.get('action')  # approve or reject
         req = ExamAccessRequest.query.get_or_404(req_id)
+        assert_user_in_tenant(req.user)
         if req.status != 'pending':
             flash("Request already processed.", "warning")
         else:
@@ -2228,8 +2910,8 @@ def manage_exam_requests():
         return redirect(url_for('admin_routes.manage_exam_requests'))
 
     # --- Build query with optional filters ---
-    query = ExamAccessRequest.query.options(
-        db.joinedload(ExamAccessRequest.user)
+    query = scope_exam_access_requests(
+        ExamAccessRequest.query.options(db.joinedload(ExamAccessRequest.user))
     ).order_by(ExamAccessRequest.requested_at.desc())
 
     try:
@@ -2245,14 +2927,10 @@ def manage_exam_requests():
     all_requests = query.all()
 
     # --- Attach readable exam titles ---
-    special_titles = {
-        9991: "Special Exam Paper 1",
-        9992: "Special Exam Paper 2"
-    }
-
     for r in all_requests:
-        if r.exam_id in special_titles:
-            r.exam_title = special_titles[r.exam_id]
+        label = special_paper_label(r.exam_id)
+        if label:
+            r.exam_title = label
         else:
             exam = Exam.query.get(r.exam_id)
             r.exam_title = exam.title if exam else "Unknown Exam"
@@ -2370,10 +3048,10 @@ def incorrect_summary():
             func.count(IncorrectAnswer.id).label('wrong_count')
         )
         .join(IncorrectAnswer, IncorrectAnswer.user_id == User.id)
-        .group_by(User.id)
-        .order_by(desc('wrong_count'))
-        .all()
     )
+    if user_tenant_id() is not None:
+        summary = summary.filter(User.tenant_id == user_tenant_id())
+    summary = summary.group_by(User.id).order_by(desc('wrong_count')).all()
     return render_template('incorrect_summary.html', data=summary)
 
 # ------------------------------------------------------------
@@ -2390,7 +3068,7 @@ def view_incorrect_answers():
     if not user_id:
         flash("Please select a user first.", "warning")
         return redirect(url_for('admin_routes.incorrect_summary'))
-    user = User.query.get_or_404(user_id)
+    user = require_user_in_tenant(user_id)
 
     # Subquery for latest answered_at for each question
     last_wrong_sq = (
@@ -2478,7 +3156,7 @@ def clear_incorrect_answers():
         flash("No user specified to clear.", "warning")
         return redirect(url_for('admin_routes.incorrect_summary'))
 
-    user = User.query.get_or_404(user_id)
+    user = require_user_in_tenant(user_id)
 
     deleted_count = (
         IncorrectAnswer.query
@@ -2488,13 +3166,14 @@ def clear_incorrect_answers():
     db.session.commit()
 
     flash(f"Cleared {deleted_count} incorrect answers for {user.first_name} {user.last_name}.", "success")
-    return redirect(url_for('admin_routes.view_incorrect_answers', user_id=user_id))
+    return redirect(url_for('admin_routes.incorrect_summary'))
 
 # --- Manage Level-Area Gating Rules ---
 @admin_routes.route('/level_areas')
 @login_required
 @admin_required
 def manage_level_areas():
+    tid = user_tenant_id()
     q = (
         db.session.query(LevelArea)
           .join(Level,    Level.id    == LevelArea.level_id)
@@ -2505,7 +3184,7 @@ def manage_level_areas():
               joinedload(LevelArea.level),
               joinedload(LevelArea.category),
               joinedload(LevelArea.area),
-              joinedload(LevelArea.required_exam),  # ← use the real relationship name
+              joinedload(LevelArea.required_exam),
           )
           .order_by(
               Level.level_number,
@@ -2513,12 +3192,14 @@ def manage_level_areas():
               Area.name
           )
     )
+    if tid is not None:
+        q = q.filter(Level.tenant_id == tid, Category.tenant_id == tid, Area.tenant_id == tid)
     level_areas = q.all()
 
-    levels     = Level.query.order_by(Level.level_number).all()
-    categories = Category.query.order_by(Category.name).all()
-    areas      = Area.query.order_by(Area.name).all()
-    exams      = Exam.query.order_by(Exam.title).all()
+    levels     = tenant_levels_query().order_by(Level.level_number).all()
+    categories = tenant_categories_query().order_by(Category.name).all()
+    areas      = tenant_areas_query().order_by(Area.name).all()
+    exams      = tenant_exams_query().order_by(Exam.title).all()
 
     return render_template(
         'admin_level_areas.html',
@@ -2534,11 +3215,21 @@ def manage_level_areas():
 @login_required
 @admin_required
 def create_level_area():
+    from utils.level_area_utils import validate_level_area_refs
+    level_id = request.form.get('level_id', type=int)
+    category_id = request.form.get('category_id', type=int)
+    area_id = request.form.get('area_id', type=int)
+    exam_id = request.form.get('required_exam_id', type=int)
+    if not validate_level_area_refs(level_id, category_id, area_id, user_tenant_id()):
+        return redirect(url_for('admin_routes.manage_level_areas'))
+    if exam_id:
+        exam = Exam.query.get(exam_id)
+        assert_tenant_access(exam)
     la = LevelArea(
-        level_id         = request.form.get('level_id', type=int),
-        category_id      = request.form.get('category_id', type=int),
-        area_id          = request.form.get('area_id', type=int),
-        required_exam_id = request.form.get('required_exam_id', type=int)
+        level_id=level_id,
+        category_id=category_id,
+        area_id=area_id,
+        required_exam_id=exam_id,
     )
     db.session.add(la)
     db.session.commit()
@@ -2550,11 +3241,20 @@ def create_level_area():
 @login_required
 @admin_required
 def edit_level_area(id):
+    from utils.level_area_utils import validate_level_area_refs
     la = LevelArea.query.get_or_404(id)
-    la.level_id         = request.form.get('level_id', type=int)
-    la.category_id      = request.form.get('category_id', type=int)
-    la.area_id          = request.form.get('area_id', type=int)
-    la.required_exam_id = request.form.get('required_exam_id', type=int)
+    level_id = request.form.get('level_id', type=int)
+    category_id = request.form.get('category_id', type=int)
+    area_id = request.form.get('area_id', type=int)
+    exam_id = request.form.get('required_exam_id', type=int)
+    if not validate_level_area_refs(level_id, category_id, area_id, user_tenant_id()):
+        return redirect(url_for('admin_routes.manage_level_areas'))
+    if exam_id:
+        assert_tenant_access(Exam.query.get(exam_id))
+    la.level_id = level_id
+    la.category_id = category_id
+    la.area_id = area_id
+    la.required_exam_id = exam_id
     db.session.commit()
     flash("Level-area rule updated.", "success")
     return redirect(url_for('admin_routes.manage_level_areas'))
@@ -2576,9 +3276,9 @@ def delete_level_area(id):
 @login_required
 @admin_required
 def manage_user_clients():
-    users   = User.query.options(joinedload(User.clients)) \
+    users   = tenant_users_query().options(joinedload(User.clients)) \
                        .order_by(User.first_name, User.last_name).all()
-    clients = Client.query.order_by(Client.name).all()
+    clients = tenant_clients_query().order_by(Client.name).all()
     return render_template(
         'admin_user_clients.html',
         users=users,
@@ -2592,8 +3292,9 @@ def manage_user_clients():
 def add_user_client():
     user_id   = request.form.get('user_id', type=int)
     client_id = request.form.get('client_id', type=int)
-    user   = User.query.get_or_404(user_id)
+    user   = require_user_in_tenant(user_id)
     client = Client.query.get_or_404(client_id)
+    assert_tenant_access(client)
 
     if client not in user.clients:
         user.clients.append(client)
@@ -2613,7 +3314,7 @@ def edit_user_client():
     old_client_id  = request.form.get('old_client_id', type=int)
     new_client_id  = request.form.get('new_client_id', type=int)
 
-    user       = User.query.get_or_404(user_id)
+    user       = require_user_in_tenant(user_id)
     old_client = Client.query.get_or_404(old_client_id)
     new_client = Client.query.get_or_404(new_client_id)
 
@@ -2634,8 +3335,9 @@ def delete_user_client():
     user_id   = request.form.get('user_id', type=int)
     client_id = request.form.get('client_id', type=int)
 
-    user   = User.query.get_or_404(user_id)
+    user   = require_user_in_tenant(user_id)
     client = Client.query.get_or_404(client_id)
+    assert_tenant_access(client)
 
     if client in user.clients:
         user.clients.remove(client)
@@ -2653,12 +3355,12 @@ def delete_user_client():
 @super_admin_required
 def manage_seeds():
     all_roles = Role.query.order_by(Role.name).all()
-    all_designations = Designation.query.order_by(Designation.title).all()
-    all_departments = Department.query.order_by(Department.name).all()
-    all_clients = Client.query.order_by(Client.name).all()
-    all_levels = Level.query.order_by(Level.level_number).all()
-    all_areas = Area.query.order_by(Area.name).all()
-    all_categories = Category.query.order_by(Category.name).all()
+    all_designations = tenant_designations_query().order_by(Designation.title).all()
+    all_departments = filter_by_user_tenant(Department.query, Department).order_by(Department.name).all()
+    all_clients = tenant_clients_query().order_by(Client.name).all()
+    all_levels = tenant_levels_query().order_by(Level.level_number).all()
+    all_areas = tenant_areas_query().order_by(Area.name).all()
+    all_categories = tenant_categories_query().order_by(Category.name).all()
     return render_template('admin_seeds.html',
         roles=all_roles,
         designations=all_designations,
@@ -2749,15 +3451,16 @@ def delete_role(id):
 def add_designation():
     title = request.form.get('desig_title', '').strip()
     starting_level = request.form.get('desig_starting_level', '').strip()
+    tid = user_tenant_id()
     if not title or not starting_level.isdigit():
         flash("Title and numeric starting level are required.", "error")
     else:
         lvl = int(starting_level)
-        conflict = Designation.query.filter_by(title=title).first()
+        conflict = Designation.query.filter_by(title=title, tenant_id=tid).first()
         if conflict:
             flash(f"Designation '{title}' already exists.", "warning")
         else:
-            new_desig = Designation(title=title, starting_level=lvl)
+            new_desig = Designation(title=title, starting_level=lvl, tenant_id=tid)
             db.session.add(new_desig)
             try:
                 db.session.commit()
@@ -2774,14 +3477,16 @@ def add_designation():
 @super_admin_required
 def edit_designation(id):
     desig = Designation.query.get_or_404(id)
+    assert_tenant_access(desig)
     new_title = request.form.get('desig_title', '').strip()
     new_level = request.form.get('desig_starting_level', '').strip()
+    tid = user_tenant_id()
     if not new_title or not new_level.isdigit():
         flash("Designation title and numeric level are required.", "error")
     else:
         lvl = int(new_level)
         conflict = Designation.query.filter(
-            Designation.title == new_title, Designation.id != id
+            Designation.title == new_title, Designation.id != id, Designation.tenant_id == tid
         ).first()
         if conflict:
             flash(f"Another designation named '{new_title}' already exists.", "warning")
@@ -2801,6 +3506,7 @@ def edit_designation(id):
 @super_admin_required
 def delete_designation(id):
     desig = Designation.query.get_or_404(id)
+    assert_tenant_access(desig)
     try:
         db.session.delete(desig)
         db.session.commit()
@@ -2820,13 +3526,14 @@ def delete_designation(id):
 @super_admin_required
 def add_department():
     name = request.form.get('dept_name', '').strip()
+    tid = user_tenant_id()
     if not name:
         flash("Department name cannot be empty.", "error")
     else:
-        if Department.query.filter_by(name=name).first():
+        if Department.query.filter_by(name=name, tenant_id=tid).first():
             flash(f"Department '{name}' already exists.", "warning")
         else:
-            db.session.add(Department(name=name))
+            db.session.add(Department(name=name, tenant_id=user_tenant_id()))
             try:
                 db.session.commit()
                 sync_sequence(Department)
@@ -2842,11 +3549,15 @@ def add_department():
 @super_admin_required
 def edit_department(id):
     dept = Department.query.get_or_404(id)
+    assert_tenant_access(dept)
     new_name = request.form.get('dept_name', '').strip()
+    tid = user_tenant_id()
     if not new_name:
         flash("Department name cannot be empty.", "error")
     else:
-        conflict = Department.query.filter(Department.name == new_name, Department.id != id).first()
+        conflict = Department.query.filter(
+            Department.name == new_name, Department.id != id, Department.tenant_id == tid
+        ).first()
         if conflict:
             flash(f"Another department named '{new_name}' already exists.", "warning")
         else:
@@ -2864,6 +3575,7 @@ def edit_department(id):
 @super_admin_required
 def delete_department(id):
     dept = Department.query.get_or_404(id)
+    assert_tenant_access(dept)
     try:
         db.session.delete(dept)
         db.session.commit()
@@ -2883,13 +3595,14 @@ def delete_department(id):
 @super_admin_required
 def add_client():
     name = request.form.get('client_name', '').strip()
+    tid = user_tenant_id()
     if not name:
         flash("Client name cannot be empty.", "error")
     else:
-        if Client.query.filter_by(name=name).first():
+        if Client.query.filter_by(name=name, tenant_id=tid).first():
             flash(f"Client '{name}' already exists.", "warning")
         else:
-            db.session.add(Client(name=name))
+            db.session.add(Client(name=name, tenant_id=user_tenant_id()))
             try:
                 db.session.commit()
                 sync_sequence(Client)
@@ -2905,11 +3618,15 @@ def add_client():
 @super_admin_required
 def edit_client(id):
     client = Client.query.get_or_404(id)
+    assert_tenant_access(client)
     new_name = request.form.get('client_name', '').strip()
+    tid = user_tenant_id()
     if not new_name:
         flash("Client name cannot be empty.", "error")
     else:
-        conflict = Client.query.filter(Client.name == new_name, Client.id != id).first()
+        conflict = Client.query.filter(
+            Client.name == new_name, Client.id != id, Client.tenant_id == tid
+        ).first()
         if conflict:
             flash(f"Another client named '{new_name}' already exists.", "warning")
         else:
@@ -2927,6 +3644,7 @@ def edit_client(id):
 @super_admin_required
 def delete_client(id):
     client = Client.query.get_or_404(id)
+    assert_tenant_access(client)
     try:
         db.session.delete(client)
         db.session.commit()
@@ -2947,14 +3665,15 @@ def delete_client(id):
 def add_level():
     lvl_num = request.form.get('level_number', '').strip()
     title = request.form.get('level_title', '').strip()
+    tid = user_tenant_id()
     if not lvl_num.isdigit() or not title:
         flash("A numeric level and title are required.", "error")
     else:
         num = int(lvl_num)
-        if Level.query.filter_by(level_number=num).first():
+        if Level.query.filter_by(level_number=num, tenant_id=tid).first():
             flash(f"Level #{num} already exists.", "warning")
         else:
-            db.session.add(Level(level_number=num, title=title))
+            db.session.add(Level(level_number=num, title=title, tenant_id=tid))
             try:
                 db.session.commit()
                 sync_sequence(Level)
@@ -2970,13 +3689,15 @@ def add_level():
 @super_admin_required
 def edit_level(id):
     lvl = Level.query.get_or_404(id)
+    assert_tenant_access(lvl)
     new_num = request.form.get('level_number', '').strip()
     new_title = request.form.get('level_title', '').strip()
+    tid = user_tenant_id()
     if not new_num.isdigit() or not new_title:
         flash("A numeric level and title are required.", "error")
     else:
         num = int(new_num)
-        conflict = Level.query.filter(Level.level_number == num, Level.id != id).first()
+        conflict = Level.query.filter(Level.level_number == num, Level.id != id, Level.tenant_id == tid).first()
         if conflict:
             flash(f"Another level with # {num} already exists.", "warning")
         else:
@@ -2995,6 +3716,7 @@ def edit_level(id):
 @super_admin_required
 def delete_level(id):
     lvl = Level.query.get_or_404(id)
+    assert_tenant_access(lvl)
     try:
         db.session.delete(lvl)
         db.session.commit()
@@ -3014,13 +3736,14 @@ def delete_level(id):
 @super_admin_required
 def add_area():
     name = request.form.get('area_name', '').strip()
+    tid = user_tenant_id()
     if not name:
         flash("Area name cannot be empty.", "error")
     else:
-        if Area.query.filter_by(name=name).first():
+        if Area.query.filter_by(name=name, tenant_id=tid).first():
             flash(f"Area '{name}' already exists.", "warning")
         else:
-            db.session.add(Area(name=name))
+            db.session.add(Area(name=name, tenant_id=tid))
             try:
                 db.session.commit()
                 sync_sequence(Area)
@@ -3036,11 +3759,13 @@ def add_area():
 @super_admin_required
 def edit_area(id):
     area = Area.query.get_or_404(id)
+    assert_tenant_access(area)
     new_name = request.form.get('area_name', '').strip()
+    tid = user_tenant_id()
     if not new_name:
         flash("Area name cannot be empty.", "error")
     else:
-        conflict = Area.query.filter(Area.name == new_name, Area.id != id).first()
+        conflict = Area.query.filter(Area.name == new_name, Area.id != id, Area.tenant_id == tid).first()
         if conflict:
             flash(f"Another area named '{new_name}' already exists.", "warning")
         else:
@@ -3058,6 +3783,7 @@ def edit_area(id):
 @super_admin_required
 def delete_area(id):
     area = Area.query.get_or_404(id)
+    assert_tenant_access(area)
     try:
         db.session.delete(area)
         db.session.commit()
@@ -3077,17 +3803,16 @@ def delete_area(id):
 @super_admin_required
 def add_category():
     name = request.form.get('category_name', '').strip()
+    tid = user_tenant_id()
     if not name:
         flash("Category name cannot be empty.", "error")
         return redirect(url_for('admin_routes.manage_seeds'))
 
-    # 1) Check for duplicate name upfront
-    if Category.query.filter_by(name=name).first():
+    if Category.query.filter_by(name=name, tenant_id=tid).first():
         flash(f"Category '{name}' already exists.", "warning")
         return redirect(url_for('admin_routes.manage_seeds'))
 
-    # 2) Attempt to insert a new category
-    new_cat = Category(name=name)
+    new_cat = Category(name=name, tenant_id=tid)
     db.session.add(new_cat)
     try:
         db.session.commit()
@@ -3115,21 +3840,21 @@ def add_category():
 @super_admin_required
 def edit_category(id):
     cat = Category.query.get_or_404(id)
+    assert_tenant_access(cat)
     new_name = request.form.get('category_name', '').strip()
+    tid = user_tenant_id()
 
     if not new_name:
         flash("Category name cannot be empty.", "error")
         return redirect(url_for('admin_routes.manage_seeds'))
 
-    # 1) No change → early exit
     if cat.name == new_name:
         flash("No changes detected for category.", "info")
         return redirect(url_for('admin_routes.manage_seeds'))
 
-    # 2) Check that no other category already has `new_name`
     conflict = (
         Category.query
-        .filter(Category.name == new_name, Category.id != id)
+        .filter(Category.name == new_name, Category.id != id, Category.tenant_id == tid)
         .first()
     )
     if conflict:
@@ -3157,6 +3882,7 @@ def edit_category(id):
 @super_admin_required
 def delete_category(id):
     cat = Category.query.get_or_404(id)
+    assert_tenant_access(cat)
     category_name = cat.name
 
     try:
@@ -3187,10 +3913,10 @@ def admin_list_tickets():
     Show all support tickets. Only super‐admins may view/assign.
     """
     tickets = (
-        SupportTicket.query
+        scope_support_tickets(SupportTicket.query)
         .options(
-            db.joinedload(SupportTicket.user),      # load the submitter
-            db.joinedload(SupportTicket.assignee)   # load the current assignee
+            db.joinedload(SupportTicket.user),
+            db.joinedload(SupportTicket.assignee)
         )
         .order_by(SupportTicket.created_at.desc())
         .all()
@@ -3210,13 +3936,14 @@ def admin_view_ticket(ticket_id):
     POST → Save status, assigned_to, admin_response, and set resolved_at if needed.
     """
     ticket = SupportTicket.query.get_or_404(ticket_id)
+    if ticket.user:
+        assert_user_in_tenant(ticket.user)
 
-    # 1) Gather all IT‐department users
-    it_dept = Department.query.filter_by(name="IT Department").first()
+    tid = user_tenant_id()
+    it_dept = tenant_departments_query().filter_by(name="IT Department").first()
     it_users = it_dept.users if it_dept else []
 
-    # 2) Gather all super‐admins
-    super_admins = User.query.filter_by(is_super_admin=True).all()
+    super_admins = tenant_users_query().filter_by(is_super_admin=True).all()
 
     # 3) Combine into one “assignable” list
     #    (If a super‐admin is also in IT Dept, they’ll appear twice here; 

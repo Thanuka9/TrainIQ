@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Privacy Policy & Terms of Service — {{ display_org_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--tiq-gradient-hero);
+      position: relative;
+      overflow-y: auto;
+      padding: 3rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Animated orbs */
+    .pp-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+      animation: orbDrift 10s ease-in-out infinite alternate;
+    }
+    .pp-orb-1 { width: 500px; height: 500px; background: rgba(79,70,229,0.4); top: -150px; left: -150px; }
+    .pp-orb-2 { width: 400px; height: 400px; background: rgba(6,182,212,0.3); bottom: -100px; right: -100px; animation-delay: -5s; }
+    @keyframes orbDrift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(30px, 30px) scale(1.07); }
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='30'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    .pp-card {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 800px;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 24px;
+      padding: 3rem;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+      animation: cardIn 0.5s cubic-bezier(0.22,1,0.36,1) both;
+      color: rgba(255, 255, 255, 0.9);
+      line-height: 1.8;
+    }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(28px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .pp-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 2rem;
+    }
+    .pp-logo-icon {
+      width: 52px; height: 52px;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; font-weight: 900; color: white;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .pp-logo-name {
+      font-size: 1.6rem; font-weight: 800; color: white;
+      letter-spacing: -0.04em;
+    }
+    .pp-logo-name span { color: #67e8f9; }
+
+    .pp-title {
+      font-size: 1.8rem; font-weight: 800;
+      color: white; text-align: center;
+      letter-spacing: -0.04em; margin-bottom: 0.5rem;
+    }
+    .pp-subtitle {
+      font-size: 0.9375rem; color: rgba(255,255,255,0.6);
+      text-align: center; line-height: 1.6; margin-bottom: 2rem;
+    }
+
+    .pp-card h4 {
+      color: white;
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+    }
+    .pp-card ul {
+      padding-left: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .pp-card li {
+      margin-bottom: 0.35rem;
+    }
+    .pp-card a {
+      color: #67e8f9;
+      text-decoration: underline;
+    }
+    .pp-card a:hover {
+      color: white;
+    }
+
+    .pp-divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.15);
+      margin: 1.75rem 0;
+    }
+
+    .pp-actions {
+      display: flex;
+      justify-content: center;
+      margin-top: 2.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="pp-orb pp-orb-1"></div>
+<div class="pp-orb pp-orb-2"></div>
+
+<div class="pp-card">
+
+  <!-- Logo -->
+  <div class="pp-logo">
+    <div class="pp-logo-icon"><i class="fas fa-brain"></i></div>
+    <div class="pp-logo-name">Train<span>IQ</span></div>
+  </div>
+
+  <h1 class="pp-title"><i class="fas fa-shield-halved" style="margin-right:8px; color:#67e8f9;"></i>Privacy Policy &amp; Terms</h1>
+  <p class="pp-subtitle">Effective Date: January 1, 2026 | Version 1.1</p>
+  
+  <p>
+    Welcome to the <b>TrainIQ SaaS Platform</b> (“the System”). This document outlines the terms, conditions, and privacy policies governing the use of TrainIQ's training courses, exam modules,white-labeled portals, and associated learning tools.
+  </p>
+  
+  <div class="pp-divider"></div>
+
+  <h4>1. Information Collection &amp; Privacy Policy</h4>
+  <p>TrainIQ is committed to preserving the privacy of all registered users (employees, clients, and administrators). We collect and store:</p>
+  <ul>
+    <li><b>Profile Data:</b> First and last name, official work email, employee ID, designation, and company department.</li>
+    <li><b>Course Metrics:</b> Current modules started, lesson reading timestamps, progress percentages, and due dates.</li>
+    <li><b>Evaluation Records:</b> Exam scores, proctor logs, access requests, and historical grade cards.</li>
+    <li><b>System Files:</b> white-labeled logos, curriculum documents, and support tickets submitted through the system.</li>
+    <li><b>Audit Trails:</b> IP addresses, login timestamps, visibility state changes, and session timeout triggers.</li>
+  </ul>
+  <p>All passwords are encrypted using secure bcrypt hashing. Data is processed solely for delivering training services and is never sold or shared with external third-party advertisers.</p>
+
+  <div class="pp-divider"></div>
+
+  <h4>2. Intellectual Property &amp; Copyright</h4>
+  <p>All learning paths, course slides, PDF content, exam questions, and custom tenant uploads remain the exclusive intellectual property of TrainIQ or the individual corporate tenant who published them. Unauthorized duplication, extraction, or external distribution of this content is strictly prohibited.</p>
+
+  <div class="pp-divider"></div>
+
+  <h4>3. Exam Conduct &amp; Proctoring Rules</h4>
+  <p>To preserve curriculum integrity and grading validity, the platform enforces automated proctoring checkpoints. By initiating any exam or certification, users agree to:</p>
+  <ul>
+    <li>Take the exam personally without impersonation or external aid.</li>
+    <li>Avoid switching windows, opening new tabs, or running split-screen monitors (actions which are flagged and recorded).</li>
+    <li>Abide by the designated retry window limitations enforced by the system.</li>
+  </ul>
+
+  <div class="pp-divider"></div>
+
+  <h4>4. Subscription &amp; Tenant White-Labeling</h4>
+  <p>Organization super-administrators are responsible for managing their company's custom tenant configurations, which include customizing organization names, setting up allowed email domains, and uploading corporate logos. All users registered under a specific email domain are automatically bound to that organization's data silo.</p>
+
+  <div class="pp-divider"></div>
+
+  <!-- Agreement buttons -->
+  <div class="pp-actions">
+    <a href="{{ url_for('auth_routes.login') }}" class="tiq-btn-back" style="display: inline-flex; text-decoration: none;">
+      <i class="fas fa-arrow-left"></i> Back to Sign In
+    </a>
+  </div>
+
+</div>
+
+</body>
+</html>

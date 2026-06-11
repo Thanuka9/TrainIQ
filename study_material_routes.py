@@ -1,7 +1,7 @@
-from flask import Blueprint, request, jsonify, render_template, url_for, make_response, session, redirect, flash
+from flask import Blueprint, request, jsonify, render_template, url_for, make_response, session, redirect, flash, Response, stream_with_context
+from flask_login import login_required, current_user
+import json as json_lib
 from werkzeug.utils import secure_filename
-from pymongo import MongoClient
-from gridfs import GridFS
 import logging
 from bson.objectid import ObjectId
 from models import db, StudyMaterial, SubTopic, UserProgress, User, Level, Area, UserLevelProgress, Designation, Category, LevelArea
@@ -13,6 +13,12 @@ from pptx import Presentation
 from PIL import Image, ImageDraw
 from io import BytesIO
 from utils.progress_utils import has_finished_study
+from utils.tenant_utils import (
+    assert_tenant_access, user_tenant_id, filter_by_user_tenant,
+    tenant_levels_query, tenant_categories_query, tenant_designations_query,
+)
+from utils.mongo_tenant import get_tenant_gridfs, open_grid_file
+from utils.api_errors import handle_api_exception
 import os
 from dotenv import load_dotenv
 from flask import current_app
@@ -27,15 +33,6 @@ logging.basicConfig(level=logging.INFO)
 
 # Initialize Blueprint
 study_material_routes = Blueprint('study_material_routes', __name__)
-
-# MongoDB Client and GridFS Initialization
-# MongoDB + GridFS Initialization (from environment)
-mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
-mongo_db_name = os.getenv("MONGO_DB_NAME", "collective_rcm")
-
-mongo_client = MongoClient(mongo_uri)
-mongo_db = mongo_client[mongo_db_name]
-grid_fs = GridFS(mongo_db)
 
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'pptx', 'pdf', 'docx', 'txt'}
@@ -149,7 +146,8 @@ def upload_course():
             files=[],
             level_id=level_id,
             category_id=category_id,
-            minimum_level=minimum_level
+            minimum_level=minimum_level,
+            tenant_id=user_tenant_id(),
         )
         db.session.add(study_material)
         db.session.commit()
@@ -171,7 +169,13 @@ def upload_course():
                 continue
 
             data = file.read()
-            mongo_id = grid_fs.put(data, filename=secure_filename(file.filename))
+            tid = study_material.tenant_id or user_tenant_id()
+            gfs = get_tenant_gridfs(tid)
+            mongo_id = gfs.put(
+                data,
+                filename=secure_filename(file.filename),
+                metadata={"tenant_id": tid, "study_material_id": study_material.id},
+            )
             file_ids.append(f"{mongo_id}|{file.filename}")
 
             pages = calculate_total_pages(BytesIO(data), file.filename.rsplit('.',1)[1].lower())
@@ -199,7 +203,13 @@ def upload_course():
                     continue
 
                 data = file.read()
-                mongo_id = grid_fs.put(data, filename=secure_filename(file.filename))
+                tid = study_material.tenant_id or user_tenant_id()
+                gfs = get_tenant_gridfs(tid)
+                mongo_id = gfs.put(
+                    data,
+                    filename=secure_filename(file.filename),
+                    metadata={"tenant_id": tid, "study_material_id": study_material.id},
+                )
                 sub_file_id = str(mongo_id)
 
                 sub_pages = calculate_total_pages(BytesIO(data), file.filename.rsplit('.',1)[1].lower())
@@ -241,6 +251,7 @@ def start_course(course_id):
             return jsonify({'error': 'User not found'}), 404
 
         study_material = StudyMaterial.query.get_or_404(course_id)
+        assert_tenant_access(study_material)
 
         # Check access eligibility via our unified helper
         if not can_access_study_material(user, study_material):
@@ -365,6 +376,7 @@ def view_course(course_id):
     """
     # 1 Fetch objects --------------------------------------------------
     study_material = StudyMaterial.query.get_or_404(course_id)
+    assert_tenant_access(study_material)
     subtopics      = SubTopic.query.filter_by(study_material_id=course_id).all()
 
     user_id = session.get("user_id")
@@ -426,6 +438,7 @@ def course_content(course_id):
         return redirect(url_for("auth_routes.login"))
 
     study_material = StudyMaterial.query.get_or_404(course_id)
+    assert_tenant_access(study_material)
 
     # ---- Collect docs ------------------------------------------------
     requested_id = request.args.get("file_id")          # <<< NEW
@@ -436,7 +449,7 @@ def course_content(course_id):
             continue
         fid, filename = (p.strip() for p in entry.split("|", 1))
         try:
-            gfile = grid_fs.get(ObjectId(fid))
+            gfile, _ = open_grid_file(fid, study_material.tenant_id)
         except Exception as e:
             current_app.logger.warning(f"GridFS fetch failed: {e}")
             continue
@@ -482,7 +495,7 @@ def list_study_materials():
         return redirect(url_for('auth_routes.login'))
 
     # Get all study materials
-    materials = StudyMaterial.query.all()
+    materials = filter_by_user_tenant(StudyMaterial.query, StudyMaterial).all()
     accessible_materials = []
 
     # Filter accessible study materials
@@ -553,6 +566,7 @@ def update_progress():
             return jsonify(error="invalid input"), 400
 
         study_material = StudyMaterial.query.get_or_404(study_material_id)
+        assert_tenant_access(study_material)
         if total_pages != study_material.total_pages:
             total_pages = study_material.total_pages  # always trust DB
 
@@ -604,21 +618,16 @@ def update_progress():
 
     except Exception as e:
         logging.exception("update_progress failed")
-        return jsonify(error=str(e)), 500
+        return handle_api_exception(e, user_message="Could not update progress.")
 
 @study_material_routes.route('/stream_file/<file_id>', methods=['GET'])
+@login_required
 def stream_file(file_id):
-    """
-    Stream file content for inline display.
-    """
-    try:
-        # Retrieve the file from GridFS
-        grid_file = grid_fs.get(ObjectId(file_id))
-        if not grid_file:
-            logging.error(f"File with ID {file_id} not found in GridFS.")
-            return jsonify({'error': 'File not found'}), 404
+    """Stream file content for inline display (tenant-scoped)."""
+    from utils.file_access import require_material_file_access
 
-        # Determine the correct content type based on file extension
+    try:
+        _material, grid_file = require_material_file_access(file_id)
         filename = grid_file.filename
         extension = f".{filename.rsplit('.', 1)[-1].lower()}"
         content_type_map = {
@@ -658,7 +667,7 @@ def stream_file(file_id):
         return jsonify({'error': 'File not found'}), 404
     except Exception as e:
         logging.error(f"Error streaming file with ID {file_id}: {e}")
-        return jsonify({'error': f'Failed to stream file: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to stream file.'}), 500
 
 
 @study_material_routes.route('/update_time', methods=['POST'])
@@ -698,17 +707,17 @@ def update_time():
 
     except Exception as e:
         logging.exception("update_time failed")
-        return jsonify(error=str(e)), 500
+        return handle_api_exception(e, user_message="Could not update progress.")
 
 
 @study_material_routes.route('/download_file/<file_id>', methods=['GET'])
+@login_required
 def download_file(file_id):
-    """
-    Provide a file download link to verify file fetching.
-    """
+    """Download a study file (tenant-scoped)."""
+    from utils.file_access import require_material_file_access
+
     try:
-        # Retrieve the file from GridFS
-        grid_file = grid_fs.get(ObjectId(file_id))
+        _material, grid_file = require_material_file_access(file_id)
         if not grid_file:
             logging.error(f"File with ID {file_id} not found in GridFS.")
             return jsonify({'error': 'File not found'}), 404
@@ -722,7 +731,7 @@ def download_file(file_id):
         return response
     except Exception as e:
         logging.error(f"Error downloading file with ID {file_id}: {e}")
-        return jsonify({'error': f'Failed to download file: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to download file.'}), 500
 
 @study_material_routes.route('/dashboard', methods=['GET'])
 def dashboard():
@@ -773,15 +782,452 @@ def can_access_study_material(user, study_material):
     return False
 
 
-@study_material_routes.route('/get_dropdowns', methods=['GET'])
-def get_dropdowns():
-    """
-    Fetch Levels, Categories, and Designations for dropdowns
-    """
+def extract_text_from_gridfs(file_id, page_num=None, tenant_id=None):
+    """Extract plain text from a GridFS document for LearnIQ context."""
     try:
-        levels = Level.query.order_by(Level.level_number.asc()).all()
-        categories = Category.query.order_by(Category.id.asc()).all()
-        designations = Designation.query.order_by(Designation.id.asc()).all()
+        gfile, _ = open_grid_file(file_id, tenant_id)
+        raw = gfile.read()
+        filename = gfile.filename or ""
+        ext = filename.lower().rsplit(".", 1)[-1] if "." in filename else "txt"
+        buf = BytesIO(raw)
+
+        if ext == "pdf":
+            reader = PyPDF2.PdfReader(buf)
+            if page_num and 1 <= page_num <= len(reader.pages):
+                idx = page_num - 1
+                window = []
+                for i in range(max(0, idx - 1), min(len(reader.pages), idx + 2)):
+                    t = reader.pages[i].extract_text() or ""
+                    if t.strip():
+                        label = "CURRENT PAGE" if i == idx else f"Page {i + 1}"
+                        window.append(f"[{label}]\n{t}")
+                return "\n\n".join(window)
+            return "\n".join(page.extract_text() or "" for page in reader.pages)
+        if ext == "docx":
+            doc = Document(buf)
+            return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+        if ext == "pptx":
+            prs = Presentation(buf)
+            slides = []
+            for slide in prs.slides:
+                for shape in slide.shapes:
+                    if hasattr(shape, "text") and shape.text.strip():
+                        slides.append(shape.text)
+            return "\n".join(slides)
+        if ext == "txt":
+            return raw.decode("utf-8", errors="ignore")
+        return ""
+    except Exception as e:
+        logging.error(f"Text extraction failed for {file_id}: {e}")
+        return ""
+
+
+def _get_course_document_text(study_material, file_id=None, page_num=None):
+    """Build combined text context from course files."""
+    tid = study_material.tenant_id
+    parts = []
+    if file_id:
+        text = extract_text_from_gridfs(file_id, page_num=page_num, tenant_id=tid)
+        if text.strip():
+            return text
+    for entry in (study_material.files or []):
+        if "|" not in entry:
+            continue
+        fid, _ = (p.strip() for p in entry.split("|", 1))
+        text = extract_text_from_gridfs(fid, tenant_id=tid)
+        if text.strip():
+            parts.append(text)
+    return "\n\n".join(parts)
+
+
+@study_material_routes.route('/ai/status', methods=['GET'])
+def learniq_status():
+    """Check if local Ollama/Gemma 4 is available."""
+    from utils.local_ai import get_ai_status
+    return jsonify(get_ai_status())
+
+
+def _ai_unavailable_response():
+    from utils.local_ai import get_ai_status
+    status = get_ai_status()
+    return jsonify({"error": status["message"], **status}), 503
+
+
+def _learniq_context(study_material, data):
+    """Parse LearnIQ request fields; allow vision fallback when text is sparse."""
+    from utils.local_ai import resolve_model, needs_vision_fallback
+    from utils import ai_cache
+
+    file_id = data.get("file_id")
+    page_num = data.get("current_page")
+    doc_text = _get_course_document_text(study_material, file_id, page_num=page_num)
+
+    page_image = None
+    if data.get("use_vision") and data.get("page_image"):
+        page_image = data.get("page_image")
+    elif not doc_text.strip() and data.get("page_image"):
+        page_image = data.get("page_image")
+    page_images = [page_image] if page_image else None
+
+    if not doc_text.strip() and not page_images:
+        return None, jsonify({
+            "error": "No extractable text found. Open a PDF page or ensure documents are uploaded."
+        }), 400
+
+    model = resolve_model()
+    cache_key = ai_cache.make_key(
+        data.get("_cache_feature", "learniq"),
+        study_material.id,
+        file_id,
+        page_num,
+        model,
+    )
+    return {
+        "file_id": file_id,
+        "page_num": page_num,
+        "page_images": page_images,
+        "doc_text": doc_text,
+        "model": model,
+        "cache_key": cache_key,
+        "use_vision": needs_vision_fallback(doc_text, page_images),
+    }, None, None
+
+
+@study_material_routes.route('/ai/summarize/<int:course_id>', methods=['POST'])
+def learniq_summarize_route(course_id):
+    from utils.local_ai import learniq_summarize, is_available
+    from utils.ai_rate_limit import check_ai_rate_limit
+
+    if not session.get("user_id"):
+        return jsonify({"error": "Unauthorized"}), 401
+    ok, retry = check_ai_rate_limit()
+    if not ok:
+        return jsonify({"error": f"Rate limit exceeded. Retry in {retry}s.", "retry_after": retry}), 429
+
+    study_material = StudyMaterial.query.get_or_404(course_id)
+    assert_tenant_access(study_material)
+    user = User.query.get(session["user_id"])
+    if not can_access_study_material(user, study_material):
+        return jsonify({"error": "Access denied"}), 403
+    if not is_available():
+        return _ai_unavailable_response()
+
+    data = request.get_json(silent=True) or {}
+    data["_cache_feature"] = "summarize"
+    ctx, err_resp, _ = _learniq_context(study_material, data)
+    if err_resp:
+        return err_resp
+
+    from utils import ai_cache
+    cached = ai_cache.get(ctx["cache_key"])
+    if cached:
+        return jsonify({"summary": cached["summary"], "feature": "LearnIQ", "cached": True})
+
+    try:
+        summary = learniq_summarize(
+            study_material.title, ctx["doc_text"], page_images=ctx["page_images"]
+        )
+        ai_cache.set(ctx["cache_key"], {"summary": summary})
+        return jsonify({
+            "summary": summary,
+            "feature": "LearnIQ",
+            "cached": False,
+            "vision": ctx["use_vision"],
+        })
+    except ConnectionError as e:
+        return jsonify({"error": "AI service is temporarily unavailable."}), 503
+
+
+@study_material_routes.route('/ai/stream/summarize/<int:course_id>', methods=['POST'])
+def learniq_stream_summarize_route(course_id):
+    from utils.local_ai import learniq_summarize_stream, is_available
+    from utils.ai_rate_limit import check_ai_rate_limit
+
+    if not session.get("user_id"):
+        return jsonify({"error": "Unauthorized"}), 401
+    ok, retry = check_ai_rate_limit()
+    if not ok:
+        return jsonify({"error": f"Rate limit exceeded. Retry in {retry}s.", "retry_after": retry}), 429
+
+    study_material = StudyMaterial.query.get_or_404(course_id)
+    assert_tenant_access(study_material)
+    user = User.query.get(session["user_id"])
+    if not can_access_study_material(user, study_material):
+        return jsonify({"error": "Access denied"}), 403
+    if not is_available():
+        return _ai_unavailable_response()
+
+    data = request.get_json(silent=True) or {}
+    data["_cache_feature"] = "summarize"
+    ctx, err_resp, _ = _learniq_context(study_material, data)
+    if err_resp:
+        return err_resp
+
+    from utils import ai_cache
+    cached = ai_cache.get(ctx["cache_key"])
+
+    def generate():
+        if cached:
+            yield f"data: {json_lib.dumps({'text': cached['summary'], 'cached': True})}\n\n"
+            yield f"data: {json_lib.dumps({'done': True, 'cached': True})}\n\n"
+            return
+        parts = []
+        try:
+            for chunk in learniq_summarize_stream(
+                study_material.title, ctx["doc_text"], page_images=ctx["page_images"]
+            ):
+                parts.append(chunk)
+                yield f"data: {json_lib.dumps({'text': chunk})}\n\n"
+            summary = "".join(parts)
+            ai_cache.set(ctx["cache_key"], {"summary": summary})
+            yield f"data: {json_lib.dumps({'done': True, 'cached': False, 'vision': ctx['use_vision']})}\n\n"
+        except ConnectionError as e:
+            yield f"data: {json_lib.dumps({'error': 'An error occurred.'})}\n\n"
+
+    return Response(stream_with_context(generate()), mimetype="text/event-stream")
+
+
+@study_material_routes.route('/ai/flashcards/<int:course_id>', methods=['POST'])
+def learniq_flashcards_route(course_id):
+    from utils.local_ai import learniq_flashcards, is_available
+    from utils.ai_rate_limit import check_ai_rate_limit
+
+    if not session.get("user_id"):
+        return jsonify({"error": "Unauthorized"}), 401
+    ok, retry = check_ai_rate_limit()
+    if not ok:
+        return jsonify({"error": f"Rate limit exceeded. Retry in {retry}s.", "retry_after": retry}), 429
+
+    study_material = StudyMaterial.query.get_or_404(course_id)
+    assert_tenant_access(study_material)
+    user = User.query.get(session["user_id"])
+    if not can_access_study_material(user, study_material):
+        return jsonify({"error": "Access denied"}), 403
+    if not is_available():
+        return _ai_unavailable_response()
+
+    data = request.get_json(silent=True) or {}
+    data["_cache_feature"] = "flashcards"
+    ctx, err_resp, _ = _learniq_context(study_material, data)
+    if err_resp:
+        return err_resp
+
+    from utils import ai_cache
+    cached = ai_cache.get(ctx["cache_key"])
+    if cached:
+        return jsonify({"flashcards": cached["flashcards"], "feature": "LearnIQ", "cached": True})
+
+    try:
+        cards = learniq_flashcards(
+            study_material.title, ctx["doc_text"], page_images=ctx["page_images"]
+        )
+        ai_cache.set(ctx["cache_key"], {"flashcards": cards})
+        return jsonify({
+            "flashcards": cards,
+            "feature": "LearnIQ",
+            "cached": False,
+            "vision": ctx["use_vision"],
+        })
+    except ConnectionError as e:
+        return jsonify({"error": "AI service is temporarily unavailable."}), 503
+
+
+@study_material_routes.route('/ai/chat/<int:course_id>', methods=['POST'])
+def learniq_chat_route(course_id):
+    from utils.local_ai import learniq_chat, is_available
+    from utils.ai_rate_limit import check_ai_rate_limit
+
+    if not session.get("user_id"):
+        return jsonify({"error": "Unauthorized"}), 401
+    ok, retry = check_ai_rate_limit()
+    if not ok:
+        return jsonify({"error": f"Rate limit exceeded. Retry in {retry}s.", "retry_after": retry}), 429
+
+    study_material = StudyMaterial.query.get_or_404(course_id)
+    assert_tenant_access(study_material)
+    user = User.query.get(session["user_id"])
+    if not can_access_study_material(user, study_material):
+        return jsonify({"error": "Access denied"}), 403
+    if not is_available():
+        return _ai_unavailable_response()
+
+    data = request.get_json(silent=True) or {}
+    message = (data.get("message") or "").strip()
+    if not message:
+        return jsonify({"error": "Message is required."}), 400
+
+    data["_cache_feature"] = "chat"
+    ctx, err_resp, _ = _learniq_context(study_material, data)
+    if err_resp:
+        return err_resp
+
+    try:
+        reply = learniq_chat(
+            study_material.title,
+            ctx["doc_text"],
+            message,
+            data.get("history", []),
+            page_images=ctx["page_images"],
+        )
+        return jsonify({"reply": reply, "feature": "LearnIQ", "vision": ctx["use_vision"]})
+    except ConnectionError as e:
+        return jsonify({"error": "AI service is temporarily unavailable."}), 503
+
+
+@study_material_routes.route('/ai/stream/chat/<int:course_id>', methods=['POST'])
+def learniq_stream_chat_route(course_id):
+    from utils.local_ai import learniq_chat_stream, is_available
+    from utils.ai_rate_limit import check_ai_rate_limit
+
+    if not session.get("user_id"):
+        return jsonify({"error": "Unauthorized"}), 401
+    ok, retry = check_ai_rate_limit()
+    if not ok:
+        return jsonify({"error": f"Rate limit exceeded. Retry in {retry}s.", "retry_after": retry}), 429
+
+    study_material = StudyMaterial.query.get_or_404(course_id)
+    assert_tenant_access(study_material)
+    user = User.query.get(session["user_id"])
+    if not can_access_study_material(user, study_material):
+        return jsonify({"error": "Access denied"}), 403
+    if not is_available():
+        return _ai_unavailable_response()
+
+    data = request.get_json(silent=True) or {}
+    message = (data.get("message") or "").strip()
+    if not message:
+        return jsonify({"error": "Message is required."}), 400
+
+    data["_cache_feature"] = "chat"
+    ctx, err_resp, _ = _learniq_context(study_material, data)
+    if err_resp:
+        return err_resp
+
+    def generate():
+        try:
+            for chunk in learniq_chat_stream(
+                study_material.title,
+                ctx["doc_text"],
+                message,
+                data.get("history", []),
+                page_images=ctx["page_images"],
+            ):
+                yield f"data: {json_lib.dumps({'text': chunk})}\n\n"
+            yield f"data: {json_lib.dumps({'done': True, 'vision': ctx['use_vision']})}\n\n"
+        except ConnectionError as e:
+            yield f"data: {json_lib.dumps({'error': 'An error occurred.'})}\n\n"
+
+    return Response(stream_with_context(generate()), mimetype="text/event-stream")
+
+
+@study_material_routes.route('/ai/stream/sample_questions/<int:course_id>', methods=['POST'])
+def learniq_stream_sample_questions_route(course_id):
+    from utils.local_ai import learniq_sample_questions_stream, is_available
+    from utils.ai_rate_limit import check_ai_rate_limit
+
+    if not session.get("user_id"):
+        return jsonify({"error": "Unauthorized"}), 401
+    ok, retry = check_ai_rate_limit()
+    if not ok:
+        return jsonify({"error": f"Rate limit exceeded. Retry in {retry}s.", "retry_after": retry}), 429
+
+    study_material = StudyMaterial.query.get_or_404(course_id)
+    assert_tenant_access(study_material)
+    user = User.query.get(session["user_id"])
+    if not can_access_study_material(user, study_material):
+        return jsonify({"error": "Access denied"}), 403
+    if not is_available():
+        return _ai_unavailable_response()
+
+    data = request.get_json(silent=True) or {}
+    data["_cache_feature"] = "sample_questions"
+    ctx, err_resp, _ = _learniq_context(study_material, data)
+    if err_resp:
+        return err_resp
+
+    from utils import ai_cache
+    cached = ai_cache.get(ctx["cache_key"])
+
+    def generate():
+        if cached:
+            yield f"data: {json_lib.dumps({'text': cached['questions'], 'cached': True})}\n\n"
+            yield f"data: {json_lib.dumps({'done': True, 'cached': True})}\n\n"
+            return
+        parts = []
+        try:
+            for chunk in learniq_sample_questions_stream(
+                study_material.title, ctx["doc_text"], page_images=ctx["page_images"]
+            ):
+                parts.append(chunk)
+                yield f"data: {json_lib.dumps({'text': chunk})}\n\n"
+            ai_cache.set(ctx["cache_key"], {"questions": "".join(parts)})
+            yield f"data: {json_lib.dumps({'done': True, 'cached': False, 'vision': ctx['use_vision']})}\n\n"
+        except ConnectionError:
+            yield f"data: {json_lib.dumps({'error': 'AI service is temporarily unavailable.'})}\n\n"
+
+    return Response(stream_with_context(generate()), mimetype="text/event-stream")
+
+
+@study_material_routes.route('/ai/sample_questions/<int:course_id>', methods=['POST'])
+@study_material_routes.route('/ai/quiz/<int:course_id>', methods=['POST'])
+def learniq_quiz_json(course_id):
+    """Non-streaming Quiz Me fallback (also used when SSE route is unavailable)."""
+    from utils.local_ai import learniq_sample_questions, is_available
+    from utils.ai_rate_limit import check_ai_rate_limit
+
+    if not session.get("user_id"):
+        return jsonify({"error": "Unauthorized"}), 401
+    ok, retry = check_ai_rate_limit()
+    if not ok:
+        return jsonify({"error": f"Rate limit exceeded. Retry in {retry}s.", "retry_after": retry}), 429
+
+    study_material = StudyMaterial.query.get_or_404(course_id)
+    assert_tenant_access(study_material)
+    user = User.query.get(session["user_id"])
+    if not can_access_study_material(user, study_material):
+        return jsonify({"error": "Access denied"}), 403
+    if not is_available():
+        return _ai_unavailable_response()
+
+    data = request.get_json(silent=True) or {}
+    data["_cache_feature"] = "sample_questions"
+    ctx, err_resp, _ = _learniq_context(study_material, data)
+    if err_resp:
+        return err_resp
+
+    from utils import ai_cache
+    cached = ai_cache.get(ctx["cache_key"])
+    if cached:
+        return jsonify({
+            "questions": cached["questions"],
+            "feature": "LearnIQ",
+            "cached": True,
+            "vision": ctx["use_vision"],
+        })
+
+    try:
+        questions = learniq_sample_questions(
+            study_material.title, ctx["doc_text"], page_images=ctx["page_images"]
+        )
+        ai_cache.set(ctx["cache_key"], {"questions": questions})
+        return jsonify({
+            "questions": questions,
+            "feature": "LearnIQ",
+            "cached": False,
+            "vision": ctx["use_vision"],
+        })
+    except ConnectionError:
+        return jsonify({"error": "AI service is temporarily unavailable."}), 503
+
+
+@study_material_routes.route('/get_dropdowns', methods=['GET'])
+@login_required
+def get_dropdowns():
+    """Fetch tenant-scoped Levels, Categories, and Designations."""
+    try:
+        levels = tenant_levels_query().order_by(Level.level_number.asc()).all()
+        categories = tenant_categories_query().order_by(Category.id.asc()).all()
+        designations = tenant_designations_query().order_by(Designation.id.asc()).all()
 
         # Constructing JSON response
         data = {

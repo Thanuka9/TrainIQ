@@ -1,430 +1,267 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>
-      {% block title %}Collective{% endblock %} – Collective Intranet
-    </title>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}{{ display_org_name }}{% endblock %}</title>
+  <style>
+    :root {
+      --tiq-primary: {{ primary_color }} !important;
+      --tiq-primary-rgb: {{ primary_color_rgb }} !important;
+      --tiq-secondary: {{ secondary_color }} !important;
+      --tiq-secondary-rgb: {{ secondary_color_rgb }} !important;
+    }
+  </style>
+  <meta name="description" content="{% block description %}{{ display_org_name }} — Smart Workforce Training Platform{% endblock %}"/>
+  <meta name="csrf-token" content="{{ csrf_token() }}"/>
 
-    <!-- Google Fonts: Inter (headings) + Nunito (body) -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&family=Nunito:wght@400;600&display=swap"
-      rel="stylesheet"
-    />
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
 
-    <!-- Bootstrap CSS -->
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
-    />
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
 
-    <!-- Font Awesome -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-    />
+<!-- Flash data for JS toast system -->
+{% with messages = get_flashed_messages(with_categories=True) %}
+  {% for category, message in messages %}
+    <div class="tiq-flash-data" data-category="{{ category }}" style="display:none">{{ message }}</div>
+  {% endfor %}
+{% endwith %}
 
-    <style>
-      :root {
-        --brand-red: #e63946;
-        --brand-gold: #f4a261;
-        --brand-dark: #1d1e22;
-        --brand-light: #f8f9fa;
-        --brand-white: #ffffff;
-        --brand-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
-        --nav-bg: rgba(255, 255, 255, 0.95);
-        --footer-bg: #1d1e22;
-      }
+<!-- ── App Layout ──────────────────────────────────────── -->
+<div class="tiq-app-layout">
 
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-        padding: 0;
-      }
+  <!-- Sidebar Overlay (mobile) -->
+  <div class="tiq-sidebar-overlay" id="sidebarOverlay"></div>
 
-      body {
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
-        /* Subtle diagonal gradient background */
-        background: linear-gradient(135deg, #f8f9fa 25%, #e9ecef 100%);
-        font-family: "Nunito", Arial, sans-serif;
-        color: var(--brand-dark);
-        line-height: 1.65;
-      }
+  <!-- ── Sidebar ─────────────────────────────────────── -->
+  <aside class="tiq-sidebar" id="tiqSidebar">
 
-      /* Top Bar */
-      .top-bar {
-        background: var(--nav-bg);
-        border-bottom: 1px solid #e0e0e0;
-        box-shadow: var(--brand-shadow);
-        padding: 0.75rem 1.5rem;
-        position: sticky;
-        top: 0;
-        z-index: 100;
-      }
+    <!-- Brand -->
+    <div class="tiq-sidebar-brand">
+      <div class="brand-logo" style="overflow:hidden; display:flex; align-items:center; justify-content:center;">
+        {% if global_logo_url %}
+          <img src="{{ global_logo_url }}" alt="Logo" style="width:100%; height:100%; object-fit:cover;">
+        {% else %}
+          {% if is_platform_brand %}
+            <i class="fas fa-brain" style="font-size:1.1rem;"></i>
+          {% else %}
+            {{ org_initial }}
+          {% endif %}
+        {% endif %}
+      </div>
+      <div class="brand-text">
+        {% if is_platform_brand %}
+          Train<span>IQ</span>
+        {% else %}
+          {{ display_org_name }}
+        {% endif %}
+      </div>
+      <button class="tiq-sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+    </div>
 
-      .top-bar-content {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
+    <!-- Navigation -->
+    <nav class="tiq-sidebar-nav">
 
-      /* Back Button */
-      .back-btn-top {
-        background: #e9ecef;
-        color: var(--brand-dark);
-        border-radius: 28px;
-        padding: 0.5rem 1.2rem;
-        font-weight: 600;
-        font-size: 1rem;
-        text-decoration: none;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-        transition: background 0.2s, color 0.2s, box-shadow 0.2s;
-      }
+      <div class="tiq-nav-section-label">Main</div>
 
-      .back-btn-top:hover,
-      .back-btn-top:focus {
-        background: var(--brand-gold);
-        color: var(--brand-white);
-        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
-      }
+      <a href="{{ url_for('general_routes.dashboard') }}"
+         class="tiq-nav-item {% if request.endpoint == 'general_routes.dashboard' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-house"></i></span>
+        <span class="nav-label">Dashboard</span>
+      </a>
 
-      /* Logo Section */
-      .logo-section {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-      }
+      <a href="{{ url_for('profile_routes.profile') }}"
+         class="tiq-nav-item {% if 'profile_routes' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-user"></i></span>
+        <span class="nav-label">My Profile</span>
+      </a>
 
-      .logo-section img {
-        height: 42px;
-        width: 42px;
-        border-radius: 50%;
-        background: var(--brand-white);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-      }
+      <div class="tiq-nav-section-label" style="margin-top:1rem">Learning</div>
 
-      .logo-text {
-        font-family: "Inter", sans-serif;
-        font-size: 1.4rem;
-        font-weight: 700;
-        letter-spacing: 1px;
-      }
+      <a href="{{ url_for('general_routes.study_materials') }}"
+         class="tiq-nav-item {% if 'study' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-book-open-reader"></i></span>
+        <span class="nav-label">Knowledge Base</span>
+      </a>
 
-      .logo-text .black {
-        color: var(--brand-dark);
-      }
+      <a href="{{ url_for('exams_routes.list_exams') }}"
+         class="tiq-nav-item {% if 'exam' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-file-alt"></i></span>
+        <span class="nav-label">Exams</span>
+      </a>
 
-      .logo-text .red {
-        color: var(--brand-red);
-      }
+      <div class="tiq-nav-section-label" style="margin-top:1rem">Work</div>
 
-      /* Navigation Buttons Center */
-      .main-nav-section {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-        align-items: center;
-      }
+      <a href="{{ url_for('task_routes.view_tasks') }}"
+         class="tiq-nav-item {% if 'task' in request.endpoint and 'analytics' not in request.endpoint %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-list-check"></i></span>
+        <span class="nav-label">Tasks</span>
+      </a>
 
-      .main-nav-section .btn {
-        background: #f0f2f5;
-        color: var(--brand-dark);
-        font-family: "Inter", sans-serif;
-        font-size: 1rem;
-        font-weight: 600;
-        padding: 0.55rem 1.2rem;
-        border-radius: 32px;
-        border: none;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-        transition: transform 0.2s, box-shadow 0.2s, background 0.2s, color 0.2s;
-      }
+      <a href="{{ url_for('task_routes.analytics_dashboard') }}"
+         class="tiq-nav-item {% if 'analytics' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-chart-line"></i></span>
+        <span class="nav-label">Task Analytics</span>
+      </a>
 
-      .main-nav-section .btn i {
-        font-size: 1.1em;
-      }
+      <a href="{{ url_for('general_routes.hr_management') }}"
+         class="tiq-nav-item {% if 'hr_management' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-briefcase"></i></span>
+        <span class="nav-label">Management</span>
+      </a>
 
-      .main-nav-section .btn.active,
-      .main-nav-section .btn:hover,
-      .main-nav-section .btn:focus {
-        background: linear-gradient(
-          90deg,
-          var(--brand-red) 20%,
-          var(--brand-gold) 100%
-        );
-        color: var(--brand-white) !important;
-        transform: translateY(-2px) scale(1.03);
-        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
-      }
+      <div class="tiq-nav-section-label" style="margin-top:1rem">Support</div>
 
-      .main-nav-section .btn:active {
-        transform: translateY(0) scale(0.98);
-      }
+      <a href="{{ url_for('general_routes.help_page') }}"
+         class="tiq-nav-item {% if 'help' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-circle-question"></i></span>
+        <span class="nav-label">Help Center</span>
+      </a>
 
-      /* Content Wrapper */
-      .content-wrapper {
-        flex: 1;
-        padding: 3rem 1rem;
-        display: flex;
-        justify-content: center;
-      }
+      <a href="{{ url_for('general_routes.support') }}"
+         class="tiq-nav-item {% if 'support' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-headset"></i></span>
+        <span class="nav-label">Support</span>
+      </a>
 
-      /* Page Box */
-      .page-box {
-        background: var(--brand-white);
-        border-radius: 16px;
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05),
-          0 2px 8px rgba(0, 0, 0, 0.02);
-        padding: 2.5rem 2rem;
-        max-width: 700px;
-        width: 100%;
-        position: relative;
-        overflow: hidden;
-      }
+      {% if current_user.is_super_admin %}
+      <div class="tiq-nav-section-label" style="margin-top:1rem">Administration</div>
+      <a href="{{ url_for('admin_routes.admin_dashboard') }}"
+         class="tiq-nav-item {% if 'admin' in request.endpoint and not request.endpoint.startswith('billing_routes.') %}active{% endif %}"
+         style="color:#f59e0b">
+        <span class="nav-icon"><i class="fas fa-shield-halved"></i></span>
+        <span class="nav-label">Admin Panel</span>
+      </a>
+      <a href="{{ url_for('billing_routes.billing_home') }}"
+         class="tiq-nav-item {% if request.endpoint and request.endpoint.startswith('billing_routes.') %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-credit-card"></i></span>
+        <span class="nav-label">Billing</span>
+      </a>
+      {% endif %}
 
-      /* Animated Background Shape (subtle float) */
-      .page-box::before {
-        content: "";
-        position: absolute;
-        top: -120%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(
-          circle at center,
-          rgba(230, 57, 70, 0.08) 0%,
-          transparent 70%
-        );
-        transform: rotate(20deg);
-        animation: floatBg 12s ease-in-out infinite alternate;
-        z-index: 0;
-      }
+    </nav>
 
-      @keyframes floatBg {
-        from {
-          transform: translate(-10%, -10%) rotate(20deg);
-        }
-        to {
-          transform: translate(10%, 10%) rotate(20deg);
-        }
-      }
-
-      /* Titles inside Page Box */
-      .page-box h1,
-      .page-box h2 {
-        font-family: "Inter", sans-serif;
-        margin-bottom: 1rem;
-        position: relative;
-        z-index: 1;
-      }
-
-      .page-box h1 {
-        font-size: 2rem;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        text-align: center;
-        color: var(--brand-red);
-        /* Entrance animation */
-        animation: slideIn 1s ease-out both;
-      }
-
-      @keyframes slideIn {
-        from {
-          opacity: 0;
-          transform: translateY(-20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      /* Pulsing glow effect on hover */
-      .page-box h1:hover {
-        animation: pulseGlow 1.5s ease-in-out infinite;
-      }
-
-      @keyframes pulseGlow {
-        0% {
-          text-shadow: 0 0 6px rgba(230, 57, 70, 0.6),
-            0 0 12px rgba(230, 57, 70, 0.4);
-        }
-        50% {
-          text-shadow: 0 0 12px rgba(230, 57, 70, 0.8),
-            0 0 20px rgba(230, 57, 70, 0.6);
-        }
-        100% {
-          text-shadow: 0 0 6px rgba(230, 57, 70, 0.6),
-            0 0 12px rgba(230, 57, 70, 0.4);
-        }
-      }
-
-      .page-box h2 {
-        font-size: 1.4rem;
-        font-weight: 600;
-        letter-spacing: 0.3px;
-        text-align: center;
-        color: var(--brand-dark);
-      }
-
-      /* Paragraphs and Lists */
-      .page-box p {
-        font-size: 1rem;
-        margin-bottom: 1.2rem;
-        color: #3a3a3a;
-        position: relative;
-        z-index: 1;
-      }
-
-      .page-box ul,
-      .page-box ol {
-        margin-bottom: 1.2rem;
-        margin-left: 1.4rem;
-        position: relative;
-        z-index: 1;
-      }
-
-      .page-box ul li,
-      .page-box ol li {
-        margin-bottom: 0.7rem;
-        color: #3a3a3a;
-      }
-
-      /* Footer */
-      footer {
-        background: var(--footer-bg);
-        color: var(--brand-white);
-        text-align: center;
-        padding: 1rem 0;
-        font-family: "Inter", sans-serif;
-        font-size: 0.95rem;
-        letter-spacing: 0.02em;
-        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.04);
-      }
-
-      /* Responsive Adjustments */
-      @media (max-width: 900px) {
-        .top-bar-content {
-          flex-direction: column;
-          gap: 0.75rem;
-          padding: 1rem 0.5rem;
-        }
-
-        .main-nav-section .btn {
-          padding: 0.5rem 1rem;
-          font-size: 0.95rem;
-        }
-
-        .page-box {
-          padding: 2rem 1rem;
-        }
-      }
-
-      @media (max-width: 600px) {
-        .back-btn-top {
-          font-size: 0.95rem;
-          padding: 0.4rem 1rem;
-        }
-
-        .logo-section img {
-          height: 36px;
-          width: 36px;
-        }
-
-        .logo-text {
-          font-size: 1.2rem;
-        }
-
-        .page-box h1 {
-          font-size: 1.6rem;
-        }
-
-        .page-box h2 {
-          font-size: 1.2rem;
-        }
-
-        .page-box {
-          padding: 1.8rem 0.8rem;
-        }
-      }
-    </style>
-
-    {% block extra_head %}{% endblock %}
-  </head>
-
-  <body>
-    <!-- Top Bar -->
-    <nav class="top-bar">
-      <div class="top-bar-content">
-        <!-- Left: Back Button -->
-        <div>
-          <a
-            href="{{ url_for('general_routes.dashboard') }}"
-            class="back-btn-top"
-            title="Back to Dashboard"
-          >
-            <i class="fas fa-arrow-left"></i>
-            Back
-          </a>
-        </div>
-
-        <!-- Center: Main Navigation Buttons -->
-        <div>
-          <div class="main-nav-section">
-            <a
-              href="{{ url_for('general_routes.privacy_policy') }}"
-              class="btn{% if request.endpoint == 'general_routes.privacy_policy' %} active{% endif %}"
-              title="Privacy Policy"
-            >
-              <i class="fas fa-shield-halved"></i>
-              Privacy
-            </a>
-            <a
-              href="{{ url_for('general_routes.help_page') }}"
-              class="btn{% if request.endpoint == 'general_routes.help_page' %} active{% endif %}"
-              title="Help"
-            >
-              <i class="fas fa-circle-question"></i>
-              Help
-            </a>
-            <a
-              href="{{ url_for('general_routes.support') }}"
-              class="btn{% if request.endpoint == 'general_routes.support' %} active{% endif %}"
-              title="Support"
-            >
-              <i class="fas fa-headset"></i>
-              Support
-            </a>
+    <!-- User Footer -->
+    <div class="tiq-sidebar-footer">
+      <div class="tiq-sidebar-user" data-tiq-dropdown="sidebarUserDropdown">
+        {% if current_user.is_authenticated %}
+          <div class="user-avatar tiq-avatar tiq-avatar-md" title="{{ current_user.first_name }} {{ current_user.last_name }}">
+            {{ user_initials(current_user) }}
           </div>
-        </div>
+          <div class="user-info">
+            <div class="user-name">{{ current_user.first_name }} {{ current_user.last_name }}</div>
+            <div class="user-role">{{ current_user.role | capitalize }}</div>
+          </div>
+        {% endif %}
+        <i class="fas fa-ellipsis-vertical" style="color:rgba(148,163,184,0.6);margin-left:auto;font-size:0.8rem"></i>
+      </div>
+      <div class="tiq-dropdown" id="sidebarUserDropdown" style="bottom:100%;top:auto;margin-bottom:8px;">
+        <a href="{{ url_for('profile_routes.profile') }}" class="tiq-dropdown-item">
+          <i class="fas fa-user"></i> View Profile
+        </a>
+        <a href="{{ url_for('general_routes.privacy_policy') }}" class="tiq-dropdown-item">
+          <i class="fas fa-shield-halved"></i> Privacy Policy
+        </a>
+        <div class="tiq-dropdown-divider"></div>
+        <a href="{{ url_for('auth_routes.logout') }}" class="tiq-dropdown-item danger">
+          <i class="fas fa-sign-out-alt"></i> Sign Out
+        </a>
+      </div>
+    </div>
 
-        <!-- Right: Logo -->
-        <div class="logo-section">
-          <img
-            src="{{ url_for('static', filename='images/logo.png') }}"
-            alt="Collective Logo"
-          />
-          <div class="logo-text">
-            <span class="black">Collect</span><span class="red">ive</span>
+  </aside>
+  <!-- End Sidebar -->
+
+  <!-- ── Main Content ────────────────────────────────── -->
+  <main class="tiq-main" id="tiqMain">
+
+    <!-- Topbar -->
+    <header class="tiq-topbar">
+      <!-- Mobile menu button -->
+      <button class="tiq-mobile-menu-btn" id="mobileSidebarBtn" aria-label="Open navigation">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <!-- Page Title (injected by blocks) -->
+      <div style="flex:1">
+        <div class="tiq-breadcrumb">
+          <a href="{{ url_for('general_routes.dashboard') }}">Home</a>
+          <span class="tiq-breadcrumb-sep"><i class="fas fa-chevron-right" style="font-size:0.6rem"></i></span>
+          <span>{% block breadcrumb %}Page{% endblock %}</span>
+        </div>
+      </div>
+
+      <!-- Right controls -->
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <!-- Theme Toggle -->
+        <button class="tiq-theme-toggle" onclick="TrainIQ.Theme.toggle()" aria-label="Toggle theme">
+          <i class="fas fa-moon tiq-theme-icon"></i>
+        </button>
+
+        <!-- Notifications placeholder -->
+        <button class="tiq-btn-icon tiq-btn tiq-btn-ghost" title="Notifications" aria-label="Notifications">
+          <i class="fas fa-bell"></i>
+        </button>
+
+        <!-- User Menu -->
+        <div class="tiq-user-menu">
+          <button class="tiq-user-trigger" data-tiq-dropdown="topbarUserMenu" aria-label="User menu">
+            <div class="tiq-avatar tiq-avatar-md" title="{{ current_user.first_name }} {{ current_user.last_name }}">
+              {% if current_user.is_authenticated %}{{ user_initials(current_user) }}{% endif %}
+            </div>
+            {% if current_user.is_authenticated %}
+            <span class="user-name" style="display:none">{{ current_user.first_name }}</span>
+            {% endif %}
+            <i class="fas fa-chevron-down chevron"></i>
+          </button>
+          <div class="tiq-dropdown" id="topbarUserMenu">
+            {% if current_user.is_authenticated %}
+            <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--tiq-border)">
+              <div style="font-weight:700;font-size:0.875rem">{{ current_user.first_name }} {{ current_user.last_name }}</div>
+              <div style="font-size:0.75rem;color:var(--tiq-text-3)">{{ current_user.employee_email }}</div>
+            </div>
+            {% endif %}
+            <a href="{{ url_for('profile_routes.profile') }}" class="tiq-dropdown-item">
+              <i class="fas fa-user"></i> My Profile
+            </a>
+            <a href="{{ url_for('profile_routes.edit_profile') }}" class="tiq-dropdown-item">
+              <i class="fas fa-pen"></i> Edit Profile
+            </a>
+            <div class="tiq-dropdown-divider"></div>
+            <a href="{{ url_for('auth_routes.logout') }}" class="tiq-dropdown-item danger">
+              <i class="fas fa-sign-out-alt"></i> Sign Out
+            </a>
           </div>
         </div>
       </div>
-    </nav>
+    </header>
 
-    <!-- Main Content Area -->
-    <div class="content-wrapper">
-      <div class="page-box">{% block content %}{% endblock %}</div>
+    <!-- Page Content -->
+    <div class="tiq-page-content">
+      {% block content %}{% endblock %}
     </div>
 
-    <!-- Footer -->
-    <footer>Collective Intranet &copy; 2024</footer>
+  </main>
+  <!-- End Main -->
 
-    {% block extra_scripts %}{% endblock %}
-  </body>
+</div>
+<!-- End App Layout -->
+
+<!-- Toast Container -->
+<div class="tiq-toast-container"></div>
+
+<!-- Scroll to top -->
+<button class="tiq-scroll-top" aria-label="Scroll to top">
+  <i class="fas fa-chevron-up"></i>
+</button>
+
+<script src="{{ url_for('static', filename='js/trainiq.js') }}?v=1.2"></script>
+{% block extra_scripts %}{% endblock %}
+</body>
 </html>

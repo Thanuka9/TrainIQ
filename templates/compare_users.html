@@ -1,269 +1,576 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>User Comparison - Collective</title>
-  <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
-  />
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-  />
+{% extends 'base.html' %}
+{% block title %}User Comparison — {{ display_org_name }}{% endblock %}
+
+{% block breadcrumb %}
+  <a href="{{ url_for('general_routes.dashboard') }}">Home</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <a href="{{ url_for('general_routes.hr_management') }}">Management</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <a href="{{ url_for('management_routes.compare_users') }}">Compare Users Selection</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <span>Comparison Result</span>
+{% endblock %}
+
+{% block extra_head %}
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body {
-      background-color: #f4f7f9;
-      font-family: Arial, sans-serif;
-      display: flex;
+{% endblock %}
+
+{% block content %}
+<style>
+  /* Premium Comparative Dashboard CSS */
+  .profile-compare-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .header-card {
+    flex: 1;
+    background: var(--tiq-surface);
+    border: 1px solid var(--tiq-border);
+    border-radius: var(--tiq-radius-lg);
+    padding: 1.75rem;
+    box-shadow: var(--tiq-shadow-sm);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .header-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 150px;
+    height: 150px;
+    background: radial-gradient(circle, rgba(79, 70, 229, 0.05) 0%, transparent 70%);
+    z-index: 1;
+  }
+
+  .header-card.u2-card::after {
+    background: radial-gradient(circle, rgba(6, 182, 212, 0.05) 0%, transparent 70%);
+  }
+
+  .header-avatar {
+    width: 4.5rem;
+    height: 4.5rem;
+    border-radius: var(--tiq-radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--tiq-text-invert);
+    z-index: 2;
+    box-shadow: var(--tiq-shadow-md);
+    border: 3px solid var(--tiq-surface);
+  }
+
+  .header-meta {
+    min-width: 0;
+    z-index: 2;
+  }
+
+  .header-name {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--tiq-text);
+    margin: 0 0 0.35rem 0;
+  }
+
+  .header-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .vs-circle {
+    width: 3.5rem;
+    height: 3.5rem;
+    background: var(--tiq-gradient-hero);
+    border: 4px solid var(--tiq-surface);
+    border-radius: var(--tiq-radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 1.15rem;
+    color: #fff;
+    font-style: italic;
+    box-shadow: var(--tiq-shadow-md);
+    flex-shrink: 0;
+    z-index: 5;
+  }
+
+  /* Progress comparison track */
+  .compare-track-wrapper {
+    margin-top: 0.5rem;
+  }
+
+  .compare-track {
+    height: 8px;
+    background: var(--tiq-surface-2);
+    border-radius: var(--tiq-radius-full);
+    overflow: hidden;
+    margin-top: 0.35rem;
+    position: relative;
+  }
+
+  .compare-fill {
+    height: 100%;
+    border-radius: var(--tiq-radius-full);
+    transition: width 1s ease-out;
+  }
+
+  /* Insights / Strengths block */
+  .insights-card {
+    background: var(--tiq-gradient-soft);
+    border: 1px solid rgba(79, 70, 229, 0.15);
+    border-radius: var(--tiq-radius-lg);
+    margin-bottom: 2rem;
+  }
+
+  .insight-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+  }
+
+  .insight-item {
+    background: var(--tiq-surface);
+    border: 1px solid var(--tiq-border);
+    border-radius: var(--tiq-radius);
+    padding: 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    box-shadow: var(--tiq-shadow-xs);
+  }
+
+  .insight-icon {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: var(--tiq-radius-full);
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--tiq-success);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.85rem;
+  }
+
+  .insight-text {
+    font-size: 0.9rem;
+    color: var(--tiq-text-2);
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  /* Metric delta badges */
+  .delta-badge {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--tiq-radius-sm);
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+  }
+
+  .delta-badge.leader {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--tiq-success);
+  }
+
+  /* Table structure styling */
+  .tiq-table td {
+    vertical-align: middle;
+  }
+
+  @media (max-width: 992px) {
+    .profile-compare-header {
       flex-direction: column;
-      min-height: 100vh;
-      animation: fadeIn 0.6s ease-in;
+      gap: 1rem;
     }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
+    .vs-circle {
+      margin: 0.5rem 0;
     }
-    .top-bar {
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 20px;
-      background-color: #ffffff;
-      border-bottom: 1px solid #ddd;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .btn-back-top {
-      font-size: 0.85rem;
-      background-color: #6c757d;
-      color: white;
-      border-radius: 5px;
-      padding: 6px 12px;
-      text-decoration: none;
-      transition: background-color 0.2s ease-in-out;
-    }
-    .btn-back-top:hover { background-color: #5a6268; }
-    .logo-section img { height: 40px; margin-right: 8px; }
-    .brand { font-size: 1.4rem; font-weight: 600; }
-    .brand .black { color: #000; }
-    .brand .red { color: red; }
+  }
+</style>
 
-    .container {
-      max-width: 960px;
-      margin: 30px auto;
-      background: #fff;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      flex: 1;
-      animation: fadeIn 0.6s ease-in;
-    }
-    h1, h3 {
-      text-align: center;
-      margin-bottom: 25px;
-      font-weight: 500;
-    }
-    .table-responsive {
-      margin-bottom: 30px;
-    }
-    table th {
-      background-color: #007bff;
-      color: #fff;
-    }
-    table tbody tr {
-      transition: background-color 0.2s ease-in-out;
-    }
-    table tbody tr:hover {
-      background-color: rgba(0, 123, 255, 0.05);
-    }
-    footer {
-      background-color: #343a40;
-      color: #fff;
-      text-align: center;
-      padding: 15px 0;
-      margin-top: auto;
-    }
-  </style>
-</head>
-<body>
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <h1>User Comparison Dashboard</h1>
+      <p class="tiq-lead">Comprehensive side-by-side analysis of academic progress, course execution, task performance, and local model evaluation.</p>
+    </div>
+    <div style="display:flex; gap:0.5rem;">
+      <form method="post" action="{{ url_for('management_routes.compare_users') }}" style="margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="user1" value="{{ user1.id }}">
+        <input type="hidden" name="user2" value="{{ user2.id }}">
+        <select class="tiq-select" name="level" id="level" onchange="this.form.submit()" style="padding: 0.5rem 2rem 0.5rem 1rem; font-size: 0.9rem;">
+          {% for lvl in levels %}
+            <option value="{{ lvl.level_number }}" {% if lvl.level_number == selected_level %}selected{% endif %}>
+              Level {{ lvl.level_number }} — {{ lvl.title }}
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+      <a href="{{ url_for('management_routes.compare_users') }}" class="tiq-btn tiq-btn-secondary">
+        <i class="fas fa-arrow-left"></i> Change Users
+      </a>
+    </div>
+  </div>
+</div>
 
-  <!-- Top Bar -->
-  <div class="top-bar">
-    <a href="{{ url_for('management_routes.compare_users') }}" class="btn-back-top">
-      <i class="fas fa-arrow-left"></i> Back
-    </a>
-    <div class="logo-section d-flex align-items-center">
-      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" />
-      <div class="brand"><span class="black">Collect</span><span class="red">ive</span></div>
+<!-- Header Profiles side-by-side -->
+<div class="profile-compare-header">
+  <!-- User 1 Header Card -->
+  {% set initials1 = (user1.first_name[0] | upper if user1.first_name else 'U') + (user1.last_name[0] | upper if user1.last_name else '') %}
+  {% set grad_idx1 = (user1.id % 4) %}
+  {% if grad_idx1 == 0 %}{% set av_style1 = "background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);" %}
+  {% elif grad_idx1 == 1 %}{% set av_style1 = "background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);" %}
+  {% elif grad_idx1 == 2 %}{% set av_style1 = "background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);" %}
+  {% else %}{% set av_style1 = "background: linear-gradient(135deg, #f59e0b 0%, #e11d48 100%);" %}{% endif %}
+
+  <div class="header-card">
+    <div class="header-avatar" style="{{ av_style1 }}">
+      {{ initials1 }}
+    </div>
+    <div class="header-meta">
+      <h3 class="header-name">{{ user1.first_name }} {{ user1.last_name }}</h3>
+      <div class="header-badges">
+        <span class="tiq-badge tiq-badge-primary">User 1</span>
+        <span class="tiq-badge tiq-badge-neutral">{{ user1.designation.title if user1.designation else 'No Title' }}</span>
+      </div>
     </div>
   </div>
 
-  <!-- Main Comparison Container -->
-  <div class="container" id="comparisonContent">
-    <h1><i class="fas fa-users"></i> User Comparison</h1>
+  <!-- VS Spacer -->
+  <div class="vs-circle">VS</div>
 
-    <!-- Level Selection Form -->
-    <form method="post" action="{{ url_for('management_routes.compare_users') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="user1" value="{{ user1.id }}">
-      <input type="hidden" name="user2" value="{{ user2.id }}">
-      <div class="row mb-4 justify-content-center">
-        <div class="col-md-6">
-          <label for="level" class="form-label">
-            <i class="fas fa-layer-group"></i> Select Exam Level:
-          </label>
-          <select class="form-select" name="level" id="level" onchange="this.form.submit()">
-            {% for lvl in levels %}
-              <option value="{{ lvl.level_number }}"
-                {% if lvl.level_number == selected_level %}selected{% endif %}>
-                Level {{ lvl.level_number }} - {{ lvl.title }}
-              </option>
-            {% endfor %}
-          </select>
+  <!-- User 2 Header Card -->
+  {% set initials2 = (user2.first_name[0] | upper if user2.first_name else 'U') + (user2.last_name[0] | upper if user2.last_name else '') %}
+  {% set grad_idx2 = (user2.id % 4) %}
+  {% if grad_idx2 == 0 %}{% set av_style2 = "background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);" %}
+  {% elif grad_idx2 == 1 %}{% set av_style2 = "background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);" %}
+  {% elif grad_idx2 == 2 %}{% set av_style2 = "background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);" %}
+  {% else %}{% set av_style2 = "background: linear-gradient(135deg, #f59e0b 0%, #e11d48 100%);" %}{% endif %}
+
+  <div class="header-card u2-card">
+    <div class="header-avatar" style="{{ av_style2 }}">
+      {{ initials2 }}
+    </div>
+    <div class="header-meta">
+      <h3 class="header-name">{{ user2.first_name }} {{ user2.last_name }}</h3>
+      <div class="header-badges">
+        <span class="tiq-badge tiq-badge-secondary">User 2</span>
+        <span class="tiq-badge tiq-badge-neutral">{{ user2.designation.title if user2.designation else 'No Title' }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Relative Strengths Highlights -->
+{% if strengths %}
+<div class="tiq-card insights-card">
+  <div class="tiq-card-header" style="border-bottom: 1px solid rgba(79, 70, 229, 0.1);">
+    <div class="tiq-card-title text-primary"><i class="fas fa-brain me-2"></i>Comparative Strengths & Performance Highlights</div>
+  </div>
+  <div class="tiq-card-body">
+    <div class="insight-list">
+      {% for s in strengths %}
+        <div class="insight-item">
+          <div class="insight-icon"><i class="fas fa-check"></i></div>
+          <p class="insight-text">{{ s }}</p>
         </div>
-      </div>
-    </form>
-
-    <!-- Detail Comparison Card -->
-    <h3><i class="fas fa-table"></i> Detail Comparison</h3>
-    <div class="table-responsive">
-      <table class="table table-striped table-bordered align-middle">
-        <thead>
-          <tr>
-            <th>Attribute</th>
-            <th>{{ user1.first_name }} {{ user1.last_name }}</th>
-            <th>{{ user2.first_name }} {{ user2.last_name }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Employee ID</td>
-            <td>{{ user1.employee_id or 'N/A' }}</td>
-            <td>{{ user2.employee_id or 'N/A' }}</td>
-          </tr>
-          <tr>
-            <td>Email</td>
-            <td>{{ user1.employee_email }}</td>
-            <td>{{ user2.employee_email }}</td>
-          </tr>
-          <tr>
-            <td>Phone Number</td>
-            <td>{{ user1.phone_number or 'N/A' }}</td>
-            <td>{{ user2.phone_number or 'N/A' }}</td>
-          </tr>
-          <tr>
-            <td>Designation</td>
-            <td>{{ user1.designation.title if user1.designation else 'N/A' }}</td>
-            <td>{{ user2.designation.title if user2.designation else 'N/A' }}</td>
-          </tr>
-          <tr>
-            <td>Work Experience</td>
-            <td>{{ user1_work_exp }}</td>
-            <td>{{ user2_work_exp }}</td>
-          </tr>
-          <tr>
-            <td>Departments</td>
-            <td>
-              {% if user1_departments %}
-                {% for dept in user1_departments %}
-                  <span class="badge bg-secondary">{{ dept }}</span>
-                {% endfor %}
-              {% else %}
-                <em>None</em>
-              {% endif %}
-            </td>
-            <td>
-              {% if user2_departments %}
-                {% for dept in user2_departments %}
-                  <span class="badge bg-secondary">{{ dept }}</span>
-                {% endfor %}
-              {% else %}
-                <em>None</em>
-              {% endif %}
-            </td>
-          </tr>
-          <tr>
-            <td>Overall Exam Average</td>
-            <td>{{ user1_avg }}%</td>
-            <td>{{ user2_avg }}%</td>
-          </tr>
-          <tr>
-            <td>Special Exam Paper 1</td>
-            <td>
-              {% if user1_sprec %}
-                {% if user1_sprec.paper1_completed_at %}
-                  {{ user1_sprec.paper1_score }}%
-                  {% if user1_sprec.paper1_passed %}(Passed){% else %}(Failed){% endif %}
-                {% else %}
-                  <em>Not Attempted</em>
-                {% endif %}
-              {% else %}
-                <em>N/A</em>
-              {% endif %}
-            </td>
-            <td>
-              {% if user2_sprec %}
-                {% if user2_sprec.paper1_completed_at %}
-                  {{ user2_sprec.paper1_score }}%
-                  {% if user2_sprec.paper1_passed %}(Passed){% else %}(Failed){% endif %}
-                {% else %}
-                  <em>Not Attempted</em>
-                {% endif %}
-              {% else %}
-                <em>N/A</em>
-              {% endif %}
-            </td>
-          </tr>
-          <tr>
-            <td>Special Exam Paper 2</td>
-            <td>
-              {% if user1_sprec %}
-                {% if user1_sprec.paper2_completed_at %}
-                  {{ user1_sprec.paper2_score }}%
-                  {% if user1_sprec.paper2_passed %}(Passed){% else %}(Failed){% endif %}
-                {% else %}
-                  <em>Not Attempted</em>
-                {% endif %}
-              {% else %}
-                <em>N/A</em>
-              {% endif %}
-            </td>
-            <td>
-              {% if user2_sprec %}
-                {% if user2_sprec.paper2_completed_at %}
-                  {{ user2_sprec.paper2_score }}%
-                  {% if user2_sprec.paper2_passed %}(Passed){% else %}(Failed){% endif %}
-                {% else %}
-                  <em>Not Attempted</em>
-                {% endif %}
-              {% else %}
-                <em>N/A</em>
-              {% endif %}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      {% endfor %}
     </div>
+  </div>
+</div>
+{% endif %}
 
-    <!-- Radar Chart Card -->
-    <h3><i class="fas fa-chart-radar"></i> Category-Wise Performance</h3>
-    <div class="card mb-4 shadow-sm">
-      <div class="card-body">
-        <canvas id="compareRadar" height="300"></canvas>
+<div class="tiq-grid tiq-grid-2 tiq-gap">
+  <!-- Detail Comparison Matrix Card -->
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-table me-2"></i>Performance Metric Matrix</div>
+    </div>
+    <div class="tiq-p-0">
+      <div class="tiq-table-wrapper">
+        <table class="tiq-table">
+          <thead>
+            <tr>
+              <th style="width: 35%;">Attribute</th>
+              <th style="width: 32.5%;">{{ user1.first_name }}</th>
+              <th style="width: 32.5%;">{{ user2.first_name }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="fw-bold">Employee Info</td>
+              <td>
+                <span class="d-block" style="font-size:0.8rem; color:var(--tiq-text-3);">ID: <code>#{{ user1.employee_id or 'N/A' }}</code></span>
+                <span class="d-block" style="font-size:0.8rem; color:var(--tiq-text-2); overflow:hidden; text-overflow:ellipsis;">{{ user1.employee_email }}</span>
+              </td>
+              <td>
+                <span class="d-block" style="font-size:0.8rem; color:var(--tiq-text-3);">ID: <code>#{{ user2.employee_id or 'N/A' }}</code></span>
+                <span class="d-block" style="font-size:0.8rem; color:var(--tiq-text-2); overflow:hidden; text-overflow:ellipsis;">{{ user2.employee_email }}</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Work Experience</td>
+              <td>{{ user1_work_exp }}</td>
+              <td>{{ user2_work_exp }}</td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Departments</td>
+              <td>
+                {% if user1_departments %}
+                  <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                    {% for dept in user1_departments %}
+                      <span class="tiq-badge tiq-badge-neutral" style="font-size: 0.75rem;">{{ dept }}</span>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <span class="text-muted">None</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if user2_departments %}
+                  <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                    {% for dept in user2_departments %}
+                      <span class="tiq-badge tiq-badge-neutral" style="font-size: 0.75rem;">{{ dept }}</span>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <span class="text-muted">None</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Current Progression</td>
+              <td>
+                <div class="tiq-flex-between">
+                  <span>Level {{ user1_level }}</span>
+                  {% if user1_level > user2_level %}
+                    <span class="delta-badge leader"><i class="fas fa-crown"></i> Lead</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td>
+                <div class="tiq-flex-between">
+                  <span>Level {{ user2_level }}</span>
+                  {% if user2_level > user1_level %}
+                    <span class="delta-badge leader"><i class="fas fa-crown"></i> Lead</span>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            
+            <!-- Overall Exam Average (Visual Progress Track) -->
+            <tr>
+              <td class="fw-bold">Overall Exam Avg</td>
+              <td>
+                <div class="compare-track-wrapper">
+                  <div class="tiq-flex-between">
+                    <span class="fw-bold text-primary">{{ user1_avg }}%</span>
+                    {% if user1_avg > user2_avg and user2_avg > 0 %}
+                      <span class="delta-badge leader">+{{ (user1_avg - user2_avg)|round(1) }}%</span>
+                    {% endif %}
+                  </div>
+                  <div class="compare-track">
+                    <div class="compare-fill" style="width: {{ user1_avg }}%; background: var(--tiq-primary);"></div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="compare-track-wrapper">
+                  <div class="tiq-flex-between">
+                    <span class="fw-bold text-secondary">{{ user2_avg }}%</span>
+                    {% if user2_avg > user1_avg and user1_avg > 0 %}
+                      <span class="delta-badge leader">+{{ (user2_avg - user1_avg)|round(1) }}%</span>
+                    {% endif %}
+                  </div>
+                  <div class="compare-track">
+                    <div class="compare-fill" style="width: {{ user2_avg }}%; background: var(--tiq-secondary);"></div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Completed Courses -->
+            <tr>
+              <td class="fw-bold">Courses Completed</td>
+              <td>
+                <div class="compare-track-wrapper">
+                  <div class="tiq-flex-between">
+                    <span>{{ user1_courses_done }} module(s)</span>
+                    {% if user1_courses_done > user2_courses_done %}
+                      <span class="delta-badge leader">+{{ user1_courses_done - user2_courses_done }}</span>
+                    {% endif %}
+                  </div>
+                  <!-- Cap at 10 for progress bar visualization -->
+                  {% set p1_val = (user1_courses_done * 10) if user1_courses_done < 10 else 100 %}
+                  <div class="compare-track">
+                    <div class="compare-fill" style="width: {{ p1_val }}%; background: var(--tiq-primary);"></div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="compare-track-wrapper">
+                  <div class="tiq-flex-between">
+                    <span>{{ user2_courses_done }} module(s)</span>
+                    {% if user2_courses_done > user1_courses_done %}
+                      <span class="delta-badge leader">+{{ user2_courses_done - user1_courses_done }}</span>
+                    {% endif %}
+                  </div>
+                  {% set p2_val = (user2_courses_done * 10) if user2_courses_done < 10 else 100 %}
+                  <div class="compare-track">
+                    <div class="compare-fill" style="width: {{ p2_val }}%; background: var(--tiq-secondary);"></div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Tasks Active vs Completed -->
+            <tr>
+              <td class="fw-bold">Tasks (Active / Completed)</td>
+              <td>
+                <div>
+                  <span class="fw-bold" style="color:var(--tiq-primary);">{{ user1_tasks_active }} Active</span>
+                  <span class="mx-1" style="color:var(--tiq-text-3);">|</span>
+                  <span class="text-success">{{ user1_tasks_done }} Done</span>
+                </div>
+              </td>
+              <td>
+                <div>
+                  <span class="fw-bold" style="color:var(--tiq-secondary);">{{ user2_tasks_active }} Active</span>
+                  <span class="mx-1" style="color:var(--tiq-text-3);">|</span>
+                  <span class="text-success">{{ user2_tasks_done }} Done</span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Avg ProctorIQ Trust (Visual Progress Track) -->
+            <tr>
+              <td class="fw-bold">Avg Integrity (ProctorIQ)</td>
+              <td>
+                <div class="compare-track-wrapper">
+                  <div class="tiq-flex-between">
+                    <span class="fw-bold" style="color:var(--tiq-primary);">{{ user1_trust }}%</span>
+                    {% if user1_trust > user2_trust and user2_trust > 0 %}
+                      <span class="delta-badge leader">+{{ (user1_trust - user2_trust)|round(1) }}%</span>
+                    {% endif %}
+                  </div>
+                  <div class="compare-track">
+                    <div class="compare-fill" style="width: {{ user1_trust }}%; background: var(--tiq-primary);"></div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="compare-track-wrapper">
+                  <div class="tiq-flex-between">
+                    <span class="fw-bold" style="color:var(--tiq-secondary);">{{ user2_trust }}%</span>
+                    {% if user2_trust > user1_trust and user1_trust > 0 %}
+                      <span class="delta-badge leader">+{{ (user2_trust - user1_trust)|round(1) }}%</span>
+                    {% endif %}
+                  </div>
+                  <div class="compare-track">
+                    <div class="compare-fill" style="width: {{ user2_trust }}%; background: var(--tiq-secondary);"></div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Special Exam 1 -->
+            <tr>
+              <td class="fw-bold">Special Exam Paper 1</td>
+              <td>
+                {% if user1_sprec and user1_sprec.paper1_completed_at %}
+                  <div class="tiq-flex-between align-items-center">
+                    <span class="fw-bold">{{ user1_sprec.paper1_score }}%</span>
+                    <span class="tiq-badge tiq-badge-{{ 'success' if user1_sprec.paper1_passed else 'danger' }}" style="font-size:0.75rem;">
+                      {{ 'Pass' if user1_sprec.paper1_passed else 'Fail' }}
+                    </span>
+                  </div>
+                {% else %}
+                  <span class="text-muted" style="font-size: 0.85rem;">Not Attempted</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if user2_sprec and user2_sprec.paper1_completed_at %}
+                  <div class="tiq-flex-between align-items-center">
+                    <span class="fw-bold">{{ user2_sprec.paper1_score }}%</span>
+                    <span class="tiq-badge tiq-badge-{{ 'success' if user2_sprec.paper1_passed else 'danger' }}" style="font-size:0.75rem;">
+                      {{ 'Pass' if user2_sprec.paper1_passed else 'Fail' }}
+                    </span>
+                  </div>
+                {% else %}
+                  <span class="text-muted" style="font-size: 0.85rem;">Not Attempted</span>
+                {% endif %}
+              </td>
+            </tr>
+
+            <!-- Special Exam 2 -->
+            <tr>
+              <td class="fw-bold">Special Exam Paper 2</td>
+              <td>
+                {% if user1_sprec and user1_sprec.paper2_completed_at %}
+                  <div class="tiq-flex-between align-items-center">
+                    <span class="fw-bold">{{ user1_sprec.paper2_score }}%</span>
+                    <span class="tiq-badge tiq-badge-{{ 'success' if user1_sprec.paper2_passed else 'danger' }}" style="font-size:0.75rem;">
+                      {{ 'Pass' if user1_sprec.paper2_passed else 'Fail' }}
+                    </span>
+                  </div>
+                {% else %}
+                  <span class="text-muted" style="font-size: 0.85rem;">Not Attempted</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if user2_sprec and user2_sprec.paper2_completed_at %}
+                  <div class="tiq-flex-between align-items-center">
+                    <span class="fw-bold">{{ user2_sprec.paper2_score }}%</span>
+                    <span class="tiq-badge tiq-badge-{{ 'success' if user2_sprec.paper2_passed else 'danger' }}" style="font-size:0.75rem;">
+                      {{ 'Pass' if user2_sprec.paper2_passed else 'Fail' }}
+                    </span>
+                  </div>
+                {% else %}
+                  <span class="text-muted" style="font-size: 0.85rem;">Not Attempted</span>
+                {% endif %}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
 
-  <footer>
-    <p class="mb-0">Collective Intranet© 2024</p>
-  </footer>
+  <!-- Radar Performance Chart Card -->
+  <div class="tiq-card">
+    <div class="tiq-card-header" style="border-bottom: 1px solid var(--tiq-border);">
+      <div class="tiq-card-title"><i class="fas fa-chart-pie me-2"></i>Performance by Subject Category</div>
+    </div>
+    <div class="tiq-card-body tiq-flex-center" style="min-height: 360px;">
+      <div style="width: 100%; height: 350px; position: relative;">
+        <canvas id="compareRadar"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
 
-  <script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
     const ctx = document.getElementById("compareRadar").getContext("2d");
     new Chart(ctx, {
       type: "radar",
@@ -271,44 +578,79 @@
         labels: {{ performance_labels | tojson }},
         datasets: [
           {
-            label: "{{ user1.first_name }}",
+            label: "{{ user1.first_name }} {{ user1.last_name }}",
             data: {{ user1_scores | tojson }},
-            backgroundColor: "rgba(255, 99, 132, 0.2)",
-            borderColor: "rgba(255, 99, 132, 1)",
-            borderWidth: 2,
-            pointBackgroundColor: "rgba(255, 99, 132, 1)"
+            backgroundColor: "rgba(79, 70, 229, 0.12)",
+            borderColor: "rgba(79, 70, 229, 1)",
+            borderWidth: 3,
+            pointBackgroundColor: "rgba(79, 70, 229, 1)",
+            pointBorderColor: "#fff",
+            pointHoverBackgroundColor: "#fff",
+            pointHoverBorderColor: "rgba(79, 70, 229, 1)",
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            tension: 0.1
           },
           {
-            label: "{{ user2.first_name }}",
+            label: "{{ user2.first_name }} {{ user2.last_name }}",
             data: {{ user2_scores | tojson }},
-            backgroundColor: "rgba(54, 162, 235, 0.2)",
-            borderColor: "rgba(54, 162, 235, 1)",
-            borderWidth: 2,
-            pointBackgroundColor: "rgba(54, 162, 235, 1)"
+            backgroundColor: "rgba(6, 182, 212, 0.12)",
+            borderColor: "rgba(6, 182, 212, 1)",
+            borderWidth: 3,
+            pointBackgroundColor: "rgba(6, 182, 212, 1)",
+            pointBorderColor: "#fff",
+            pointHoverBackgroundColor: "#fff",
+            pointHoverBorderColor: "rgba(6, 182, 212, 1)",
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            tension: 0.1
           }
         ]
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         animation: {
-          duration: 800,
-          easing: 'easeInOutQuad'
+          duration: 1200,
+          easing: 'easeOutElastic'
         },
         plugins: {
-          legend: { position: 'top' }
+          legend: {
+            position: 'top',
+            labels: {
+              font: { family: "var(--tiq-font-sans)", size: 12, weight: "bold" },
+              color: "var(--tiq-text)"
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            titleFont: { family: "var(--tiq-font-sans)", size: 13, weight: "bold" },
+            bodyFont: { family: "var(--tiq-font-sans)", size: 12 },
+            padding: 10,
+            cornerRadius: 8
+          }
         },
         scales: {
           r: {
             suggestedMin: 0,
             suggestedMax: 100,
-            grid: { color: "rgba(0,0,0,0.05)" },
-            angleLines: { color: "rgba(0,0,0,0.1)" },
-            pointLabels: { font: { size: 14 } }
+            grid: { color: "rgba(255,255,255,0.15)" },
+            angleLines: { color: "rgba(255,255,255,0.15)" },
+            pointLabels: {
+              font: { family: "var(--tiq-font-sans)", size: 12, weight: "bold" },
+              color: "#94a3b8"
+            },
+            ticks: {
+              display: true,
+              color: "#64748b",
+              backdropColor: "transparent",
+              stepSize: 20,
+              font: { family: "var(--tiq-font-sans)", size: 10 }
+            }
           }
         }
       }
     });
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+  });
+</script>
+{% endblock %}

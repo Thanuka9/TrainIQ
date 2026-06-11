@@ -1,12 +1,8 @@
-from pymongo import MongoClient
 from bson.objectid import ObjectId
-from gridfs import GridFS
 import logging
 
-# MongoDB Initialization
-mongo_client = MongoClient('mongodb://localhost:27017/')  # Replace with your MongoDB URI
-mongo_db = mongo_client['collective_rcm']  # MongoDB database name
-grid_fs = GridFS(mongo_db)
+from utils.mongo_tenant import get_tenant_database, open_grid_file
+
 
 def sync_study_material_to_mongo(material):
     """
@@ -23,29 +19,23 @@ def sync_study_material_to_mongo(material):
         return False
 
     try:
-        # Prepare metadata for MongoDB
+        mongo_db = get_tenant_database(material.tenant_id)
         mongo_data = {
-            "material_id": material.id,  # PostgreSQL ID for cross-reference
+            "material_id": material.id,
+            "tenant_id": material.tenant_id,
             "title": material.title,
             "description": material.description,
             "course_time": material.course_time,
             "max_time": material.max_time,
             "created_at": material.created_at.isoformat() if material.created_at else None,
-            "file_ids": [],  # To store references to file chunks in MongoDB
+            "file_ids": [],
         }
 
-        # Handle file uploads stored in PostgreSQL references
-        for file_entry in material.files:  # `files` is a text[] column
+        for file_entry in material.files or []:
             try:
-                # Parse file_entry (format: "file_id|filename")
-                file_id, filename = file_entry.split('|')
-                grid_file = grid_fs.find_one({"_id": ObjectId(file_id)})
+                file_id, filename = file_entry.split('|', 1)
+                grid_file, _ = open_grid_file(file_id, material.tenant_id)
 
-                if not grid_file:
-                    logging.warning(f"File with ID {file_id} not found in GridFS for material {material.id}. Skipping.")
-                    continue
-
-                # Append the file details to the MongoDB metadata
                 mongo_data["file_ids"].append({
                     "file_id": str(grid_file._id),
                     "filename": grid_file.filename,
@@ -59,13 +49,12 @@ def sync_study_material_to_mongo(material):
                 logging.error(f"Error processing file entry {file_entry} for material {material.id}: {e}")
                 continue
 
-        # Insert or update the study material in MongoDB
         result = mongo_db.study_materials.update_one(
-            {"material_id": material.id},  # Find by PostgreSQL material ID
-            {"$set": mongo_data},  # Update metadata
-            upsert=True  # Insert if not already present
+            {"material_id": material.id},
+            {"$set": mongo_data},
+            upsert=True,
         )
-        logging.info(f"Study material {material.id} successfully synced to MongoDB. Result: {result.raw_result}")
+        logging.info(f"Study material {material.id} synced to {mongo_db.name}. Result: {result.raw_result}")
         return True
 
     except Exception as e:

@@ -1,95 +1,109 @@
-{% extends "base.html" %} {% block content %}
-<div class="container mt-5 mb-5">
-  <h2 class="mb-4">Help Center</h2>
-  <p>
-    Welcome to the CollectiveRCM Help Center. This section is designed to assist
-    all users in navigating the platform, resolving issues, and understanding
-    system features.
-  </p>
+{% extends "base.html" %}
+{% block title %}Help Center — {{ display_org_name }}{% endblock %}
 
-  <hr class="my-4" />
-  <h4>Common Issues & Solutions</h4>
-  <table class="table table-hover mt-3">
-    <thead class="table-dark">
-      <tr>
-        <th>Issue</th>
-        <th>Suggested Resolution</th>
-        <th>Contact</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Cannot log in</td>
-        <td>
-          Ensure credentials are correct. Try resetting your password or
-          clearing your browser cache.
-        </td>
-        <td>
-          <a href="mailto:intranet@collectivercm.com"
-            >intranet@collectivercm.com</a
-          >
-        </td>
-      </tr>
-      <tr>
-        <td>Tasks not visible</td>
-        <td>
-          Check your role or team assignment. Some tasks are
-          department-specific.
-        </td>
-        <td>Your department lead</td>
-      </tr>
-      <tr>
-        <td>Study materials not loading</td>
-        <td>
-          Ensure your browser supports PDF rendering. Check for access
-          permissions under your role.
-        </td>
-        <td>Education Coordinator</td>
-      </tr>
-      <tr>
-        <td>Exam results missing</td>
-        <td>
-          Results may be pending admin review or are available under the
-          “Dashboard” section.
-        </td>
-        <td>
-          <a href="mailto:intranet@collectivercm.com"
-            >intranet@collectivercm.com</a
-          >
-        </td>
-      </tr>
-      <tr>
-        <td>Incorrect profile data</td>
-        <td>
-          Edit via your profile page. If fields are locked or incorrect, contact
-          the system administrators.
-        </td>
-        <td><a href="mailto:intranet@collectivercm.com">System Admins</a></td>
-      </tr>
-    </tbody>
-  </table>
+{% block breadcrumb %}
+  <a href="{{ url_for('general_routes.dashboard') }}">Home</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <span>Help Center</span>
+{% endblock %}
 
-  <hr class="my-4" />
-  <h4>System Navigation Tips</h4>
-  <ul>
-    <li>
-      Use the top navigation bar to access Profile, Tasks, Study Materials, and
-      Management areas.
-    </li>
-    <li>
-      The dashboard shows active courses, deadlines, and announcements tailored
-      to your role.
-    </li>
-    <li>
-      Use dark mode for long sessions using the moon/sun icon on the bottom
-      right corner.
-    </li>
-    <li>Use Ctrl + B to quickly toggle between light and dark mode.</li>
-  </ul>
+{% block content %}
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <h1>Help Center</h1>
+      <p class="tiq-lead">Welcome to the TrainIQ Help Center. Find answers to common platform issues, system navigation tips, and contact resources.</p>
+    </div>
+    <a href="{{ url_for('general_routes.dashboard') }}" class="tiq-btn tiq-btn-secondary">
+      <i class="fas fa-home"></i> Back to Home
+    </a>
+  </div>
+</div>
 
-  <p class="mt-4">
-    If your issue persists, please escalate it via the
-    <strong>Support</strong> page or reach out to your supervisor.
-  </p>
+<div class="tiq-grid tiq-grid-3 tiq-gap mb-4">
+  <!-- Common Issues Card (Colspan 2) -->
+  <div class="tiq-card" style="grid-column: span 2;">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-info-circle me-2"></i>Common Issues & Solutions</div>
+    </div>
+    <div class="tiq-p-0">
+      <div class="tiq-table-wrapper">
+        <table class="tiq-table">
+          <thead>
+            <tr>
+              <th>Issue</th>
+              <th>Suggested Resolution</th>
+              <th>Support Contact</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="fw-bold">Cannot log in</td>
+              <td>Ensure credentials are correct. Try resetting your password or clearing your browser cache.</td>
+              <td><a href="mailto:support@trainiq.io">support@trainiq.io</a></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Tasks not visible</td>
+              <td>Check your role or department assignment. Some tasks are department-specific.</td>
+              <td>Your Department Lead</td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Study materials not loading</td>
+              <td>Ensure your browser supports inline PDF rendering. Check for access permissions under your role.</td>
+              <td>Education Coordinator</td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Exam results missing</td>
+              <td>Results may be pending admin review or are available under the "Analytics" section.</td>
+              <td><a href="mailto:support@trainiq.io">support@trainiq.io</a></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Incorrect profile data</td>
+              <td>Edit via your profile page. If fields are locked or incorrect, contact the system administrators.</td>
+              <td><a href="mailto:support@trainiq.io">System Admins</a></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Cannot invite new users</td>
+              <td>Your organization may have reached its seat limit. Super Admins should go to <strong>Admin → Billing</strong> to upgrade the plan.</td>
+              <td>Super Admin</td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Trial expired / cannot log in</td>
+              <td>Free trials last 30 days. After expiry, only Super Admins can sign in to upgrade. Other users should contact their administrator.</td>
+              <td><a href="mailto:support@trainiq.com">support@trainiq.com</a></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Invite-only organization</td>
+              <td>Public registration is disabled. Ask your admin for an email invitation link.</td>
+              <td>Super Admin</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Navigation Tips (Colspan 1) -->
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-compass me-2"></i>System Navigation Tips</div>
+    </div>
+    <div class="tiq-card-body" style="font-size: 0.875rem; line-height: 1.8;">
+      <ul style="padding-left: 1.25rem; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; color: var(--tiq-text-2);">
+        <li>
+          Use the **Sidebar Navigation** to access your Profile, Tasks, Knowledge Base, and Management areas.
+        </li>
+        <li>
+          The **Dashboard** shows active courses, deadlines, and announcements tailored to your role.
+        </li>
+        <li>
+          Toggle **Dark Mode** using the theme icon in the sidebar or top header bar.
+        </li>
+        <li>
+          If your issue persists, please escalate it via the **Support** page or reach out to your supervisor.
+        </li>
+      </ul>
+    </div>
+  </div>
 </div>
 {% endblock %}

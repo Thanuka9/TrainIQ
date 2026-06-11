@@ -1,7 +1,15 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, abort, jsonify
 from flask_login import login_required, current_user
 from extensions import db
 from models import User, Designation, Event, Department, Client, UserScore, Category, Level, Role
+from utils.tenant_utils import (
+    filter_by_user_tenant,
+    tenant_departments_query,
+    tenant_clients_query,
+    tenant_designations_query,
+    assert_user_in_tenant,
+)
+from utils.profile_utils import performance_for_level, tenant_levels_for_user
 from mongodb_operations import get_profile_picture, save_profile_picture, delete_profile_picture
 from io import BytesIO
 from datetime import datetime
@@ -37,32 +45,11 @@ def profile():
         selected_level = 1
 
     # --- Compute Performance Data ---
-    # Define the five categories to display on the graph
-    performance_categories = ["Billing", "Posting", "VOB", "Collection", "Introduction"]
-    performance_labels = []
-    user_performance = []   # Current user's average score per category for this level
-    overall_performance = []  # Overall average score per category for this level
+    performance_labels, user_performance, overall_performance = performance_for_level(
+        current_user, selected_level
+    )
 
-    for cat_name in performance_categories:
-        performance_labels.append(cat_name)
-        # Find the category row from the Category table
-        cat = Category.query.filter_by(name=cat_name).first()
-        if cat:
-            # Compute current user’s average score for this category and level
-            scores = UserScore.query.filter_by(user_id=current_user.id, category_id=cat.id, level_id=selected_level).all()
-            avg_user_score = sum(s.score for s in scores) / len(scores) if scores else 0
-            user_performance.append(round(avg_user_score, 2))
-            
-            # Compute overall average for all users for this category and level
-            all_scores = UserScore.query.filter_by(category_id=cat.id, level_id=selected_level).all()
-            avg_overall = sum(s.score for s in all_scores) / len(all_scores) if all_scores else 0
-            overall_performance.append(round(avg_overall, 2))
-        else:
-            user_performance.append(0)
-            overall_performance.append(0)
-
-    # Query all exam levels for the level selection dropdown
-    levels = Level.query.order_by(Level.level_number).all()
+    levels = tenant_levels_for_user(current_user)
 
     return render_template(
         'profile.html',
@@ -78,6 +65,31 @@ def profile():
         selected_level=selected_level
     )
 
+
+@profile_routes.route('/performance_data')
+@login_required
+def performance_data():
+    """JSON endpoint for profile chart — avoids full page reload on level change."""
+    try:
+        level_number = int(request.args.get('level', 1))
+    except ValueError:
+        level_number = 1
+    labels, user_perf, avg_perf = performance_for_level(current_user, level_number)
+    user_avg = round(sum(user_perf) / len(user_perf), 1) if user_perf else 0
+    org_avg = round(sum(avg_perf) / len(avg_perf), 1) if avg_perf else 0
+    best_idx = user_perf.index(max(user_perf)) if user_perf and max(user_perf) > 0 else None
+    return jsonify({
+        'labels': labels,
+        'user_performance': user_perf,
+        'average_performance': avg_perf,
+        'level': level_number,
+        'user_avg': user_avg,
+        'org_avg': org_avg,
+        'delta': round(user_avg - org_avg, 1),
+        'best_category': labels[best_idx] if best_idx is not None else None,
+        'best_score': user_perf[best_idx] if best_idx is not None else 0,
+    })
+
 @profile_routes.route('/edit', methods=['GET', 'POST'])
 @login_required
 def edit_profile():
@@ -86,41 +98,44 @@ def edit_profile():
     department, designation, and clients.
     """
     user = current_user
+    can_edit_org = user.is_super_admin or any(r.name in ('admin', 'super_admin') for r in (user.roles or []))
 
     if request.method == 'POST':
         try:
-            # Update personal info
             user.first_name     = request.form.get('first_name', user.first_name)
             user.last_name      = request.form.get('last_name', user.last_name)
             user.employee_email = request.form.get('employee_email', user.employee_email)
             user.employee_id    = request.form.get('employee_id', user.employee_id)
             user.phone_number   = request.form.get('phone_number', user.phone_number)
-            
-            # Update departments (multi-select)
-            dept_ids = request.form.getlist('departments', type=int)
-            user.departments = Department.query.filter(Department.id.in_(dept_ids)).all() if dept_ids else []
 
-            # Update designation (single select)
-            desig_id = request.form.get('designation_id', type=int)
-            if desig_id:
-                user.designation = Designation.query.get(desig_id)
-            
-            # Update clients (multi-select many-to-many)
-            client_ids = request.form.getlist('clients', type=int)
-            # load and assign in one go (empty list if nothing selected)
-            user.clients = Client.query.filter(Client.id.in_(client_ids)).all()
+            if can_edit_org:
+                dept_ids = request.form.getlist('departments', type=int)
+                user.departments = (
+                    tenant_departments_query().filter(Department.id.in_(dept_ids)).all()
+                    if dept_ids else []
+                )
+                desig_id = request.form.get('designation_id', type=int)
+                if desig_id:
+                    desig = tenant_designations_query().filter_by(id=desig_id).first()
+                    if desig:
+                        user.designation = desig
+                client_ids = request.form.getlist('clients', type=int)
+                user.clients = (
+                    tenant_clients_query().filter(Client.id.in_(client_ids)).all()
+                    if client_ids else []
+                )
 
             # Handle profile picture upload
             if 'profile_picture' in request.files:
                 file = request.files['profile_picture']
-                if file:
-                    image_type = imghdr.what(file)
-                    if image_type not in ('jpeg', 'png'):
-                        flash("Only JPEG and PNG images are allowed.", "danger")
-                        return redirect(url_for('profile_routes.edit_profile'))
+                if file and file.filename:
                     data = file.read()
                     if len(data) > 5 * 1024 * 1024:
                         flash("Profile picture size exceeds the 5MB limit.", "danger")
+                        return redirect(url_for('profile_routes.edit_profile'))
+                    ext = (file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else '')
+                    if ext not in ('jpg', 'jpeg', 'png'):
+                        flash("Only JPEG and PNG images are allowed.", "danger")
                         return redirect(url_for('profile_routes.edit_profile'))
                     save_profile_picture(user.id, data)
 
@@ -134,15 +149,18 @@ def edit_profile():
             return redirect(url_for('profile_routes.edit_profile'))
 
     # GET request: fetch lists for dropdowns
-    designations = Designation.query.all()
-    departments  = Department.query.all()
-    clients      = Client.query.all()
+    designations = tenant_designations_query().order_by(Designation.title).all()
+    departments  = tenant_departments_query().order_by(Department.name).all()
+    clients      = tenant_clients_query().order_by(Client.name).all()
+    profile_picture = get_profile_picture(user.id)
     return render_template(
         'edit_profile.html',
         user=user,
         designations=designations,
         departments=departments,
-        clients=clients
+        clients=clients,
+        can_edit_org=can_edit_org,
+        profile_picture=profile_picture,
     )
 
 
@@ -224,16 +242,15 @@ def delete_event(event_id):
 @profile_routes.route('/profile_picture/<int:user_id>')
 @login_required
 def serve_profile_picture(user_id):
-    """
-    Serve the user's profile picture from MongoDB if available.
-    """
+    """Serve profile picture — self, super admin, or same-tenant users only."""
+    target = User.query.get_or_404(user_id)
+    if target.id != current_user.id and not current_user.is_super_admin:
+        assert_user_in_tenant(target)
     try:
         profile_picture = get_profile_picture(user_id)
         if profile_picture:
             return send_file(BytesIO(profile_picture), mimetype='image/jpeg')
-        else:
-            flash("Profile picture not found.", "warning")
-            return redirect(url_for('profile_routes.profile'))
+        abort(404)
     except Exception as e:
         logging.error(f"Error serving profile picture for user {user_id}: {e}")
         flash("Error retrieving profile picture.", "danger")

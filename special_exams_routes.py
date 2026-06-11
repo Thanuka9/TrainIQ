@@ -1,9 +1,12 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_required, current_user
 from datetime import datetime, timezone, timedelta
 import logging
 from extensions import db
 from models import SpecialExamRecord, ExamAccessRequest, IncorrectAnswer
+from utils.special_exams import special_paper_id, is_special_exam_id, special_paper_ids
+from utils.tenant_utils import user_tenant_id
+from utils.exam_timer import exam_timer_context
 
 special_exams_routes = Blueprint('special_exams_routes', __name__, url_prefix='/special_exams')
 
@@ -20,50 +23,81 @@ def can_attempt_again(completed_at):
 @login_required
 def exam_paper1():
     try:
-        # ── Require an approved, unused access request for Paper 1 ─────────
-        ACCESS_ID = 9991
-        access_req = (
-            ExamAccessRequest.query
-            .filter_by(
-                user_id   = current_user.id,
-                exam_id   = ACCESS_ID,
-                status    = 'approved'
+        ACCESS_ID = special_paper_id(user_tenant_id(), 1)
+        active = session.get('active_exam')
+        if active and active.get('exam_type') == 'special_paper1' and active.get('exam_id') == ACCESS_ID:
+            start_time = active.get("start_time")
+            answers = active.get("answers", {})
+            proctor_events = active.get("proctor_events", {})
+        else:
+            # ── Require an approved, unused access request for Paper 1 ─────────
+            access_req = (
+                ExamAccessRequest.query
+                .filter_by(
+                    user_id   = current_user.id,
+                    exam_id   = ACCESS_ID,
+                    status    = 'approved'
+                )
+                .order_by(ExamAccessRequest.requested_at.desc())
+                .first()
             )
-            .order_by(ExamAccessRequest.requested_at.desc())
-            .first()
+            if not access_req:
+                flash("You need to request & receive approval before starting this special exam.", "warning")
+                return redirect(url_for('exams_routes.list_exams'))
+            if access_req.used:
+                flash("That approval has already been used. Please request access again.", "info")
+                return redirect(url_for('exams_routes.list_exams'))
+            # ───────────────────────────────────────────────────────────────
+
+            record = SpecialExamRecord.query.filter_by(user_id=current_user.id).first()
+
+            # Lock out if either paper has already been passed
+            if record and (record.paper1_passed or record.paper2_passed):
+                flash("You have already passed one of the special papers.", "info")
+                return redirect(url_for('exams_routes.list_exams'))
+
+            # Cooldown check for Paper 1
+            if record and record.paper1_completed_at and not can_attempt_again(record.paper1_completed_at):
+                retry_date = (
+                    record.paper1_completed_at.replace(tzinfo=timezone.utc) + timedelta(days=30)
+                ).strftime('%Y-%m-%d')
+                flash(f"You can re-attempt Paper 1 after {retry_date}.", "info")
+                return redirect(url_for('exams_routes.list_exams'))
+
+            # OK to start
+            start_time = datetime.now(timezone.utc).isoformat()
+
+            # ── Mark this access request as used ─────────────────────────────
+            access_req.used = True
+            db.session.commit()
+            # ───────────────────────────────────────────────────────────────
+
+            answers = {}
+            proctor_events = {
+                'tab_switches': 0,
+                'focus_losses': 0,
+                'fullscreen_escapes': 0,
+                'copy_attempts': 0,
+                'right_clicks': 0
+            }
+
+            # Save in session
+            session['active_exam'] = {
+                'exam_type': 'special_paper1',
+                'exam_id': ACCESS_ID,
+                'start_time': start_time,
+                'answers': answers,
+                'proctor_events': proctor_events
+            }
+            session.modified = True
+
+        return render_template(
+            'exam_paper1.html',
+            start_time=start_time,
+            answers=answers,
+            proctor_events=proctor_events,
+            **exam_timer_context(start_time, 60),
         )
-        if not access_req:
-            flash("You need to request & receive approval before starting this special exam.", "warning")
-            return redirect(url_for('exams_routes.list_exams'))
-        if access_req.used:
-            flash("That approval has already been used. Please request access again.", "info")
-            return redirect(url_for('exams_routes.list_exams'))
-        # ───────────────────────────────────────────────────────────────
-
-        record = SpecialExamRecord.query.filter_by(user_id=current_user.id).first()
-
-        # Lock out if either paper has already been passed
-        if record and (record.paper1_passed or record.paper2_passed):
-            flash("You have already passed one of the special papers.", "info")
-            return redirect(url_for('exams_routes.list_exams'))
-
-        # Cooldown check for Paper 1
-        if record and record.paper1_completed_at and not can_attempt_again(record.paper1_completed_at):
-            retry_date = (
-                record.paper1_completed_at.replace(tzinfo=timezone.utc) + timedelta(days=30)
-            ).strftime('%Y-%m-%d')
-            flash(f"You can re-attempt Paper 1 after {retry_date}.", "info")
-            return redirect(url_for('exams_routes.list_exams'))
-
-        # OK to start
-        start_time = datetime.now(timezone.utc).isoformat()
-
-        # ── Mark this access request as used ─────────────────────────────
-        access_req.used = True
-        db.session.commit()
-        # ───────────────────────────────────────────────────────────────
-
-        return render_template('exam_paper1.html', start_time=start_time)
 
     except Exception as e:
         logging.error(f"Error displaying Paper 1: {e}")
@@ -146,7 +180,7 @@ def submit_paper1():
 
         # ─── INCREMENT PAPER 1 ATTEMPTS ────────────────────────────
         record.paper1_attempts = (record.paper1_attempts or 0) + 1
-        ACCESS_ID = 9991
+        ACCESS_ID = special_paper_id(user_tenant_id(), 1)
         # ─── RECORD EACH WRONG ANSWER ───────────────────────────────
         for q, ans in correct_answers.items():
             raw = data.get(f'answers[{q}]', '').strip()
@@ -177,6 +211,9 @@ def submit_paper1():
         record.paper1_completed_at = end_time
         db.session.commit()
 
+        # Clear active exam session
+        session.pop('active_exam', None)
+
         flash(
             f"Special Paper 1 {'passed' if passed else 'completed'} with {final_percentage}%",
             'success' if passed else 'warning'
@@ -194,50 +231,81 @@ def submit_paper1():
 @login_required
 def exam_paper2():
     try:
-        # ── Require an approved, unused access request for Paper 2 ─────────
-        ACCESS_ID = 9992
-        access_req = (
-            ExamAccessRequest.query
-            .filter_by(
-                user_id   = current_user.id,
-                exam_id   = ACCESS_ID,
-                status    = 'approved'
+        ACCESS_ID = special_paper_id(user_tenant_id(), 2)
+        active = session.get('active_exam')
+        if active and active.get('exam_type') == 'special_paper2' and active.get('exam_id') == ACCESS_ID:
+            start_time = active.get("start_time")
+            answers = active.get("answers", {})
+            proctor_events = active.get("proctor_events", {})
+        else:
+            # ── Require an approved, unused access request for Paper 2 ─────────
+            access_req = (
+                ExamAccessRequest.query
+                .filter_by(
+                    user_id   = current_user.id,
+                    exam_id   = ACCESS_ID,
+                    status    = 'approved'
+                )
+                .order_by(ExamAccessRequest.requested_at.desc())
+                .first()
             )
-            .order_by(ExamAccessRequest.requested_at.desc())
-            .first()
+            if not access_req:
+                flash("You need to request & receive approval before starting this special exam.", "warning")
+                return redirect(url_for('exams_routes.list_exams'))
+            if access_req.used:
+                flash("That approval has already been used. Please request access again.", "info")
+                return redirect(url_for('exams_routes.list_exams'))
+            # ───────────────────────────────────────────────────────────────
+
+            record = SpecialExamRecord.query.filter_by(user_id=current_user.id).first()
+
+            # Lock out if either paper passed
+            if record and (record.paper1_passed or record.paper2_passed):
+                flash("You have already passed one of the special papers.", "info")
+                return redirect(url_for('exams_routes.list_exams'))
+
+            # Cooldown check for Paper 2
+            if record and record.paper2_completed_at and not can_attempt_again(record.paper2_completed_at):
+                retry_date = (
+                    record.paper2_completed_at.replace(tzinfo=timezone.utc) + timedelta(days=30)
+                ).strftime('%Y-%m-%d')
+                flash(f"You can re-attempt Paper 2 after {retry_date}.", "info")
+                return redirect(url_for('exams_routes.list_exams'))
+
+            # OK to start
+            start_time = datetime.now(timezone.utc).isoformat()
+
+            # ── Mark this access request as used ─────────────────────────────
+            access_req.used = True
+            db.session.commit()
+            # ───────────────────────────────────────────────────────────────
+
+            answers = {}
+            proctor_events = {
+                'tab_switches': 0,
+                'focus_losses': 0,
+                'fullscreen_escapes': 0,
+                'copy_attempts': 0,
+                'right_clicks': 0
+            }
+
+            # Save in session
+            session['active_exam'] = {
+                'exam_type': 'special_paper2',
+                'exam_id': ACCESS_ID,
+                'start_time': start_time,
+                'answers': answers,
+                'proctor_events': proctor_events
+            }
+            session.modified = True
+
+        return render_template(
+            'exam_paper2.html',
+            start_time=start_time,
+            answers=answers,
+            proctor_events=proctor_events,
+            **exam_timer_context(start_time, 60),
         )
-        if not access_req:
-            flash("You need to request & receive approval before starting this special exam.", "warning")
-            return redirect(url_for('exams_routes.list_exams'))
-        if access_req.used:
-            flash("That approval has already been used. Please request access again.", "info")
-            return redirect(url_for('exams_routes.list_exams'))
-        # ───────────────────────────────────────────────────────────────
-
-        record = SpecialExamRecord.query.filter_by(user_id=current_user.id).first()
-
-        # Lock out if either paper passed
-        if record and (record.paper1_passed or record.paper2_passed):
-            flash("You have already passed one of the special papers.", "info")
-            return redirect(url_for('exams_routes.list_exams'))
-
-        # Cooldown check for Paper 2
-        if record and record.paper2_completed_at and not can_attempt_again(record.paper2_completed_at):
-            retry_date = (
-                record.paper2_completed_at.replace(tzinfo=timezone.utc) + timedelta(days=30)
-            ).strftime('%Y-%m-%d')
-            flash(f"You can re-attempt Paper 2 after {retry_date}.", "info")
-            return redirect(url_for('exams_routes.list_exams'))
-
-        # OK to start
-        start_time = datetime.now(timezone.utc).isoformat()
-
-        # ── Mark this access request as used ─────────────────────────────
-        access_req.used = True
-        db.session.commit()
-        # ───────────────────────────────────────────────────────────────
-
-        return render_template('exam_paper2.html', start_time=start_time)
 
     except Exception as e:
         logging.error(f"Error displaying Paper 2: {e}")
@@ -321,7 +389,7 @@ def submit_paper2():
 
         # ─── INCREMENT PAPER 2 ATTEMPTS ────────────────────────────
         record.paper2_attempts = (record.paper2_attempts or 0) + 1
-        ACCESS_ID = 9992
+        ACCESS_ID = special_paper_id(user_tenant_id(), 2)
         # ─── RECORD EACH WRONG ANSWER ───────────────────────────────
         for q, ans in correct_answers.items():
             raw = data.get(f'answers[{q}]', '').strip()
@@ -352,6 +420,9 @@ def submit_paper2():
         record.paper2_completed_at = end_time
         db.session.commit()
 
+        # Clear active exam session
+        session.pop('active_exam', None)
+
         flash(
             f"Special Paper 2 {'passed' if passed else 'completed'} with {final_percentage}%",
             'success' if passed else 'warning'
@@ -368,7 +439,8 @@ def submit_paper2():
 @special_exams_routes.route("/<int:exam_id>/request_access", methods=["POST"])
 @login_required
 def request_special_exam_access(exam_id):
-    if exam_id not in [9991, 9992]:
+    p1_id, p2_id = special_paper_ids(user_tenant_id())
+    if exam_id not in (p1_id, p2_id) and not is_special_exam_id(exam_id):
         flash("Invalid special exam.", "danger")
         return redirect(url_for("exams_routes.list_exams"))
 

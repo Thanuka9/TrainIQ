@@ -1,150 +1,106 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>{{ study_material.title }} – Course Details</title>
+{% extends 'base.html' %}
+{% block title %}{{ study_material.title }} — {{ display_org_name }}{% endblock %}
 
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"
-      rel="stylesheet"
-    />
-    <link
-      href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
-      rel="stylesheet"
-    />
+{% block breadcrumb %}
+  <a href="{{ url_for('general_routes.dashboard') }}">Home</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <a href="{{ url_for('general_routes.study_materials') }}">Knowledge Base</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <a href="{{ url_for('study_material_routes.list_study_materials') }}">Study Materials</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <span>Course Details</span>
+{% endblock %}
 
-    <style>
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-        background: #f2f6fa;
-        font-family: "Segoe UI", sans-serif;
-      }
-      .card {
-        border: 0;
-        border-radius: 12px;
-        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
-      }
-      .progress {
-        height: 28px;
-        border-radius: 14px;
-      }
-      .progress-bar {
-        border-radius: 14px;
-        background: #28a745;
-      }
-    </style>
-  </head>
-  <body class="d-flex flex-column min-vh-100">
-    <!-- top bar -->
-    <nav
-      class="bg-white border-bottom d-flex justify-content-between align-items-center px-3 py-2"
-    >
-      <a
-        href="{{ url_for('study_material_routes.list_study_materials') }}"
-        class="btn btn-secondary btn-sm"
-      >
-        <i class="bi bi-arrow-left"></i> Back
+{% block content %}
+<div class="course-hero-banner tiq-animate-fade-up">
+  <div class="tiq-flex-between" style="position:relative;z-index:1;flex-wrap:wrap;gap:1.5rem;">
+    <div>
+      <p style="font-size:0.75rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:rgba(255,255,255,0.65);margin:0 0 0.35rem;">Course Summary</p>
+      <h1 style="color:#fff;font-size:1.75rem;font-weight:800;margin:0 0 0.5rem;">{{ study_material.title }}</h1>
+      <p style="color:rgba(255,255,255,0.75);margin:0;max-width:560px;line-height:1.6;">{{ study_material.description }}</p>
+    </div>
+    <a href="{{ url_for('study_material_routes.list_study_materials') }}" class="tiq-btn tiq-btn-secondary" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.25);color:#fff;">
+      <i class="fas fa-arrow-left"></i> Back to Materials
+    </a>
+  </div>
+</div>
+
+<div class="tiq-grid tiq-grid-3 tiq-gap">
+  <div class="tiq-card tiq-reveal" style="grid-column: span 2;">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-info-circle me-2"></i>Course Metadata</div>
+    </div>
+    <div class="tiq-card-body">
+      <div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:1.5rem;">
+        <span class="course-meta-pill"><i class="fas fa-layer-group" style="color:var(--tiq-primary);"></i>
+          {% if study_material.level %}Level {{ study_material.level.level_number }}{% else %}Level {{ study_material.minimum_level or 1 }}{% endif %}
+        </span>
+        <span class="course-meta-pill"><i class="fas fa-clock" style="color:var(--tiq-secondary);"></i> {{ study_material.course_time }} mins</span>
+        <span class="course-meta-pill"><i class="fas fa-file-alt" style="color:var(--tiq-accent);"></i> {{ study_material.total_pages }} pages</span>
+        <span class="course-meta-pill"><i class="fas fa-hourglass-half" style="color:var(--tiq-warning);"></i> {{ study_material.max_time }} days max</span>
+        {% if study_material.category %}
+        <span class="course-meta-pill"><i class="fas fa-tag" style="color:var(--tiq-info);"></i> {{ study_material.category.name }}</span>
+        {% endif %}
+      </div>
+
+      <div class="tiq-grid tiq-grid-2 tiq-gap">
+        <div style="line-height: 1.8;">
+          <p><strong><i class="fas fa-calendar-alt me-2 text-primary"></i>Start Date</strong><br/>
+            <span class="text-muted">
+              {{ user_progress.start_date.strftime('%Y-%m-%d %H:%M') if user_progress.start_date else 'Not started yet' }}
+            </span>
+          </p>
+          <p><strong><i class="fas fa-check-circle me-2 text-success"></i>Completion Date</strong><br/>
+            <span class="text-muted">
+              {{ user_progress.completion_date.strftime('%Y-%m-%d %H:%M') if user_progress.completion_date else 'Incomplete' }}
+            </span>
+          </p>
+        </div>
+        <div style="line-height: 1.8;">
+          <p><strong><i class="fas fa-book-open me-2 text-secondary"></i>Slides Visited</strong><br/>
+            <span class="text-muted">{{ user_progress.pages_visited or 0 }} of {{ study_material.total_pages }}</span>
+          </p>
+          <p><strong><i class="fas fa-signal me-2 text-info"></i>Status</strong><br/>
+            {% if user_progress.progress_percentage >= 100 %}
+              <span class="tiq-badge tiq-badge-success">Completed</span>
+            {% elif user_progress.pages_visited %}
+              <span class="tiq-badge tiq-badge-info">In Progress</span>
+            {% else %}
+              <span class="tiq-badge tiq-badge-warning">Not Started</span>
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tiq-card tiq-reveal" style="display:flex;flex-direction:column;justify-content:space-between;">
+    <div>
+      <div class="tiq-card-header">
+        <div class="tiq-card-title"><i class="fas fa-tasks me-2"></i>My Progress</div>
+      </div>
+      <div class="tiq-card-body text-center" style="padding-top:1.5rem;">
+        <div class="course-progress-ring" style="--pct: {{ user_progress.progress_percentage }};">
+          <span>{{ user_progress.progress_percentage }}%</span>
+        </div>
+        <p class="tiq-label" style="margin-bottom:1rem;">Syllabus Completed</p>
+        <div class="tiq-progress mb-3">
+          <div class="tiq-progress-bar" data-width="{{ user_progress.progress_percentage }}%" style="width:0%;"></div>
+        </div>
+        <p style="font-size:0.875rem;color:var(--tiq-text-3);">
+          Visited {{ user_progress.pages_visited or 0 }} of {{ study_material.total_pages }} slides.
+        </p>
+      </div>
+    </div>
+    <div class="tiq-card-footer" style="background:transparent;border-top:none;padding:1.5rem;">
+      <a href="{{ continue_url or '#' }}" class="tiq-btn tiq-btn-primary tiq-w-full {% if not continue_url %}disabled{% endif %}" style="justify-content:center;padding:0.8rem;font-size:1rem;">
+        {% if user_progress.pages_visited == 0 %}
+          <i class="fas fa-play me-1"></i> Start Course
+        {% else %}
+          <i class="fas fa-play-circle me-1"></i> Continue Learning
+        {% endif %}
       </a>
-      <div class="d-flex align-items-center gap-2">
-        <img src="/static/images/logo.png" alt="Logo" style="height: 36px" />
-        <span class="fw-semibold fs-4"
-          ><span class="text-dark">Collect</span
-          ><span class="text-danger">ive</span></span
-        >
-      </div>
-    </nav>
-
-    <!-- centered content -->
-    <main
-      class="container flex-grow-1 d-flex align-items-center justify-content-center py-4"
-    >
-      <div
-        class="card p-4 w-100 animate__animated animate__fadeIn"
-        style="max-width: 900px"
-      >
-        <h1 class="h3 mb-2">
-          <i class="bi bi-journal-text me-2"></i>{{ study_material.title }}
-        </h1>
-        <p class="text-muted mb-4">{{ study_material.description }}</p>
-
-        <div class="row g-4">
-          <div class="col-md-6 col-lg-4">
-            <strong><i class="bi bi-calendar3 me-1"></i>Start Date:</strong
-            ><br />
-            {{ user_progress.start_date.strftime('%Y-%m-%d %H:%M:%S') if
-            user_progress.start_date else 'Not started yet' }}
-          </div>
-
-          <div class="col-md-6 col-lg-4">
-            <strong
-              ><i class="bi bi-hourglass-split me-1"></i>Max Days
-              Allowed:</strong
-            ><br />
-            {{ study_material.max_time }}
-          </div>
-
-          <div class="col-md-6 col-lg-4">
-            <strong><i class="bi bi-bar-chart-steps me-1"></i>Level ID:</strong
-            ><br />
-            {{ study_material.level_id or '—' }}
-          </div>
-
-          <div class="col-md-6 col-lg-4">
-            <strong
-              ><i class="bi bi-clock-history me-1"></i>Total Course
-              Time:</strong
-            ><br />
-            {{ study_material.course_time }} min
-          </div>
-
-          <div class="col-md-6 col-lg-4">
-            <strong
-              ><i class="bi bi-file-earmark-text me-1"></i>Total Pages:</strong
-            ><br />
-            {{ study_material.total_pages }}
-          </div>
-
-          <div class="col-md-6 col-lg-4">
-            <strong
-              ><i class="bi bi-check-circle me-1"></i>Course Complete
-              Date:</strong
-            ><br />
-            {{ user_progress.completion_date.strftime('%Y-%m-%d %H:%M:%S') if
-            user_progress.completion_date else '—' }}
-          </div>
-        </div>
-
-        <!-- progress bar -->
-        <div class="mt-4">
-          <div class="progress">
-            <div
-              class="progress-bar"
-              style="width:{{ user_progress.progress_percentage }}%;"
-            >
-              {{ user_progress.progress_percentage }}%
-            </div>
-          </div>
-        </div>
-
-        <a
-          href="{{ continue_url or '#' }}"
-          class="btn btn-primary btn-lg mt-4 {{ '' if continue_url else 'disabled' }}"
-        >
-          {{ 'Start Course' if user_progress.pages_visited==0 else 'Continue
-          Learning' }}
-        </a>
-      </div>
-    </main>
-
-    <footer class="bg-dark text-center text-light py-3 mt-auto">
-      <p>Collective Intranet© 2024</p>
-    </footer>
-  </body>
-</html>
+    </div>
+  </div>
+</div>
+{% endblock %}

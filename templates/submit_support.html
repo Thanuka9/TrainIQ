@@ -1,41 +1,69 @@
-{% extends "base.html" %} {% block content %}
-<div class="container mt-5 mb-5" style="position: relative; z-index: 2">
-  <h2 class="mb-4">Submit a Support Request</h2>
+{% extends "base.html" %}
+{% block title %}Submit Support Request — {{ display_org_name }}{% endblock %}
 
-  <form
-    method="POST"
-    enctype="multipart/form-data"
-    style="position: relative; z-index: 2"
-  >
-    {{ form.hidden_tag() }}
+{% block breadcrumb %}
+  <a href="{{ url_for('general_routes.dashboard') }}">Home</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <a href="{{ url_for('general_routes.help_page') }}">Help Center</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <span>Submit Support Request</span>
+{% endblock %}
 
-    <div class="mb-3">
-      {{ form.title.label(class="form-label", for="title") }} {{
-      form.title(class="form-control", id="title", style="pointer-events:
-      auto;") }} {% if form.title.errors %}
-      <div class="text-danger small">{{ form.title.errors[0] }}</div>
-      {% endif %}
+{% block content %}
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <h1>Submit Support Request</h1>
+      <p class="tiq-lead">Describe your technical issue, course blockages, or suggestions, and our support team will respond promptly.</p>
     </div>
+    <a href="{{ url_for('general_routes.help_page') }}" class="tiq-btn tiq-btn-secondary">
+      <i class="fas fa-arrow-left"></i> Help Center
+    </a>
+  </div>
+</div>
 
-    <div class="mb-3">
-      {{ form.description.label(class="form-label", for="description") }} {{
-      form.description( class="form-control", id="description", rows="5",
-      style="pointer-events: auto;" ) }} {% if form.description.errors %}
-      <div class="text-danger small">{{ form.description.errors[0] }}</div>
-      {% endif %}
-    </div>
+<div class="tiq-card" style="max-width: 700px; margin: 0 auto;">
+  <div class="tiq-card-header">
+    <div class="tiq-card-title"><i class="fas fa-ticket-alt me-2"></i>New Support Ticket</div>
+  </div>
+  <div class="tiq-card-body">
+    <form method="POST" enctype="multipart/form-data">
+      {{ form.hidden_tag() }}
 
-    <div class="mb-3">
-      {{ form.attachment.label(class="form-label", for="attachment") }} {{
-      form.attachment(class="form-control", id="attachment",
-      style="pointer-events: auto;") }} {% if form.attachment.errors %}
-      <div class="text-danger small">{{ form.attachment.errors[0] }}</div>
-      {% endif %}
-    </div>
+      <!-- Title -->
+      <div class="tiq-form-group">
+        {{ form.title.label(class="tiq-label", for="title") }}
+        {{ form.title(class="tiq-input", id="title", placeholder="Brief summary of the issue") }}
+        {% if form.title.errors %}
+          <div class="tiq-input-error"><i class="fas fa-exclamation-circle"></i> {{ form.title.errors[0] }}</div>
+        {% endif %}
+      </div>
 
-    <button type="submit" class="btn btn-primary" style="pointer-events: auto">
-      <i class="fas fa-paper-plane"></i> Submit Ticket
-    </button>
-  </form>
+      <!-- Description -->
+      <div class="tiq-form-group">
+        {{ form.description.label(class="tiq-label", for="description") }}
+        {{ form.description(class="tiq-textarea", id="description", rows="5", placeholder="Describe the issue in detail...") }}
+        {% if form.description.errors %}
+          <div class="tiq-input-error"><i class="fas fa-exclamation-circle"></i> {{ form.description.errors[0] }}</div>
+        {% endif %}
+      </div>
+
+      <!-- Attachment -->
+      <div class="tiq-form-group">
+        {{ form.attachment.label(class="tiq-label", for="attachment") }}
+        {{ form.attachment(class="tiq-input", id="attachment") }}
+        {% if form.attachment.errors %}
+          <div class="tiq-input-error"><i class="fas fa-exclamation-circle"></i> {{ form.attachment.errors[0] }}</div>
+        {% endif %}
+        <div class="tiq-input-hint">Attach screenshots or log files if applicable. Max: 10MB.</div>
+      </div>
+
+      <div class="mt-4">
+        <button type="submit" class="tiq-btn tiq-btn-primary tiq-w-full" style="justify-content: center; padding: 0.8rem; font-size: 1rem;">
+          <i class="fas fa-paper-plane me-1"></i> Submit Ticket
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
 {% endblock %}

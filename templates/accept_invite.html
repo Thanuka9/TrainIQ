@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Accept Invitation — {{ tenant.name }}</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--tiq-bg, #f8fafc); padding: 1.5rem; }
+    .invite-card { width: 100%; max-width: 440px; background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); padding: 2rem; }
+    .invite-card h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+    .invite-card p { color: var(--tiq-text-3, #64748b); margin: 0 0 1.5rem; font-size: 0.95rem; }
+    .tiq-input { width: 100%; box-sizing: border-box; margin-bottom: 1rem; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="invite-card">
+    <h1><i class="fas fa-envelope-open-text" style="color: var(--tiq-primary);"></i> Join {{ tenant.name }}</h1>
+    <p>Set your name and password to complete your invitation. You'll verify with a 2FA code sent to your email.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="tiq-alert tiq-alert-{{ category }}" style="margin-bottom:1rem;">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('auth_routes.accept_invite', token=token) }}">
+      <label>Email</label>
+      <input type="email" name="employee_email" class="tiq-input" value="{{ invite.email }}" readonly required />
+
+      <label>First name</label>
+      <input type="text" name="first_name" class="tiq-input" required autofocus />
+
+      <label>Last name</label>
+      <input type="text" name="last_name" class="tiq-input" required />
+
+      <label>Password</label>
+      <input type="password" name="password" class="tiq-input" required minlength="8"
+             placeholder="8+ chars, 1 uppercase, 1 number, 1 symbol" />
+
+      <button type="submit" class="tiq-btn tiq-btn-primary" style="width:100%; margin-top:0.5rem;">
+        <i class="fas fa-check"></i> Create account &amp; verify
+      </button>
+    </form>
+  </div>
+</body>
+</html>

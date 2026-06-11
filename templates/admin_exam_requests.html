@@ -1,97 +1,116 @@
-{% extends 'admin_base.html' %} {% block title %}Exam Access Requests{% endblock
-%} {% block content %}
-<h1>Exam Access Requests</h1>
+{% extends 'admin_base.html' %}
 
-<!-- Filter Form -->
-<form method="GET" class="row g-3 align-items-end mb-4">
-  <div class="col-auto">
-    <label for="from_date" class="form-label">From</label>
-    <input
-      type="date"
-      class="form-control"
-      name="from_date"
-      value="{{ from_date }}"
-    />
-  </div>
-  <div class="col-auto">
-    <label for="to_date" class="form-label">To</label>
-    <input
-      type="date"
-      class="form-control"
-      name="to_date"
-      value="{{ to_date }}"
-    />
-  </div>
-  <div class="col-auto">
-    <button type="submit" class="btn btn-primary">Filter</button>
-  </div>
-</form>
+{% block title %}Exam Access Requests{% endblock %}
 
-<table class="table table-bordered table-hover mb-5">
-  <thead class="table-light">
-    <tr>
-      <th>Request ID</th>
-      <th>User</th>
-      <th>Exam Title</th>
-      <th>Requested At</th>
-      <th>Status</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for r in requests %}
-    <tr>
-      <td>{{ r.id }}</td>
-      <td>{{ r.user.first_name }} {{ r.user.last_name }}</td>
-      <td>
-        {% if r.exam_id == 9991 %} Special Exam Paper 1 {% elif r.exam_id ==
-        9992 %} Special Exam Paper 2 {% else %} {{ r.exam_title or 'Unknown
-        Exam' }} {% endif %}
-      </td>
-      <td>{{ r.requested_at.strftime('%Y-%m-%d %H:%M') }}</td>
-      <td>
-        {% if r.status == 'pending' %}
-        <span class="badge bg-warning text-dark">Pending</span>
-        {% elif r.status == 'approved' %}
-        <span class="badge bg-success">Approved</span>
-        {% elif r.status == 'rejected' %}
-        <span class="badge bg-danger">Rejected</span>
-        {% else %}
-        <span class="badge bg-secondary">{{ r.status }}</span>
-        {% endif %}
-      </td>
-      <td class="text-center">
-        {% if r.status == 'pending' %}
-        <form method="POST" class="d-inline-block">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <input type="hidden" name="request_id" value="{{ r.id }}" />
-          <button
-            name="action"
-            value="approve"
-            class="btn btn-success btn-sm"
-            title="Approve Request"
-          >
-            <i class="fas fa-check"></i>
-          </button>
-          <button
-            name="action"
-            value="reject"
-            class="btn btn-danger btn-sm"
-            title="Reject Request"
-          >
-            <i class="fas fa-times"></i>
-          </button>
-        </form>
-        {% else %}
-        <em class="text-muted">No actions</em>
-        {% endif %}
-      </td>
-    </tr>
-    {% else %}
-    <tr>
-      <td colspan="6" class="text-center">No access requests found.</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% block breadcrumb %}
+<a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+<span class="tiq-breadcrumb-sep">/</span>
+<span>Exam Requests</span>
+{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <div class="tiq-breadcrumb">
+        <a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+        <span class="tiq-breadcrumb-sep">/</span>
+        <span>Exam Requests</span>
+      </div>
+      <h1>Exam Access Requests</h1>
+    </div>
+  </div>
+</div>
+
+<div class="tiq-card" style="margin-bottom: 2rem;">
+  <div class="tiq-card-body">
+    <!-- Filter Form -->
+    <form method="GET" class="tiq-flex" style="gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+      <div class="tiq-form-group" style="margin-bottom:0; width:180px;">
+        <label for="from_date" class="tiq-label"><i class="fas fa-calendar-alt" style="margin-right:6px;"></i>From</label>
+        <input type="date" class="tiq-input" id="from_date" name="from_date" value="{{ from_date }}"/>
+      </div>
+      <div class="tiq-form-group" style="margin-bottom:0; width:180px;">
+        <label for="to_date" class="tiq-label"><i class="fas fa-calendar-alt" style="margin-right:6px;"></i>To</label>
+        <input type="date" class="tiq-input" id="to_date" name="to_date" value="{{ to_date }}"/>
+      </div>
+      <button type="submit" class="tiq-btn tiq-btn-primary" style="height:42px;"><i class="fas fa-filter"></i> Filter</button>
+    </form>
+  </div>
+</div>
+
+<div class="tiq-card">
+  <div class="tiq-card-header">
+    <h2 class="tiq-card-title"><i class="fas fa-envelope-open-text" style="margin-right:8px; color:var(--tiq-accent);"></i>Access Request Logs</h2>
+  </div>
+  <div class="tiq-card-body" style="padding:0;">
+    <div class="tiq-table-wrapper">
+      <table class="tiq-table">
+        <thead>
+          <tr>
+            <th style="padding-left:1.5rem; width:100px;">Request ID</th>
+            <th>User</th>
+            <th>Exam Title</th>
+            <th>Requested At</th>
+            <th>Status</th>
+            <th class="tiq-text-center" style="width:140px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in requests %}
+          <tr>
+            <td style="padding-left:1.5rem; font-weight:600;">#{{ r.id }}</td>
+            <td style="font-weight:600; color:var(--tiq-text);">{{ r.user.first_name }} {{ r.user.last_name }}</td>
+            <td>
+              {% if r.exam_title %}
+                {% if r.is_special_exam %}
+                  <span class="tiq-badge tiq-badge-info">{{ r.exam_title }}</span>
+                {% else %}
+                  {{ r.exam_title }}
+                {% endif %}
+              {% else %}
+                Unknown Exam
+              {% endif %}
+            </td>
+            <td style="font-size:0.8125rem; color:var(--tiq-text-3);">{{ r.requested_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>
+              {% if r.status == 'pending' %}
+                <span class="tiq-badge tiq-badge-warning">Pending</span>
+              {% elif r.status == 'approved' %}
+                <span class="tiq-badge tiq-badge-success">Approved</span>
+              {% elif r.status == 'rejected' %}
+                <span class="tiq-badge tiq-badge-danger">Rejected</span>
+              {% else %}
+                <span class="tiq-badge tiq-badge-neutral">{{ r.status }}</span>
+              {% endif %}
+            </td>
+            <td class="tiq-text-center">
+              {% if r.status == 'pending' %}
+              <form method="POST" class="tiq-flex tiq-flex-center" style="gap:6px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="request_id" value="{{ r.id }}"/>
+                <button name="action" value="approve" type="submit" class="tiq-btn tiq-btn-sm tiq-btn-success tiq-btn-icon" title="Approve Request">
+                  <i class="fas fa-check"></i>
+                </button>
+                <button name="action" value="reject" type="submit" class="tiq-btn tiq-btn-sm tiq-btn-danger tiq-btn-icon" title="Reject Request">
+                  <i class="fas fa-times"></i>
+                </button>
+              </form>
+              {% else %}
+              <span style="font-style:italic; color:var(--tiq-text-3); font-size:0.85rem;">Processed</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="tiq-text-center" style="padding:3rem; color:var(--tiq-text-3);">
+              No access requests found.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}

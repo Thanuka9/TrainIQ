@@ -1,237 +1,218 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>{{ study_material.title }} – Content</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+    <title>{{ study_material.title }} — {{ display_org_name }}</title>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
     <style>
       :root {
-        --bar-h: 44px;
-        /* Light theme colors */
-        --bg-main: #f5f6fa;
-        --bg-card: #fff;
-        --text-main: #181c22;
-        --nav-bg: #fff;
-        --nav-border: #dfe3ec;
-        --footer-bg: #23293a;
-        --footer-text: #fff;
-        --progress-bg: #e0e3ea;
-        --progress-inner: #377dff;
-        --canvas-bg: #fff;
-        --canvas-shadow: 0 2px 16px rgba(0, 0, 0, 0.17);
-        --modal-bg: rgba(16, 20, 27, 0.85);
-        --modal-card-bg: #f5f6fa;
-        --modal-card-text: #23293a;
-        --pdf-error-bg: #fff4f4;
-        --pdf-error-text: #ff5252;
-        --pill-btn-bg: #565d6a;
-        --pill-btn-color: #fff;
-        --nav-btn-bg: #fff;
-        --nav-btn-color: #377dff;
-        --collect-main: #181c22;
-        --ive-main: #dc3545;
-      }
-      body.dark-theme {
-        --bg-main: #10141b;
-        --bg-card: #171b22;
-        --text-main: #f7f7fa;
-        --nav-bg: #191e28;
-        --nav-border: #2c3140;
-        --footer-bg: #191e28;
-        --footer-text: #e0e0f0;
-        --progress-bg: #23293a;
-        --progress-inner: #377dff;
-        --canvas-bg: #232537;
-        --canvas-shadow: 0 2px 24px #000b;
-        --modal-bg: rgba(16, 20, 27, 0.85);
-        --modal-card-bg: #21273b;
-        --modal-card-text: #fff;
-        --pdf-error-bg: #231a1a;
-        --pdf-error-text: #ff5252;
-        --pill-btn-bg: #434654;
-        --pill-btn-color: #fff;
-        --nav-btn-bg: #24293a;
-        --nav-btn-color: #e0e0f0;
-        --collect-main: #ffd700; /* Bright yellow for Collect in dark mode */
-        --ive-main: #ff5252; /* A red visible on dark bg */
+        --tiq-primary: {{ primary_color }} !important;
+        --tiq-secondary: {{ secondary_color }} !important;
+        --bar-h: 64px;
+        --bg-main: var(--tiq-bg);
+        --bg-card: var(--tiq-surface);
+        --text-main: var(--tiq-text);
+        --nav-bg: var(--tiq-navbar-bg);
+        --nav-border: var(--tiq-border);
+        --footer-bg: var(--tiq-surface);
+        --footer-text: var(--tiq-text-2);
+        --progress-bg: var(--tiq-surface-3);
+        --progress-inner: var(--tiq-primary);
+        --canvas-bg: var(--tiq-surface);
+        --canvas-shadow: var(--tiq-shadow-lg);
+        --modal-bg: rgba(15, 23, 42, 0.85);
+        --modal-card-bg: var(--tiq-surface);
+        --modal-card-text: var(--tiq-text);
+        --pdf-error-bg: rgba(239, 68, 68, 0.1);
+        --pdf-error-text: var(--tiq-danger);
       }
       html,
       body {
         height: 100%;
         margin: 0;
         background: var(--bg-main);
-        font-family: "Segoe UI", sans-serif;
+        font-family: var(--tiq-font-sans);
         color: var(--text-main);
         overflow-x: hidden;
-        transition: background 0.2s;
+        transition: background var(--tiq-transition);
       }
       .top-bar {
         height: var(--bar-h);
         background: var(--nav-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border-bottom: 1px solid var(--nav-border);
         display: grid;
         grid-template-columns: auto 1fr auto;
         align-items: center;
-        padding: 0 0.5rem;
-        gap: 0.5rem;
+        padding: 0 1.5rem;
+        gap: 1rem;
         position: sticky;
         top: 0;
         z-index: 1020;
+        box-shadow: var(--tiq-shadow-xs);
       }
       .center-slot {
         justify-self: center;
       }
-      .pill-btn {
-        background: var(--pill-btn-bg);
-        color: var(--pill-btn-color);
-        border: 0;
-        border-radius: 6px;
-        padding: 4px 14px;
-        font-size: 0.95rem;
-        font-weight: 500;
-      }
-      .nav-btn {
-        min-width: 70px;
-        background: var(--nav-btn-bg);
-        color: var(--nav-btn-color);
-        border: 1px solid #363b4a;
-      }
-      .nav-btn:disabled {
-        color: #888;
-        border-color: #444;
-        background: #d7d7e2;
-      }
-      body.dark-theme .nav-btn:disabled {
-        background: #23253a;
-      }
-      #fullscreen-btn {
-        min-width: 70px;
-        background: #377dff;
-        color: #fff;
-        border: none;
-        border-radius: 5px;
-        font-size: 0.98rem;
-        padding: 4px 16px;
-        margin-left: 18px;
-        margin-right: 8px;
-        transition: background 0.2s;
-      }
-      #fullscreen-btn:hover {
-        background: #255fcc;
-      }
-      #theme-toggle {
-        min-width: 70px;
-        background: transparent;
-        color: var(--text-main);
-        border: 1px solid #aaa;
-        border-radius: 5px;
-        font-size: 0.98rem;
-        padding: 4px 16px;
-        margin-left: 6px;
-        transition: background 0.2s, color 0.2s;
-      }
-      body.dark-theme #theme-toggle {
-        color: #ffd700;
-        border-color: #555;
-        background: #23253a;
-      }
       #counter {
-        font-weight: 600;
-        font-size: 1.08rem;
-        margin-top: 0.2rem;
+        font-weight: 700;
+        font-size: 0.9375rem;
         text-align: right;
-        color: var(--text-main);
+        color: var(--tiq-text-2);
       }
       #progress-bar {
         width: 100%;
-        height: 7px;
+        height: 8px;
         background: var(--progress-bg);
-        border-radius: 4px;
+        border-radius: var(--tiq-radius-full);
         margin: 10px 0 25px 0;
         overflow: hidden;
       }
       #progress-inner {
         height: 100%;
-        background: var(--progress-inner);
+        background: var(--tiq-gradient);
         width: 0;
-        transition: width 0.2s;
+        transition: width var(--tiq-transition);
       }
-      .content-wrap {
-        margin: 0 auto;
-        padding: 0;
-        width: 100vw;
-        max-width: 100vw;
+      .content-wrap,
+      .viewer-shell {
         display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        width: 100%;
+      }
+      .viewer-meta {
+        padding: 0 1rem;
+        flex-shrink: 0;
+      }
+      .viewer-body {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        padding: 0 0 0 1rem;
+        gap: 0;
+        height: calc(100vh - var(--bar-h) - 118px);
+      }
+      .viewer-main {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 0 1rem 1rem 0;
+      }
+      .viewer-main:fullscreen {
+        width: 100vw;
+        height: 100vh;
+        background: var(--tiq-bg);
+        padding: 0;
+      }
+      .viewer-main:fullscreen .doc-toolbar {
+        margin: 0;
+        width: 100%;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        border-top: none;
+        flex-shrink: 0;
+      }
+      .viewer-main:fullscreen .doc-stage {
+        flex: 1;
+        max-height: none;
+        border-radius: 0;
+        border: none;
+        align-items: center;
         justify-content: center;
-        align-items: stretch;
-        min-height: calc(100vh - var(--bar-h) - 65px);
+        padding: 24px;
+      }
+      .viewer-main:fullscreen canvas {
+        max-width: none;
+        max-height: none;
+        box-shadow: var(--tiq-shadow-xl);
+      }
+      .doc-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 0 auto 12px;
+        padding: 8px 12px;
+        background: var(--tiq-surface);
+        border: 1px solid var(--tiq-border);
+        border-radius: var(--tiq-radius-lg);
+        box-shadow: var(--tiq-shadow-xs);
+      }
+      .doc-toolbar .tiq-btn { min-width: 36px; }
+      .doc-stage {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        background: var(--tiq-surface-2);
+        border: 1px solid var(--tiq-border);
+        border-radius: var(--tiq-radius-lg);
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 20px;
       }
       #slideCard {
-        background: var(--bg-card);
-        border-radius: 0;
-        box-shadow: none;
-        width: 100vw;
-        min-width: 340px;
-        min-height: 80vh;
+        width: 100%;
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        padding: 0;
-      }
-      #slideCard.fullscreen {
-        position: fixed;
-        left: 0;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 9999;
-        background: var(--bg-card) !important;
-        border-radius: 0;
-        width: 100vw;
-        height: 100vh;
-        min-height: 100vh;
-        max-width: 100vw;
-        padding: 0;
-        margin: 0;
+        justify-content: flex-start;
       }
       canvas {
         display: block;
-        background: var(--canvas-bg);
-        border-radius: 8px;
-        box-shadow: var(--canvas-shadow);
-        max-width: 96vw;
-        max-height: 85vh;
-        width: auto !important;
+        background: #fff;
+        border-radius: var(--tiq-radius-md);
+        box-shadow: var(--tiq-shadow-md);
+        border: 1px solid var(--tiq-border);
+        max-width: 100%;
         height: auto !important;
         margin: 0 auto;
         user-select: none;
         -webkit-user-select: none;
         pointer-events: none;
       }
-      #slideCard.fullscreen canvas {
-        max-width: 99vw;
-        max-height: 97vh;
+      [data-theme="dark"] canvas { background: #1e293b; }
+      #textViewer {
+        width: 100%;
+        max-width: 900px;
+        max-height: 75vh;
+        overflow: auto;
+        padding: 1.5rem 2rem;
+        background: var(--tiq-surface);
+        border-radius: var(--tiq-radius-lg);
+        border: 1px solid var(--tiq-border);
+        font-size: 1rem;
+        line-height: 1.7;
+        white-space: pre-wrap;
       }
       .pdf-error {
         color: var(--pdf-error-text);
         background: var(--pdf-error-bg);
         padding: 20px 30px;
-        border-radius: 8px;
-        font-size: 1.2rem;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: var(--tiq-radius-lg);
+        font-size: 1.1rem;
         margin-top: 30px;
         text-align: center;
+        font-weight: 600;
       }
       .afk-modal-bg {
         position: fixed;
         inset: 0;
         z-index: 99999;
         background: var(--modal-bg);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -239,28 +220,14 @@
       .afk-modal {
         background: var(--modal-card-bg);
         color: var(--modal-card-text);
-        padding: 2rem 2.5rem;
-        border-radius: 12px;
-        box-shadow: 0 8px 40px #000b;
-        font-size: 1.25rem;
-        max-width: 90vw;
+        padding: 2.5rem;
+        border-radius: var(--tiq-radius-xl);
+        box-shadow: var(--tiq-shadow-xl);
+        border: 1px solid var(--tiq-border);
+        font-size: 1.15rem;
+        max-width: 480px;
+        width: 90vw;
         text-align: center;
-      }
-      @media (max-width: 900px) {
-        #slideCard {
-          padding: 0.5vh 0.5vw;
-        }
-      }
-      @media (max-width: 700px) {
-        #slideCard {
-          padding: 0.2vh 0.1vw;
-        }
-      }
-      footer {
-        font-size: 1rem;
-        letter-spacing: 1px;
-        background: var(--footer-bg);
-        color: var(--footer-text);
       }
       body,
       #slideCard,
@@ -272,123 +239,284 @@
         -ms-user-select: none;
         user-select: none;
       }
-      a,
-      a:visited {
-        color: #377dff;
+      .logo-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
       }
-      body.dark-theme a,
-      body.dark-theme a:visited {
-        color: #ffd700;
+      .logo-brand .logo-icon {
+        width: 32px; height: 32px;
+        background: var(--tiq-gradient);
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.95rem; font-weight: 800; color: white;
+        box-shadow: 0 4px 10px rgba(79,70,229,0.3);
       }
-      /* Fix for the logo text colors in both light and dark mode */
-      .logo-text {
-        font-weight: 600;
-        font-size: 1.25rem;
-        letter-spacing: 0.5px;
-        display: inline-block;
-        vertical-align: middle;
+      .logo-brand .logo-text {
+        font-weight: 800;
+        font-size: 1.15rem;
+        letter-spacing: -0.02em;
+        color: var(--tiq-text);
       }
-      .logo-collect {
-        color: var(--collect-main);
-        transition: color 0.2s;
+      .logo-brand .logo-text span {
+        color: var(--tiq-secondary);
       }
-      .logo-ive {
-        color: var(--ive-main);
-        transition: color 0.2s;
+      .logo-brand .logo-icon img {
+        width: 100%; height: 100%; object-fit: cover; border-radius: 8px;
       }
-      /* Optionally, ensure high contrast for the logo in all themes */
-      @media (forced-colors: active) {
-        .logo-collect,
-        .logo-ive {
-          color: CanvasText !important;
-        }
+      /* LearnIQ AI Sidebar */
+      .learniq-toggle {
+        position: fixed; bottom: 24px; right: 24px; z-index: 1050;
+        background: var(--tiq-gradient); color: white; border: none;
+        border-radius: var(--tiq-radius-full); padding: 12px 20px;
+        font-weight: 700; font-size: 0.875rem; cursor: pointer;
+        box-shadow: var(--tiq-shadow-lg); display: flex; align-items: center; gap: 8px;
+        transition: opacity 0.2s, transform 0.2s;
       }
+      body.learniq-open .learniq-toggle { display: none !important; }
+      body.viewer-fullscreen .learniq-toggle,
+      body.viewer-fullscreen .learniq-panel { display: none !important; }
+      .learniq-panel {
+        width: 0;
+        overflow: hidden;
+        flex-shrink: 0;
+        background: var(--tiq-surface);
+        border-left: 1px solid var(--tiq-border);
+        display: flex;
+        flex-direction: column;
+        transition: width 0.3s ease;
+        box-shadow: var(--tiq-shadow-xl);
+      }
+      .learniq-panel.open { width: 380px; }
+      .learniq-header {
+        padding: 1rem 1.15rem;
+        border-bottom: 1px solid var(--tiq-border);
+        display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+        background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(6,182,212,0.06));
+      }
+      .learniq-header-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+      .learniq-avatar {
+        width: 36px; height: 36px; border-radius: 10px;
+        background: var(--tiq-gradient); color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.95rem; flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(79,70,229,0.25);
+      }
+      .learniq-header h3 { margin: 0; font-size: 0.95rem; font-weight: 800; line-height: 1.2; }
+      .learniq-page-badge {
+        font-size: 0.7rem; font-weight: 600; color: var(--tiq-primary);
+        background: rgba(99,102,241,0.12); padding: 2px 8px;
+        border-radius: 999px; margin-top: 4px; display: inline-block;
+      }
+      .learniq-header-actions { display: flex; gap: 4px; flex-shrink: 0; }
+      .learniq-status {
+        font-size: 0.72rem; color: var(--tiq-text-3);
+        padding: 0.5rem 1.15rem; display: flex; align-items: center; gap: 6px;
+        border-bottom: 1px solid var(--tiq-border);
+      }
+      .learniq-status-dot {
+        width: 7px; height: 7px; border-radius: 50%; background: var(--tiq-text-3);
+        flex-shrink: 0;
+      }
+      .learniq-status.online .learniq-status-dot { background: var(--tiq-success); box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
+      .learniq-status.offline .learniq-status-dot { background: var(--tiq-danger); }
+      .learniq-actions {
+        padding: 0.75rem 1.15rem; display: grid;
+        grid-template-columns: repeat(3, 1fr); gap: 6px;
+        border-bottom: 1px solid var(--tiq-border);
+      }
+      .learniq-actions .tiq-btn {
+        justify-content: center; font-size: 0.75rem; padding: 0.45rem 0.35rem;
+        white-space: nowrap;
+      }
+      .learniq-chat {
+        flex: 1; overflow-y: auto; padding: 1rem 1.15rem;
+        display: flex; flex-direction: column; gap: 10px;
+        background: var(--tiq-surface);
+      }
+      .learniq-msg-row { display: flex; gap: 8px; align-items: flex-end; max-width: 100%; }
+      .learniq-msg-row.user { flex-direction: row-reverse; align-self: flex-end; }
+      .learniq-msg-avatar {
+        width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.65rem; font-weight: 700;
+      }
+      .learniq-msg-row.ai .learniq-msg-avatar { background: var(--tiq-gradient); color: #fff; }
+      .learniq-msg-row.user .learniq-msg-avatar { background: var(--tiq-surface-3); color: var(--tiq-text-2); }
+      .learniq-msg {
+        padding: 10px 12px; border-radius: var(--tiq-radius-lg);
+        font-size: 0.8125rem; line-height: 1.55; max-width: calc(100% - 34px);
+      }
+      .learniq-msg.user { background: var(--tiq-primary); color: white; }
+      .learniq-msg.ai { background: var(--tiq-surface-2); border: 1px solid var(--tiq-border); }
+      .learniq-input-row {
+        padding: 0.85rem 1.15rem; border-top: 1px solid var(--tiq-border);
+        display: flex; gap: 8px; background: var(--tiq-surface);
+      }
+      .learniq-input-row input { flex: 1; font-size: 0.875rem; }
+      .learniq-msg.ai.learniq-msg-formatted { line-height: 1.6; }
+      .learniq-msg-formatted .liq-h { font-size: 0.9rem; font-weight: 800; margin: 0.5rem 0 0.35rem; }
+      .learniq-msg-formatted .liq-ul { margin: 0.35rem 0 0.5rem 1.1rem; padding: 0; }
+      .learniq-msg-formatted .liq-ul li { margin-bottom: 0.25rem; }
+      .learniq-msg.typing::after { content: '▋'; animation: liq-blink 1s step-end infinite; margin-left: 2px; }
+      @keyframes liq-blink { 50% { opacity: 0; } }
+      body { display: flex; flex-direction: column; min-height: 100vh; }
+      .viewer-shell { flex: 1; display: flex; flex-direction: column; min-height: 0; }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
   </head>
   <body>
     <!-- Top navigation bar -->
     <header class="top-bar">
       <div>
-        <a
-          href="{{ url_for('study_material_routes.view_course', course_id=study_material.id) }}"
-          class="pill-btn text-decoration-none"
-          >&larr; Course Details</a
-        >
+        <a href="{{ url_for('study_material_routes.view_course', course_id=study_material.id) }}" class="tiq-btn tiq-btn-sm tiq-btn-secondary">
+          <i class="fas fa-arrow-left"></i> Course Details
+        </a>
       </div>
       <div class="center-slot d-flex gap-2">
-        <button id="prev" class="btn nav-btn btn-sm">&larr; Prev</button>
-        <button id="next" class="btn nav-btn btn-sm">Next &rarr;</button>
-        <button id="fullscreen-btn" title="Full Screen (F)">
-          ⛶ Full Screen
-        </button>
-        <button
-          id="theme-toggle"
-          class="btn btn-sm btn-outline-secondary ms-2"
-          title="Toggle theme"
-        >
-          🌙 Dark Mode
+        <button id="prev" class="tiq-btn tiq-btn-sm tiq-btn-secondary"><i class="fas fa-chevron-left"></i> Prev</button>
+        <button id="next" class="tiq-btn tiq-btn-sm tiq-btn-secondary">Next <i class="fas fa-chevron-right"></i></button>
+        <button id="fullscreen-btn" class="tiq-btn tiq-btn-sm tiq-btn-primary" style="margin-left: 1rem;"><i class="fas fa-expand"></i> Full Screen</button>
+        <button id="theme-toggle" class="tiq-theme-toggle" style="margin-left: 0.5rem;" title="Toggle theme">
+          <i class="fas fa-moon"></i>
         </button>
       </div>
-      <div class="d-flex align-items-center gap-2">
-        <img src="/static/images/logo.png" alt="Logo" style="height: 28px" />
-        <span class="logo-text"
-          ><span class="logo-collect">Collect</span
-          ><span class="logo-ive">ive</span></span
-        >
+      <div>
+        <div class="logo-brand">
+          <div class="logo-icon">
+            {% if global_logo_url %}
+              <img src="{{ global_logo_url }}" alt="{{ display_org_name }}">
+            {% elif is_platform_brand %}
+              T
+            {% else %}
+              {{ org_initial }}
+            {% endif %}
+          </div>
+          <div class="logo-text">
+            {% if is_platform_brand %}
+              Train<span>IQ</span>
+            {% else %}
+              {{ display_org_name }}
+            {% endif %}
+          </div>
+        </div>
       </div>
     </header>
 
-    <div id="counter" class="pe-3 mt-2 mb-1">
-      Page <span id="pageNum">1</span> / <span id="totalPages">?</span>
-      <span
-        id="percent"
-        class="ms-2 text-secondary"
-        style="font-size: 0.98em"
-      ></span>
-    </div>
-    <div class="px-3">
-      <div id="progress-bar"><div id="progress-inner"></div></div>
-    </div>
-    <div class="content-wrap">
-      <div id="slideCard">
-        <canvas id="pdfCanvas"></canvas>
+    <div class="viewer-shell">
+      <div class="viewer-meta tiq-container mt-2">
+        <div class="tiq-flex-between align-items-center mb-2">
+          <h2 style="font-size: 1.15rem; font-weight: 700; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%;">{{ study_material.title }}</h2>
+          <div id="counter">
+            Page <span id="pageNum">1</span> / <span id="totalPages">?</span>
+            <span id="percent" style="margin-left: 0.25rem;"></span>
+          </div>
+        </div>
+        <div id="progress-bar"><div id="progress-inner"></div></div>
+      </div>
+
+      <div class="viewer-body" id="viewerBody">
+        <div class="viewer-main" id="viewerMain">
+          <div class="doc-toolbar" id="docToolbar">
+            <button type="button" class="tiq-btn tiq-btn-sm tiq-btn-secondary" id="zoomOut" title="Zoom out"><i class="fas fa-minus"></i></button>
+            <button type="button" class="tiq-btn tiq-btn-sm tiq-btn-secondary" id="zoomReset" title="Fit to width">Width</button>
+            <button type="button" class="tiq-btn tiq-btn-sm tiq-btn-secondary" id="zoomFitPage" title="Fit entire page">Page</button>
+            <button type="button" class="tiq-btn tiq-btn-sm tiq-btn-secondary" id="zoomIn" title="Zoom in"><i class="fas fa-plus"></i></button>
+            <span id="zoomLabel" style="font-size:0.75rem;color:var(--tiq-text-3);min-width:48px;text-align:center">100%</span>
+          </div>
+          <div class="doc-stage" id="docStage">
+            <div id="slideCard">
+              <canvas id="pdfCanvas"></canvas>
+              <div id="textViewer" style="display:none"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="learniq-panel" id="learniqPanel">
+          <div class="learniq-header">
+            <div class="learniq-header-main">
+              <div class="learniq-avatar"><i class="fas fa-graduation-cap"></i></div>
+              <div>
+                <h3>LearnIQ Tutor</h3>
+                <div class="learniq-page-badge" id="learniqPageBadge">Page 1</div>
+              </div>
+            </div>
+            <div class="learniq-header-actions">
+              <button class="tiq-btn tiq-btn-ghost tiq-btn-sm tiq-btn-icon" id="learniqClear" title="Clear chat"><i class="fas fa-eraser"></i></button>
+              <button class="tiq-btn tiq-btn-ghost tiq-btn-sm tiq-btn-icon" id="learniqClose" title="Close"><i class="fas fa-times"></i></button>
+            </div>
+          </div>
+          <div class="learniq-status" id="learniqStatus">
+            <span class="learniq-status-dot"></span>
+            <span id="learniqStatusText">Checking local AI engine…</span>
+          </div>
+          <div class="learniq-actions">
+            <button class="tiq-btn tiq-btn-sm tiq-btn-secondary" id="learniqSummarize"><i class="fas fa-file-lines"></i> Summarize</button>
+            <button class="tiq-btn tiq-btn-sm tiq-btn-secondary" id="learniqFlashcards"><i class="fas fa-clone"></i> Cards</button>
+            <button class="tiq-btn tiq-btn-sm tiq-btn-secondary" id="learniqQuestions"><i class="fas fa-circle-question"></i> Quiz</button>
+          </div>
+          <div class="learniq-chat" id="learniqChat">
+            <div class="learniq-msg-row ai">
+              <div class="learniq-msg-avatar"><i class="fas fa-robot"></i></div>
+              <div class="learniq-msg ai">Hi! I'm your LearnIQ tutor. Ask about this page or use the quick actions above.</div>
+            </div>
+          </div>
+          <div class="learniq-input-row">
+            <input type="text" class="tiq-input" id="learniqInput" placeholder="Ask about this page…" />
+            <button class="tiq-btn tiq-btn-primary tiq-btn-sm" id="learniqSend" title="Send"><i class="fas fa-paper-plane"></i></button>
+          </div>
+        </div>
       </div>
     </div>
-    <footer class="text-center py-3">Collective Intranet© 2024</footer>
+    
+    <footer style="background: var(--footer-bg); color: var(--footer-text); border-top: 1px solid var(--tiq-border); text-align: center; padding: 1rem; font-size: 0.8125rem; font-weight: 500; flex-shrink: 0;">
+      {{ display_org_name }}© 2026
+    </footer>
 
     <div id="afk-modal" style="display: none"></div>
 
+    <button class="learniq-toggle" id="learniqToggle" title="Open LearnIQ AI Tutor">
+      <i class="fas fa-robot"></i> LearnIQ
+    </button>
+
+    <script src="{{ url_for('static', filename='js/trainiq-ai.js') }}?v=1.1"></script>
+    <script src="{{ url_for('static', filename='js/learniq-ui.js') }}?v=1.0"></script>
     <script>
-      // Theme toggle logic
+      const DOC_META = {{ documents | tojson | safe }};
+      const PRIMARY_DOC = DOC_META[0] || null;
+      // Theme toggle integration with TrainIQ
+      const htmlEl = document.documentElement;
       const themeToggleBtn = document.getElementById("theme-toggle");
-      function setThemeFromStorage() {
-        if (localStorage.getItem("theme") === "dark") {
-          document.body.classList.add("dark-theme");
-          themeToggleBtn.textContent = "☀️ Light Mode";
+      
+      function updateThemeUI(theme) {
+        if (theme === "dark") {
+          htmlEl.setAttribute("data-theme", "dark");
+          themeToggleBtn.innerHTML = '<i class="fas fa-sun"></i>';
         } else {
-          document.body.classList.remove("dark-theme");
-          themeToggleBtn.textContent = "🌙 Dark Mode";
+          htmlEl.setAttribute("data-theme", "light");
+          themeToggleBtn.innerHTML = '<i class="fas fa-moon"></i>';
         }
       }
-      setThemeFromStorage();
+      
+      const savedTheme = localStorage.getItem("theme") || "light";
+      updateThemeUI(savedTheme);
+
       themeToggleBtn.onclick = () => {
-        if (!document.body.classList.contains("dark-theme")) {
-          document.body.classList.add("dark-theme");
-          themeToggleBtn.textContent = "☀️ Light Mode";
-          localStorage.setItem("theme", "dark");
-        } else {
-          document.body.classList.remove("dark-theme");
-          themeToggleBtn.textContent = "🌙 Dark Mode";
-          localStorage.setItem("theme", "light");
-        }
+        const currentTheme = htmlEl.getAttribute("data-theme");
+        const newTheme = currentTheme === "dark" ? "light" : "dark";
+        localStorage.setItem("theme", newTheme);
+        updateThemeUI(newTheme);
       };
 
       pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js";
 
-      const url =
-          "{{ url_for('study_material_routes.stream_file', file_id=documents[0].id) }}",
+      const url = PRIMARY_DOC
+          ? "{{ url_for('study_material_routes.stream_file', file_id='__FID__') }}".replace("__FID__", PRIMARY_DOC.id)
+          : "",
         cvs = document.getElementById("pdfCanvas"),
+        textViewer = document.getElementById("textViewer"),
         ctx = cvs.getContext("2d"),
         numEl = document.getElementById("pageNum"),
         totEl = document.getElementById("totalPages"),
@@ -398,81 +526,113 @@
         progressBar = document.getElementById("progress-inner"),
         fullscreenBtn = document.getElementById("fullscreen-btn"),
         slideCard = document.getElementById("slideCard"),
-        afkModal = document.getElementById("afk-modal");
+        docStage = document.getElementById("docStage"),
+        viewerMain = document.getElementById("viewerMain"),
+        afkModal = document.getElementById("afk-modal"),
+        zoomLabel = document.getElementById("zoomLabel"),
+        docToolbar = document.getElementById("docToolbar");
 
       let pdfDoc,
         current = 1,
         isFullscreen = false,
-        pdfOriginalWidth = null,
-        pdfOriginalHeight = null,
-        isRendering = false;
+        pdfPageWidth = null,
+        pdfPageHeight = null,
+        isRendering = false,
+        zoomFactor = 1.0,
+        fitMode = "width";
 
-      // Render with fixed zoom (scale=1), never upscale
+      function getViewerSize() {
+        const pad = 48;
+        if (isFullscreen) {
+          const toolbarH = docToolbar ? docToolbar.offsetHeight : 52;
+          return {
+            availW: Math.max(400, window.innerWidth - pad),
+            availH: Math.max(300, window.innerHeight - toolbarH - pad),
+          };
+        }
+        const w = docStage ? docStage.clientWidth : window.innerWidth;
+        const h = docStage ? docStage.clientHeight : window.innerHeight - 220;
+        return {
+          availW: Math.max(320, w - 40),
+          availH: Math.max(300, h - 40),
+        };
+      }
+
+      function updatePageBadge(pg) {
+        const badge = document.getElementById("learniqPageBadge");
+        if (!badge) return;
+        badge.textContent = pdfDoc ? `Page ${pg} of ${pdfDoc.numPages}` : `Page ${pg}`;
+      }
+
+      function computeFitScale(base, availW, availH) {
+        if (fitMode === "width") {
+          return Math.max(0.35, Math.min((availW / base.width) * zoomFactor, 4.0));
+        }
+        return Math.max(
+          0.35,
+          Math.min(Math.min(availW / base.width, availH / base.height) * zoomFactor, 4.0)
+        );
+      }
+
+      function updateZoomLabel(scale) {
+        if (zoomLabel) zoomLabel.textContent = Math.round(scale * 100) + "%";
+      }
+
       function render(n, retry = 0) {
-        if (isRendering) return;
+        if (!pdfDoc || isRendering) return;
         isRendering = true;
         clearError();
         pdfDoc
           .getPage(n)
           .then((page) => {
-            const viewport = page.getViewport({ scale: 1 }); // always native size
-            if (!pdfOriginalWidth || !pdfOriginalHeight) {
-              pdfOriginalWidth = viewport.width;
-              pdfOriginalHeight = viewport.height;
-            }
-            // available space
-            let availW = isFullscreen
-              ? window.innerWidth - 24
-              : slideCard.clientWidth - 24;
-            let availH = isFullscreen
-              ? window.innerHeight - 24
-              : Math.min(slideCard.clientHeight, window.innerHeight - 120);
-
-            let scale = 1;
-            if (pdfOriginalWidth > availW || pdfOriginalHeight > availH) {
-              scale = Math.min(
-                availW / pdfOriginalWidth,
-                availH / pdfOriginalHeight,
-                1
-              );
-            }
-            const vp = page.getViewport({ scale });
+            const base = page.getViewport({ scale: 1 });
+            pdfPageWidth = base.width;
+            pdfPageHeight = base.height;
+            const { availW, availH } = getViewerSize();
+            let fitScale = computeFitScale(base, availW, availH);
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const renderScale = fitScale * dpr;
+            const vp = page.getViewport({ scale: renderScale });
 
             cvs.width = vp.width;
             cvs.height = vp.height;
-            cvs.style.width = vp.width + "px";
-            cvs.style.height = vp.height + "px";
+            cvs.style.width = Math.round(vp.width / dpr) + "px";
+            cvs.style.height = Math.round(vp.height / dpr) + "px";
+            updateZoomLabel(fitScale);
 
             page
               .render({ canvasContext: ctx, viewport: vp })
               .promise.then(() => {
                 isRendering = false;
               })
-              .catch((err) => {
+              .catch(() => {
                 isRendering = false;
-                showError(
-                  "Failed to render this page. Try navigating or reloading."
-                );
+                showError("Failed to render this page. Try zoom reset or reload.");
               });
 
             current = n;
             numEl.textContent = n;
             updateProgress(n);
+            updatePageBadge(n);
             pushProgress(n);
-
             btnP.disabled = current === 1;
             btnN.disabled = current === pdfDoc.numPages;
           })
-          .catch((err) => {
+          .catch(() => {
             isRendering = false;
-            if (retry < 2) {
-              loadDocAndRender(n, retry + 1);
-            } else {
-              showError(
-                "Failed to load this page. Please reload the document."
-              );
-            }
+            if (retry < 2) loadDocAndRender(n, retry + 1);
+            else showError("Failed to load this page. Please reload the document.");
           });
+      }
+
+      function showTextDocument(content) {
+        cvs.style.display = "none";
+        textViewer.style.display = "block";
+        textViewer.textContent = content || "No readable text in this file.";
+        if (docToolbar) docToolbar.style.display = "none";
+        totEl.textContent = "1";
+        numEl.textContent = "1";
+        progressBar.style.width = "100%";
       }
 
       function showError(msg) {
@@ -511,10 +671,9 @@
         });
       }
 
-      // Session time tracking (unchanged)
-      let elapsed = 0; // seconds sent so far
-      const chunk = 30; // send every 30 s
-      let active = true; // toggled by visibility
+      let elapsed = 0;
+      const chunk = 30;
+      let active = true;
       let timerID = null;
 
       function sendTime(delta) {
@@ -549,19 +708,24 @@
         }
       });
 
-      // Fullscreen logic
       function enterFullscreen() {
-        if (slideCard.requestFullscreen) {
-          slideCard.requestFullscreen();
-        } else if (slideCard.webkitRequestFullscreen) {
-          slideCard.webkitRequestFullscreen();
-        } else if (slideCard.msRequestFullscreen) {
-          slideCard.msRequestFullscreen();
+        const el = viewerMain;
+        if (el.requestFullscreen) {
+          el.requestFullscreen();
+        } else if (el.webkitRequestFullscreen) {
+          el.webkitRequestFullscreen();
+        } else if (el.msRequestFullscreen) {
+          el.msRequestFullscreen();
         }
-        slideCard.classList.add("fullscreen");
+        document.body.classList.add("viewer-fullscreen");
+        if (document.body.classList.contains("learniq-open")) {
+          const panel = document.getElementById("learniqPanel");
+          if (panel) panel.classList.remove("open");
+          document.body.classList.remove("learniq-open");
+        }
         isFullscreen = true;
-        render(current);
-        fullscreenBtn.textContent = "⛶ Exit Full Screen";
+        setTimeout(() => render(current), 80);
+        fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i> Exit Full Screen';
       }
       function exitFullscreen() {
         if (document.exitFullscreen) {
@@ -571,25 +735,23 @@
         } else if (document.msExitFullscreen) {
           document.msExitFullscreen();
         }
-        slideCard.classList.remove("fullscreen");
+        document.body.classList.remove("viewer-fullscreen");
         isFullscreen = false;
-        render(current);
-        fullscreenBtn.textContent = "⛶ Full Screen";
+        setTimeout(() => render(current), 80);
+        fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i> Full Screen';
       }
       fullscreenBtn.onclick = () => {
-        if (!isFullscreen) {
-          enterFullscreen();
-        } else {
-          exitFullscreen();
-        }
+        if (!isFullscreen) enterFullscreen();
+        else exitFullscreen();
       };
       document.addEventListener("fullscreenchange", () => {
-        if (!document.fullscreenElement) {
-          slideCard.classList.remove("fullscreen");
-          isFullscreen = false;
-          render(current);
-          fullscreenBtn.textContent = "⛶ Full Screen";
-        }
+        const fs = document.fullscreenElement === viewerMain;
+        isFullscreen = fs;
+        document.body.classList.toggle("viewer-fullscreen", fs);
+        if (pdfDoc) setTimeout(() => render(current), 80);
+        fullscreenBtn.innerHTML = fs
+          ? '<i class="fas fa-compress"></i> Exit Full Screen'
+          : '<i class="fas fa-expand"></i> Full Screen';
       });
       document.addEventListener("keydown", (e) => {
         if (e.key === "F" || e.key === "f") {
@@ -611,7 +773,6 @@
         }
       });
 
-      // Prevent context menu for anti-screenshot UX
       window.addEventListener("contextmenu", function (e) {
         if (e.target === cvs || slideCard.contains(e.target)) {
           e.preventDefault();
@@ -619,30 +780,65 @@
       });
 
       function loadDocAndRender(pageToShow = 1, retry = 0) {
+        if (!PRIMARY_DOC) {
+          showError("No document attached to this course.");
+          return;
+        }
+        if (PRIMARY_DOC.type === "txt" && PRIMARY_DOC.content) {
+          showTextDocument(PRIMARY_DOC.content);
+          startTimer();
+          return;
+        }
+        if (PRIMARY_DOC.type !== "pdf") {
+          showError("This file type opens best as PDF. Re-upload as PDF for the full viewer, or use LearnIQ for text-based study aids.");
+          startTimer();
+          return;
+        }
         pdfjsLib
           .getDocument(url)
           .promise.then((pdf) => {
             pdfDoc = pdf;
             totEl.textContent = pdf.numPages;
-            pdfOriginalWidth = null;
-            pdfOriginalHeight = null;
+            pdfPageWidth = null;
+            pdfPageHeight = null;
+            cvs.style.display = "block";
+            textViewer.style.display = "none";
+            if (docToolbar) docToolbar.style.display = "flex";
             render(pageToShow, retry);
             startTimer();
           })
           .catch(() => {
-            showError("Failed to load PDF document. Please reload.");
+            showError("Failed to load PDF document. Please reload or re-upload as PDF.");
           });
       }
 
-      // AFK logic
+      document.getElementById("zoomIn").onclick = () => {
+        zoomFactor = Math.min(zoomFactor + 0.15, 3);
+        if (pdfDoc) render(current);
+      };
+      document.getElementById("zoomOut").onclick = () => {
+        zoomFactor = Math.max(zoomFactor - 0.15, 0.5);
+        if (pdfDoc) render(current);
+      };
+      document.getElementById("zoomReset").onclick = () => {
+        fitMode = "width";
+        zoomFactor = 1.0;
+        if (pdfDoc) render(current);
+      };
+      document.getElementById("zoomFitPage").onclick = () => {
+        fitMode = "page";
+        zoomFactor = 1.0;
+        if (pdfDoc) render(current);
+      };
+
       let afkTimer = null;
       let afkModalTimeout = null;
       function showAfkModal() {
         afkModal.innerHTML = `<div class="afk-modal-bg">
           <div class="afk-modal">
-            <div><b>You have been inactive for 15 minutes.</b></div>
-            <div class="mt-2">For your security, you have been logged out.<br>
-            Please <a href="/login">login again</a> to continue.</div>
+            <div style="font-weight:700; font-size: 1.3rem; margin-bottom: 0.5rem; color: var(--tiq-danger);"><i class="fas fa-user-clock"></i> Inactivity Detected</div>
+            <div class="mt-2">You have been inactive for 15 minutes.<br>For your security, you will be logged out.<br>
+            Please <a href="/login" style="font-weight: 700;">login again</a> to resume your training session.</div>
           </div>
         </div>`;
         afkModal.style.display = "block";
@@ -656,14 +852,13 @@
         if (afkModalTimeout) clearTimeout(afkModalTimeout);
         afkModal.style.display = "none";
         afkModal.innerHTML = "";
-        afkTimer = setTimeout(showAfkModal, 15 * 60 * 1000); // 15 min
+        afkTimer = setTimeout(showAfkModal, 15 * 60 * 1000);
       }
       ["mousemove", "keydown", "mousedown", "touchstart", "scroll"].forEach(
         (evt) => window.addEventListener(evt, resetAfkTimer, true)
       );
       resetAfkTimer();
 
-      // Load PDF and setup
       loadDocAndRender(1);
 
       btnP.onclick = () => {
@@ -674,6 +869,240 @@
           render(current + 1);
       };
       window.addEventListener("resize", () => render(current));
+
+      // ─── LearnIQ AI Tutor (streaming + vision + cache) ──────────
+      const courseId = "{{ study_material.id }}";
+      const QUIZ_STREAM_URL = "{{ url_for('study_material_routes.learniq_stream_sample_questions_route', course_id=study_material.id) }}";
+      const QUIZ_JSON_URL = "{{ url_for('study_material_routes.learniq_quiz_json', course_id=study_material.id) }}";
+      const SUMMARIZE_URL = "{{ url_for('study_material_routes.learniq_stream_summarize_route', course_id=study_material.id) }}";
+      const FLASHCARDS_URL = "{{ url_for('study_material_routes.learniq_flashcards_route', course_id=study_material.id) }}";
+      const CHAT_STREAM_URL = "{{ url_for('study_material_routes.learniq_stream_chat_route', course_id=study_material.id) }}";
+      const fileId = PRIMARY_DOC ? PRIMARY_DOC.id : "";
+      const csrfToken = "{{ csrf_token() }}";
+      const learniqPanel = document.getElementById("learniqPanel");
+      const learniqToggle = document.getElementById("learniqToggle");
+      const learniqChat = document.getElementById("learniqChat");
+      const learniqStatus = document.getElementById("learniqStatus");
+      const learniqStatusText = document.getElementById("learniqStatusText");
+      let chatHistory = [];
+
+      function setAiStatus(online, message) {
+        learniqStatus.classList.toggle("online", online);
+        learniqStatus.classList.toggle("offline", !online);
+        if (learniqStatusText) learniqStatusText.textContent = message;
+      }
+
+      function setPanelOpen(open) {
+        learniqPanel.classList.toggle("open", open);
+        document.body.classList.toggle("learniq-open", open);
+        if (pdfDoc) setTimeout(() => render(current), 320);
+      }
+      learniqToggle.onclick = () => setPanelOpen(true);
+      document.getElementById("learniqClose").onclick = () => setPanelOpen(false);
+      document.getElementById("learniqClear").onclick = () => {
+        chatHistory = [];
+        learniqChat.innerHTML = `
+          <div class="learniq-msg-row ai">
+            <div class="learniq-msg-avatar"><i class="fas fa-robot"></i></div>
+            <div class="learniq-msg ai">Chat cleared. Ask me anything about this page.</div>
+          </div>`;
+      };
+
+      function addMsg(text, role, asMarkdown) {
+        const row = document.createElement("div");
+        row.className = `learniq-msg-row ${role}`;
+        const avatar = document.createElement("div");
+        avatar.className = "learniq-msg-avatar";
+        avatar.innerHTML = role === "user" ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
+        const div = document.createElement("div");
+        div.className = `learniq-msg ${role}`;
+        if (text) {
+          if (window.LearnIQUI) LearnIQUI.setBubbleContent(div, text, asMarkdown !== false && role === "ai");
+          else div.textContent = text;
+        }
+        row.appendChild(avatar);
+        row.appendChild(div);
+        learniqChat.appendChild(row);
+        learniqChat.scrollTop = learniqChat.scrollHeight;
+        return div;
+      }
+
+      function learniqPayload(extra) {
+        extra = extra || {};
+        const payload = { file_id: fileId, current_page: current, ...extra };
+        if (extra.use_vision) {
+          const img = window.TrainIQAI?.captureCanvas(cvs, 0.72, 960);
+          if (img) payload.page_image = img;
+        }
+        return payload;
+      }
+
+      const learniqBtns = [
+        document.getElementById("learniqSummarize"),
+        document.getElementById("learniqFlashcards"),
+        document.getElementById("learniqQuestions"),
+        document.getElementById("learniqSend"),
+        document.getElementById("learniqInput"),
+      ];
+      function setLearniqEnabled(on) {
+        learniqBtns.forEach(el => { if (el) el.disabled = !on; });
+      }
+
+      async function runStreamAction(userLabel, streamUrl, extra) {
+        addMsg(userLabel, "user", false);
+        const bubble = addMsg("", "ai", true);
+        bubble.classList.add("typing");
+        setLearniqEnabled(false);
+        try {
+          let text = "";
+          const doStream = (payload) => window.TrainIQAI.streamPost(
+            streamUrl, payload, { "X-CSRFToken": csrfToken },
+            (chunk, data) => {
+              if (data.cached) text = chunk;
+              else text += chunk;
+              LearnIQUI.setBubbleContent(bubble, text, true);
+              learniqChat.scrollTop = learniqChat.scrollHeight;
+            }
+          );
+          const meta = await LearnIQUI.aiCall(doStream, (o) => learniqPayload({ ...extra, ...o }));
+          bubble.classList.remove("typing");
+          if (meta.cached) LearnIQUI.setBubbleContent(bubble, text + "\n\n⚡ From cache", true);
+          else if (meta.vision) LearnIQUI.setBubbleContent(bubble, text + "\n\n👁 Slide vision used", true);
+        } catch (e) {
+          bubble.classList.remove("typing");
+          LearnIQUI.setBubbleContent(bubble, e.message || "Something went wrong.", false);
+        } finally {
+          setLearniqEnabled(true);
+        }
+      }
+
+      fetch("/study_materials/ai/status")
+        .then(r => r.json())
+        .then(d => {
+          const model = d.resolved_model || d.model || "gemma4:e4b";
+          if (d.available && d.model_ready) {
+            setAiStatus(true, `Online · ${model} · streaming enabled`);
+            setLearniqEnabled(true);
+          } else {
+            setAiStatus(false, d.message || "Ollama offline — start the Ollama app");
+            setLearniqEnabled(false);
+          }
+        })
+        .catch(() => {
+          setAiStatus(false, "Cannot reach AI status endpoint");
+          setLearniqEnabled(false);
+        });
+
+      document.getElementById("learniqSummarize").onclick = () =>
+        runStreamAction("Summarize this page", SUMMARIZE_URL, {});
+
+      async function runQuizAction() {
+        addMsg("Create practice questions from this page", "user", false);
+        const bubble = addMsg("", "ai", true);
+        bubble.classList.add("typing");
+        setLearniqEnabled(false);
+        try {
+          let text = "";
+          try {
+            const doStream = (payload) => window.TrainIQAI.streamPost(
+              QUIZ_STREAM_URL, payload, { "X-CSRFToken": csrfToken },
+              (chunk, data) => {
+                if (data.cached) text = chunk;
+                else text += chunk;
+                LearnIQUI.setBubbleContent(bubble, text, true);
+                learniqChat.scrollTop = learniqChat.scrollHeight;
+              }
+            );
+            const meta = await LearnIQUI.aiCall(doStream, (o) => learniqPayload({ ...o }));
+            bubble.classList.remove("typing");
+            if (meta.cached) LearnIQUI.setBubbleContent(bubble, text + "\n\n⚡ From cache", true);
+            else if (meta.vision) LearnIQUI.setBubbleContent(bubble, text + "\n\n👁 Slide vision used", true);
+          } catch (streamErr) {
+            const data = await LearnIQUI.aiCall(
+              (payload) => window.TrainIQAI.postJson(
+                QUIZ_JSON_URL, payload, { "X-CSRFToken": csrfToken }
+              ),
+              (o) => learniqPayload(o)
+            );
+            text = data.questions || data.text || "No questions generated.";
+            bubble.classList.remove("typing");
+            let suffix = data.cached ? "\n\n⚡ From cache" : "";
+            if (data.vision) suffix += "\n👁 Slide vision used";
+            LearnIQUI.setBubbleContent(bubble, text + suffix, true);
+          }
+        } catch (e) {
+          bubble.classList.remove("typing");
+          LearnIQUI.setBubbleContent(bubble, e.message || "Something went wrong.", false);
+        } finally {
+          setLearniqEnabled(true);
+        }
+      }
+
+      document.getElementById("learniqQuestions").onclick = () => runQuizAction();
+
+      document.getElementById("learniqFlashcards").onclick = async () => {
+        addMsg("Create flashcards for this page", "user", false);
+        const bubble = addMsg("Generating flashcards…", "ai", false);
+        setLearniqEnabled(false);
+        try {
+          const data = await LearnIQUI.aiCall(
+            (payload) => window.TrainIQAI.postJson(
+              FLASHCARDS_URL, payload, { "X-CSRFToken": csrfToken }
+            ),
+            (o) => learniqPayload(o)
+          );
+          const cards = (data.flashcards || []).map((c, i) =>
+            `${i + 1}. **${c.front}** → ${c.back}`
+          ).join("\n\n");
+          let suffix = data.cached ? "\n\n⚡ From cache" : "";
+          if (data.vision) suffix += "\n👁 Vision used";
+          LearnIQUI.setBubbleContent(bubble, (cards || "No flashcards generated.") + suffix, true);
+        } catch (e) {
+          LearnIQUI.setBubbleContent(bubble, e.message, false);
+        } finally {
+          setLearniqEnabled(true);
+        }
+      };
+
+      async function sendChat() {
+        const input = document.getElementById("learniqInput");
+        const msg = input.value.trim();
+        if (!msg) return;
+        input.value = "";
+        addMsg(msg, "user", false);
+        chatHistory.push({ role: "user", content: msg });
+        const bubble = addMsg("", "ai", true);
+        bubble.classList.add("typing");
+        setLearniqEnabled(false);
+        try {
+          let reply = "";
+          const doStream = (payload) => window.TrainIQAI.streamPost(
+            CHAT_STREAM_URL,
+            payload, { "X-CSRFToken": csrfToken },
+            (chunk) => {
+              reply += chunk;
+              LearnIQUI.setBubbleContent(bubble, reply, true);
+              learniqChat.scrollTop = learniqChat.scrollHeight;
+            }
+          );
+          const meta = await LearnIQUI.aiCall(
+            doStream,
+            (o) => learniqPayload({ message: msg, history: chatHistory, ...o })
+          );
+          bubble.classList.remove("typing");
+          if (meta.vision) LearnIQUI.setBubbleContent(bubble, reply + "\n\n👁 Vision used", true);
+          chatHistory.push({ role: "assistant", content: reply });
+        } catch (e) {
+          bubble.classList.remove("typing");
+          LearnIQUI.setBubbleContent(bubble, e.message, false);
+        } finally {
+          setLearniqEnabled(true);
+        }
+      }
+      document.getElementById("learniqSend").onclick = sendChat;
+      document.getElementById("learniqInput").addEventListener("keydown", e => {
+        if (e.key === "Enter") sendChat();
+      });
     </script>
   </body>
 </html>

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html><body style="font-family:Arial,sans-serif;background:#f4f4f7;margin:0;padding:24px;">
+  <table width="600" align="center" style="background:#fff;border-radius:8px;padding:32px;">
+    <tr><td>
+      <h2 style="color:#4f46e5;">Day 7 — Run a proctored exam</h2>
+      <p style="color:#555;line-height:1.6;">
+        Close the loop: attach an exam to your course and have one learner complete it with ProctorIQ enabled.
+      </p>
+      {% if checklist and checklist.steps[2].done %}
+      <p style="color:#059669;"><strong>✓ Exam activity recorded — your pilot is complete!</strong></p>
+      {% endif %}
+      <p style="text-align:center;"><a href="{{ dashboard_url }}" style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;">Manage exams</a></p>
+    </td></tr>
+  </table>
+</body></html>

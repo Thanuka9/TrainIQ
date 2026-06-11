@@ -1,428 +1,242 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>View Task - Collective</title>
-  <!-- Bootstrap 5 -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"/>
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-  <style>
-    html, body {
-      height: 100%;
-    }
-    body {
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-      margin: 0;
-      background: linear-gradient(120deg, #e7eaf6 0%, #fff 100%);
-      font-family: 'Segoe UI', Arial, sans-serif;
-    }
+{% extends 'base.html' %}
+{% block title %}{{ task.title }} — {{ display_org_name }}{% endblock %}
+{% block breadcrumb %}Tasks / {{ task.title }}{% endblock %}
 
-    .main-wrapper {
-      flex: 1;
-      padding: 36px 0 24px 0;
-    }
+{% block content %}
+<style>
+  .view-task-layout {
+    max-width: 820px;
+    margin: 0 auto;
+    animation: fadeUp 0.45s ease-out both;
+  }
 
-    /* —— Top Bar (shared) —— */
-    .top-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 6px 18px 6px 12px;
-      background: rgba(255,255,255,0.96);
-      border-bottom: 1px solid #e3e3e3;
-      min-height: 48px;
-      box-shadow: 0 1px 5px 0 rgba(120,120,120,0.04);
-      font-size: 1.08rem;
-      z-index: 10;
-    }
-    .top-bar img {
-      height: 32px;
-      margin-right: 8px;
-      filter: drop-shadow(0 1px 1px #e3e3e3);
-    }
-    .brand {
-      font-size: 1.25rem;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      margin-left: 1px;
-    }
-    .brand .black { color: #222; }
-    .brand .red   { color: #ba1e24; }
+  /* Task header */
+  .task-detail-header {
+    background: var(--tiq-gradient-hero);
+    border-radius: var(--tiq-radius-xl);
+    padding: 2rem 2rem 1.75rem;
+    margin-bottom: 1.5rem;
+    position: relative; overflow: hidden;
+  }
+  .task-detail-header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at top right, rgba(79,70,229,0.3) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .task-detail-header h1 {
+    color: white; font-size: clamp(1.2rem, 3vw, 1.8rem); margin-bottom: 0.75rem;
+    word-break: break-word;
+  }
+  .task-detail-badges { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .task-detail-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 0.3rem 0.875rem;
+    border-radius: var(--tiq-radius-full);
+    font-size: 0.75rem; font-weight: 700;
+    background: rgba(255,255,255,0.15);
+    color: white; border: 1px solid rgba(255,255,255,0.2);
+  }
+  .task-detail-badge.high   { background: rgba(239,68,68,0.4);   border-color: rgba(239,68,68,0.5); }
+  .task-detail-badge.medium { background: rgba(245,158,11,0.35); border-color: rgba(245,158,11,0.5); }
+  .task-detail-badge.low    { background: rgba(16,185,129,0.3);  border-color: rgba(16,185,129,0.5); }
 
-    /* —— Container Content —— */
-    .container {
-      max-width: 720px;
-      margin: 0 auto;
-      background: rgba(255,255,255,0.98);
-      border-radius: 12px;
-      padding: 36px 32px 28px 32px;
-      box-shadow: 0 6px 32px rgba(58,58,80,0.09),0 1.5px 4px rgba(120,120,120,0.06);
-      /* backdrop-filter: blur(2.5px); */
-      position: relative;
-      margin-top: 12px;
-    }
-    .container h2 {
-      font-weight: 700;
-      margin-bottom: 12px;
-      color: #22285a;
-      word-break: break-word;
-    }
-    .container p {
-      margin-bottom: 12px;
-      color: #444b6e;
-      font-size: 1.04rem;
-    }
-    .container strong {
-      color: #3a395e;
-    }
+  /* Progress */
+  .progress-section { margin-bottom: 1.5rem; }
+  .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+  .progress-title { font-weight: 700; font-size: 0.875rem; color: var(--tiq-text-2); text-transform: uppercase; letter-spacing: 0.06em; }
+  .progress-percent { font-size: 1.5rem; font-weight: 800; color: var(--tiq-primary); }
 
-    /* —— Flash Messages —— */
-    .alert {
-      font-size: 1rem;
-      padding: 9px 18px 9px 12px;
-      border-radius: 6px;
-      margin-bottom: 24px;
-    }
+  /* Attachment list */
+  .attachment-item {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--tiq-border);
+    border-radius: var(--tiq-radius);
+    margin-bottom: 0.5rem;
+    background: var(--tiq-surface-2);
+    transition: all var(--tiq-transition);
+    font-size: 0.875rem;
+  }
+  .attachment-item:hover {
+    border-color: var(--tiq-primary);
+    background: rgba(79,70,229,0.05);
+  }
+  .attachment-item i { color: var(--tiq-primary); font-size: 1.1rem; }
+  .attachment-item a { color: var(--tiq-text); font-weight: 500; text-decoration: none; flex: 1; }
+  .attachment-item a:hover { color: var(--tiq-primary); }
+</style>
 
-    /* —— Progress Bar —— */
-    .progress {
-      height: 26px;
-      background: #eaf0fa;
-      border-radius: 8px;
-      overflow: hidden;
-      margin-bottom: 12px;
-      box-shadow: 0 1px 2px rgba(80,80,120,0.04);
-    }
-    .progress-bar-custom {
-      height: 26px;
-      font-size: 1.01rem;
-      font-weight: 600;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 8px;
-      transition: width 0.4s cubic-bezier(.4,1.3,.29,.99), background 0.3s;
-      letter-spacing: 1.5px;
-      box-shadow: 0 2px 10px 0 rgba(40,80,120,0.06);
-    }
+<div class="view-task-layout">
 
-    /* —— Form Improvements —— */
-    form .form-label {
-      font-weight: 500;
-      color: #304075;
-      margin-bottom: 2px;
-    }
-    .form-control-lg, .form-control-file {
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 1.08rem;
-      margin-bottom: 3px;
-    }
-    .form-control-file {
-      background: #f6f8fc;
-    }
-    .form-text {
-      font-size: 0.98rem;
-      color: #7a8caa;
-      margin-left: 4px;
-    }
-    .btn-primary, .btn-secondary {
-      font-size: 1rem;
-      padding: 9px 24px;
-      border-radius: 7px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      box-shadow: 0 1px 4px 0 rgba(40,80,120,0.05);
-      border: none;
-    }
-    .btn-primary {
-      background: linear-gradient(90deg, #3e64ff 60%, #5edfff 100%);
-      color: #fff;
-      transition: background 0.24s;
-    }
-    .btn-primary:hover   { background: linear-gradient(90deg, #2749e8 60%, #48b8d9 100%);}
-    .btn-secondary {
-      background: #e7eaf6;
-      color: #304075;
-    }
-    .btn-secondary:hover { background: #c7d1e6; color: #22285a;}
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="tiq-alert tiq-alert-{{ category }} tiq-animate-fade-in" role="alert">
+          <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' or category == 'error' %}exclamation-circle{% else %}info-circle{% endif %}"></i>
+          <div>{{ message }}</div>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
 
-    /* —— Attachments List —— */
-    .list-group-item {
-      font-size: 1.02rem;
-      padding: 11px 14px;
-      border: none;
-      display: flex;
-      align-items: center;
-      background: transparent;
-      transition: background 0.13s;
-    }
-    .list-group-item i {
-      margin-right: 10px;
-      color: #3e64ff;
-      font-size: 1.15em;
-    }
-    .list-group-item a {
-      color: #3a395e;
-      text-decoration: underline dotted;
-      font-weight: 500;
-      transition: color 0.18s;
-    }
-    .list-group-item a:hover {
-      color: #2540b5;
-      text-decoration: underline solid;
-    }
-    .list-group-item:hover { background: #f3f7fa; }
-    .list-group-item.text-muted {
-      color: #9ba7c7;
-    }
+  <!-- Task Header Hero -->
+  <div class="task-detail-header">
+    <h1><i class="fas fa-tasks" style="opacity:0.7;margin-right:0.5rem"></i>{{ task.title }}</h1>
+    <div class="task-detail-badges">
+      {% if task.priority %}
+        {% set pr = task.priority | lower %}
+        <span class="task-detail-badge {% if pr == 'high' %}high{% elif pr == 'medium' %}medium{% else %}low{% endif %}">
+          <i class="fas fa-flag"></i> {{ task.priority }} Priority
+        </span>
+      {% endif %}
+      <span class="task-detail-badge">
+        <i class="fas fa-info-circle"></i> {{ task.status }}
+      </span>
+      <span class="task-detail-badge">
+        <i class="fas fa-calendar-alt"></i> Due: {{ task.due_date.strftime('%b %d, %Y') }}
+      </span>
+    </div>
+  </div>
 
-    /* — Section Headings — */
-    h5 {
-      color: #2540b5;
-      margin-top: 24px;
-      margin-bottom: 13px;
-      font-weight: 600;
-      font-size: 1.13rem;
-      letter-spacing: 0.5px;
-    }
+  <!-- Task Description & Details -->
+  <div class="tiq-card" style="margin-bottom:1.25rem">
+    <div class="tiq-card-header">
+      <span class="tiq-card-title"><i class="fas fa-align-left" style="color:var(--tiq-primary);margin-right:0.5rem"></i>Task Details</span>
+      <a href="{{ url_for('task_routes.view_tasks') }}" class="tiq-btn-back">
+        <i class="fas fa-arrow-left"></i> Back to Tasks
+      </a>
+    </div>
+    <div class="tiq-card-body">
+      <p style="color:var(--tiq-text-2);line-height:1.7;margin-bottom:0">{{ task.description }}</p>
+    </div>
+  </div>
 
-    /* —— Responsive —— */
-    @media (max-width: 600px) {
-      .container {
-        padding: 19px 7vw 14px 7vw;
-        max-width: 98vw;
-      }
-      .top-bar {
-        flex-direction: column;
-        align-items: flex-start;
-        min-height: 40px;
-        padding: 3px 2vw 3px 2vw;
-      }
-      .brand {
-        font-size: 1.05rem;
-      }
-      .progress-bar-custom { font-size: 0.98rem; }
-    }
-
-    /* —— Footer (shared) —— */
-    footer {
-      background: #343a40;
-      color: #fff;
-      text-align: center;
-      padding: 10px 0 7px 0;
-      font-size: 0.99rem;
-      margin-top: auto;
-      border-top-left-radius: 8px;
-      border-top-right-radius: 8px;
-      box-shadow: 0 -1px 5px 0 rgba(100,100,120,0.04);
-    }
-    /* Add subtle divider */
-    .divider {
-      border-top: 1px dashed #d1d8ec;
-      margin: 28px 0 14px 0;
-    }
-
-    /* Subtle animation for progress bar */
-    @keyframes progressGlow {
-      0%   { box-shadow: 0 0 0 0 rgba(90,210,255,0.2);}
-      70%  { box-shadow: 0 0 18px 2px rgba(90,210,255,0.13);}
-      100% { box-shadow: 0 0 0 0 rgba(90,210,255,0.2);}
-    }
-    .progress-bar-custom {
-      animation: progressGlow 2s infinite alternate;
-    }
-  </style>
-</head>
-<body>
-
-  <!-- Top Bar -->
-  <div class="top-bar">
-    <a href="{{ url_for('task_routes.view_tasks') }}" class="btn btn-secondary py-1 px-3">
-      <i class="fas fa-arrow-left"></i>
-      <span class="d-none d-md-inline ms-1">Back</span>
-    </a>
-    <div class="d-flex align-items-center">
-      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" />
-      <div class="brand">
-        <span class="black">Collect</span><span class="red">ive</span>
+  <!-- Progress Display -->
+  <div class="tiq-card" style="margin-bottom:1.25rem">
+    <div class="tiq-card-header">
+      <span class="tiq-card-title"><i class="fas fa-chart-line" style="color:var(--tiq-primary);margin-right:0.5rem"></i>Progress</span>
+      <span class="tiq-badge tiq-badge-primary" id="progress-pct-badge">0%</span>
+    </div>
+    <div class="tiq-card-body">
+      <div class="progress-header">
+        <span class="progress-title">Completion</span>
+        <span class="progress-percent" id="progress-display">0%</span>
+      </div>
+      <div class="tiq-progress tiq-progress-lg">
+        <div class="tiq-progress-bar" id="progress-bar" role="progressbar"
+             style="width:0%" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
       </div>
     </div>
   </div>
 
-  <!-- Main Content -->
-  <div class="main-wrapper">
-    <div class="container">
+  <!-- Status Update Form (assignees only) -->
+  {% if current_user in task.assignees %}
+  <div class="tiq-card" style="margin-bottom:1.25rem">
+    <div class="tiq-card-header">
+      <span class="tiq-card-title"><i class="fas fa-edit" style="color:var(--tiq-primary);margin-right:0.5rem"></i>Update Status</span>
+    </div>
+    <div class="tiq-card-body">
+      <form method="POST" enctype="multipart/form-data" id="taskUpdateForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
-      <!-- Flash Messages -->
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, message in messages %}
-            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-              {{ message }}
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
-
-      <h2><i class="fas fa-tasks me-2"></i>{{ task.title }}</h2>
-      <div class="row mb-2">
-        <div class="col-md-7">
-          <p><i class="fas fa-align-left me-1"></i>{{ task.description }}</p>
-        </div>
-        <div class="col-md-5">
-          <div class="row mb-1">
-            <div class="col-12 mb-1">
-              <span class="badge bg-light text-dark me-1"><i class="fas fa-calendar-alt me-1"></i>
-                <strong>Due:</strong> {{ task.due_date.strftime('%b %d, %Y') }}
-              </span>
-              <span class="badge bg-light text-dark me-1"><i class="fas fa-flag me-1"></i>
-                <strong>Priority:</strong> {{ task.priority }}
-              </span>
-              <span class="badge bg-light text-dark">
-                <i class="fas fa-info-circle me-1"></i>
-                <strong>Status:</strong> {{ task.status }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Progress Display -->
-      <div class="mt-3 mb-2">
-        <h5><i class="fas fa-chart-line me-1"></i>Progress</h5>
-        <div class="progress">
-          <div
-            id="progress-bar"
-            class="progress-bar progress-bar-striped progress-bar-animated progress-bar-custom bg-success"
-            role="progressbar"
-            style="width: 0%;"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-valuenow="0"
-            title="0% complete"
-          >
-            0%
-          </div>
-        </div>
-      </div>
-
-      <!-- Status Update Section -->
-      {% if current_user in task.assignees %}
-      <div class="divider"></div>
-      <form method="POST" enctype="multipart/form-data" class="mt-2 mb-0">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-
-        <div class="mb-3">
-          <label for="status" class="form-label">
-            <i class="fas fa-edit me-1"></i><strong>Update Status:</strong>
-          </label>
-          <select class="form-control form-control-lg" id="status" name="status">
+        <div class="tiq-form-group">
+          <label for="status" class="tiq-label">Status</label>
+          <select class="tiq-select" id="status" name="status">
             {% for status, progress in STATUS_PROGRESS_MAP.items() %}
-            <option value="{{ status }}" {% if task.status == status %}selected{% endif %}>
-              {{ status }}
-            </option>
+            <option value="{{ status }}" {% if task.status == status %}selected{% endif %}>{{ status }}</option>
             {% endfor %}
           </select>
         </div>
 
-        <div class="mb-3">
-          <label for="email_attachments" class="form-label">
-            <i class="fas fa-paperclip me-1"></i><strong>Attach Files for Completion Email</strong>
+        <div class="tiq-form-group">
+          <label for="email_attachments" class="tiq-label">
+            <i class="fas fa-paperclip" style="margin-right:4px"></i>Attach Files for Completion Email
           </label>
           <input type="file"
-                 class="form-control-file"
+                 style="width:100%;padding:0.65rem 1rem;border:1.5px solid var(--tiq-border);border-radius:var(--tiq-radius);background:var(--tiq-surface);font-size:0.9rem;cursor:pointer"
                  id="email_attachments"
                  name="email_attachments"
                  multiple
-                 accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx">
-          <div class="form-text">
-            Allowed: pdf, png, jpg, jpeg, docx, xlsx.
-            <span class="d-none d-md-inline">Max 25MB per file. 100MB total.</span>
-          </div>
+                 accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx" />
+          <div class="tiq-input-hint">Allowed: pdf, png, jpg, jpeg, docx, xlsx. Max 25 MB per file, 100 MB total.</div>
+          <div id="file-size-message" class="tiq-input-error" style="display:none"></div>
         </div>
 
-        <button type="submit" class="btn btn-primary mt-1">
-          <i class="fas fa-save me-1"></i> Update
+        <button type="submit" class="tiq-btn tiq-btn-primary">
+          <i class="fas fa-save"></i> Update Task
         </button>
-        <div id="file-size-message" class="text-danger mt-2" style="display: none;"></div>
       </form>
-      {% endif %}
+    </div>
+  </div>
+  {% endif %}
 
-      <div class="divider"></div>
-      <!-- Attachments -->
-      <h5><i class="fas fa-paperclip me-1"></i>Attachments</h5>
-      <ul class="list-group list-group-flush">
-        {% for attachment in attachments %}
-        <li class="list-group-item">
+  <!-- Attachments -->
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <span class="tiq-card-title"><i class="fas fa-paperclip" style="color:var(--tiq-primary);margin-right:0.5rem"></i>Attachments</span>
+      <span class="tiq-badge tiq-badge-neutral">{{ attachments | length }}</span>
+    </div>
+    <div class="tiq-card-body">
+      {% for attachment in attachments %}
+        <div class="attachment-item">
           <i class="fas fa-file-alt"></i>
-          <a href="{{ url_for('task_routes.download_attachment',
-                              task_id=task.id,
-                              attachment_id=attachment.id) }}"
-             class="text-decoration-none">
+          <a href="{{ url_for('task_routes.download_attachment', task_id=task.id, attachment_id=attachment.id) }}">
             {{ attachment.filename }}
           </a>
-        </li>
-        {% else %}
-        <li class="list-group-item text-muted">
-          <i class="fas fa-info-circle"></i> No attachments available.
-        </li>
-        {% endfor %}
-      </ul>
+          <i class="fas fa-download" style="color:var(--tiq-text-3);font-size:0.875rem"></i>
+        </div>
+      {% else %}
+        <div class="tiq-empty" style="padding:2rem">
+          <div class="tiq-empty-icon"><i class="fas fa-folder-open"></i></div>
+          <h3>No attachments</h3>
+          <p>No files have been attached to this task yet.</p>
+        </div>
+      {% endfor %}
     </div>
   </div>
 
-  <!-- Footer -->
-  <footer>
-    <p>Collective Intranet© 2024</p>
-  </footer>
+</div>
+{% endblock %}
 
-  <!-- Bootstrap & scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const progressValue = {{ task.progress or 0 }};
-      const bar = document.getElementById("progress-bar");
-      bar.style.width = progressValue + "%";
-      bar.setAttribute("aria-valuenow", progressValue);
-      bar.setAttribute("title", progressValue + "%");
-      bar.textContent = progressValue + "%";
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const progressValue = {{ task.progress or 0 }};
+  const bar    = document.getElementById("progress-bar");
+  const disp   = document.getElementById("progress-display");
+  const badge  = document.getElementById("progress-pct-badge");
 
-      // Dynamic progress bar color
-      bar.classList.remove("bg-success", "bg-warning", "bg-danger");
-      if (progressValue >= 80) {
-        bar.classList.add("bg-success");
-      } else if (progressValue >= 40) {
-        bar.classList.add("bg-warning");
-      } else {
-        bar.classList.add("bg-danger");
-      }
-    });
+  bar.style.width = progressValue + "%";
+  bar.setAttribute("aria-valuenow", progressValue);
+  if (disp)  disp.textContent  = progressValue + "%";
+  if (badge) badge.textContent = progressValue + "%";
 
-    document.querySelector('form')?.addEventListener('submit', e => {
-      const files = document.getElementById('email_attachments')?.files || [];
-      let total = 0;
-      for (let f of files) total += f.size;
-      if (total > 25 * 1024 * 1024) {
-        e.preventDefault();
-        const msg = "Total file size exceeds 25 MB. Remove some files.";
-        alert(msg);
-        const span = document.getElementById('file-size-message');
-        if (span) {
-          span.textContent = msg;
-          span.style.display = 'block';
-        }
-      } else {
-        const span = document.getElementById('file-size-message');
-        if (span) span.style.display = 'none';
-      }
-    });
-  </script>
-</body>
-</html>
+  // Color the bar by progress
+  if (progressValue >= 80) {
+    bar.style.background = "linear-gradient(90deg,#10B981,#34D399)";
+  } else if (progressValue >= 40) {
+    bar.style.background = "linear-gradient(90deg,#F59E0B,#FCD34D)";
+  } else {
+    bar.style.background = "linear-gradient(90deg,#EF4444,#F87171)";
+  }
+
+  // File size validation
+  document.getElementById("taskUpdateForm")?.addEventListener("submit", e => {
+    const files = document.getElementById("email_attachments")?.files || [];
+    let total = 0;
+    for (let f of files) total += f.size;
+    if (total > 25 * 1024 * 1024) {
+      e.preventDefault();
+      const msg = "Total file size exceeds 25 MB. Please remove some files.";
+      const span = document.getElementById("file-size-message");
+      if (span) { span.textContent = msg; span.style.display = "block"; }
+    } else {
+      const span = document.getElementById("file-size-message");
+      if (span) span.style.display = "none";
+    }
+  });
+});
+</script>
+{% endblock %}

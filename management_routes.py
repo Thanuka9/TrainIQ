@@ -1,11 +1,13 @@
 # management_routes.py
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from flask_login import login_required
+from flask_login import login_required, current_user
 from datetime import date
 from admin_routes import admin_required
 import logging
-from models import User, UserScore, SpecialExamRecord, Category, Level, Department, db
+from utils.tenant_utils import filter_by_user_tenant, user_tenant_id, tenant_category_names, tenant_levels_query
+from utils.task_filters import assigned_to_user
+from models import User, UserScore, SpecialExamRecord, Category, Level, Department, Task, UserProgress, db
 
 management_routes = Blueprint('management_routes', __name__)
 
@@ -55,6 +57,11 @@ def compare_users():
             flash("One or both selected users not found.", "danger")
             return redirect(url_for('management_routes.compare_users'))
 
+        tid = user_tenant_id()
+        if tid and (user1.tenant_id != tid or user2.tenant_id != tid):
+            flash("You can only compare users within your organization.", "danger")
+            return redirect(url_for('management_routes.compare_users'))
+
         # Calculate overall average score
         user1_scores = UserScore.query.filter_by(user_id=user1.id).all()
         user2_scores = UserScore.query.filter_by(user_id=user2.id).all()
@@ -74,14 +81,14 @@ def compare_users():
         user2_sprec = SpecialExamRecord.query.filter_by(user_id=user2.id).first()
 
         # Categories for Radar Chart
-        categories = ["Billing", "Posting", "VOB", "Collection", "Introduction"]
+        categories = tenant_category_names(current_user) or ["General"]
         performance_labels = []
         user1_cat_scores = []
         user2_cat_scores = []
 
         for name in categories:
             performance_labels.append(name)
-            cat = Category.query.filter_by(name=name).first()
+            cat = Category.query.filter_by(name=name, tenant_id=tid).first()
 
             for user, scores_list in [(user1, user1_cat_scores), (user2, user2_cat_scores)]:
                 if cat:
@@ -95,7 +102,34 @@ def compare_users():
                 else:
                     scores_list.append(0)
 
-        levels = Level.query.order_by(Level.level_number).all()
+        levels = tenant_levels_query().order_by(Level.level_number).all()
+
+        def _avg_trust(uid):
+            scores = UserScore.query.filter_by(user_id=uid).all()
+            trusts = [s.trust_score for s in scores if getattr(s, 'trust_score', None) is not None]
+            return round(sum(trusts) / len(trusts), 1) if trusts else 0
+
+        def _task_counts(uid):
+            assigned = Task.query.filter(assigned_to_user(uid)).all()
+            active = sum(1 for t in assigned if (t.progress or 0) < 100)
+            done = sum(1 for t in assigned if (t.progress or 0) >= 100)
+            return active, done
+
+        def _completed_courses(uid):
+            return UserProgress.query.filter_by(user_id=uid, completed=True).count()
+
+        u1_active, u1_done = _task_counts(user1.id)
+        u2_active, u2_done = _task_counts(user2.id)
+
+        strengths = []
+        for i, label in enumerate(performance_labels):
+            s1, s2 = user1_cat_scores[i], user2_cat_scores[i]
+            diff = round(s1 - s2, 1)
+            if abs(diff) >= 5:
+                if diff > 0:
+                    strengths.append(f"{user1.first_name} exceeds {user2.first_name} in {label} by +{diff}%")
+                else:
+                    strengths.append(f"{user2.first_name} exceeds {user1.first_name} in {label} by +{abs(diff)}%")
 
         return render_template(
             'compare_users.html',
@@ -113,10 +147,21 @@ def compare_users():
             user1_scores=user1_cat_scores,
             user2_scores=user2_cat_scores,
             levels=levels,
-            selected_level=selected_level
+            selected_level=selected_level,
+            user1_level=user1.get_current_level(),
+            user2_level=user2.get_current_level(),
+            user1_courses_done=_completed_courses(user1.id),
+            user2_courses_done=_completed_courses(user2.id),
+            user1_tasks_active=u1_active,
+            user1_tasks_done=u1_done,
+            user2_tasks_active=u2_active,
+            user2_tasks_done=u2_done,
+            user1_trust=_avg_trust(user1.id),
+            user2_trust=_avg_trust(user2.id),
+            strengths=strengths,
         )
 
     else:
-        users = User.query.all()
-        levels = Level.query.order_by(Level.level_number).all()
+        users = filter_by_user_tenant(User.query, User).all()
+        levels = tenant_levels_query().order_by(Level.level_number).all()
         return render_template('compare_users_form.html', users=users, levels=levels)

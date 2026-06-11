@@ -103,7 +103,7 @@ def delete_file_from_gridfs(file_id: str) -> dict:
 # -------------------------------
 # Subtopic and Metadata Management
 # -------------------------------
-def save_subtopic_metadata(study_material_id: int, title: str, file_id: str, file_type: str) -> str:
+def save_subtopic_metadata(study_material_id: int, title: str, file_id: str, file_type: str, tenant_id=None) -> str:
     try:
         _, db, _ = get_mongo_connection()
         metadata = {
@@ -111,6 +111,7 @@ def save_subtopic_metadata(study_material_id: int, title: str, file_id: str, fil
             "title": title,
             "file_id": file_id,
             "file_type": file_type,
+            "tenant_id": tenant_id,
             "created_at": datetime.utcnow()
         }
         result = db[FILES_COLLECTION].insert_one(metadata)
@@ -186,6 +187,12 @@ def setup_collections(database: Database):
         profile_pictures_collection = database[PROFILE_PICTURES_COLLECTION]
         profile_pictures_collection.create_index("user_id", unique=True)
         logging.info("Index on 'user_id' created for collection 'profile_pictures'.")
+
+        file_meta = database[FILES_COLLECTION]
+        file_meta.create_index("study_material_id")
+        file_meta.create_index("tenant_id")
+        file_meta.create_index("file_id")
+        logging.info("Indexes created for collection 'file_metadata'.")
 
     except Exception as e:
         logging.error(f"Error setting up MongoDB collections: {e}", exc_info=True)

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html><body style="font-family:Arial,sans-serif;background:#f4f4f7;margin:0;padding:24px;">
+  <table width="600" align="center" style="background:#fff;border-radius:8px;padding:32px;">
+    <tr><td>
+      <h2 style="color:#4f46e5;">Day 3 — Invite your pilot team</h2>
+      <p style="color:#555;line-height:1.6;">
+        Docebo-style pilots work best with 3+ learners. Send magic-link invites from Admin → Users.
+      </p>
+      {% if checklist %}
+      <p style="color:#555;">Progress: {{ checklist.steps[1].description }}</p>
+      {% endif %}
+      <p style="text-align:center;"><a href="{{ dashboard_url }}" style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;">Invite team</a></p>
+    </td></tr>
+  </table>
+</body></html>

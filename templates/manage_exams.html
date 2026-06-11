@@ -19,7 +19,7 @@
         <form
           id="create-exam-form"
           method="POST"
-          action="{{ url_for('exams_bp.manage_exams') }}"
+          action="{{ url_for('exams_routes.create_exam') }}"
         >
           <label for="title">Exam Title:</label>
           <input type="text" name="title" required />

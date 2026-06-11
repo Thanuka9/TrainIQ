@@ -1,301 +1,334 @@
 {# File: templates/admin_analytics_user_detail.html #}
 {% extends 'admin_base.html' %}
-{% block title %}User Analytics{% endblock %}
+{% block title %}User Analytics — {{ display_org_name }}{% endblock %}
+
+{% block breadcrumb %}
+  <a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <a href="{{ url_for('admin_routes.analytics_user_list') }}">User Directory</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <span>{{ user.first_name }} {{ user.last_name }}</span>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
-  <!-- 1) Header + Back Link -->
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">User: {{ user.first_name }} {{ user.last_name }}</h2>
-    <a href="{{ url_for('admin_routes.analytics_user_list') }}" class="btn btn-outline-secondary btn-sm">
-      &larr; Back to User List
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <h1>Analytics: {{ user.first_name }} {{ user.last_name }}</h1>
+      <p class="tiq-lead">Granular view of course completion progress, exam logs, and recent system interactions.</p>
+    </div>
+    <a href="{{ url_for('admin_routes.analytics_user_list') }}" class="tiq-btn-back">
+      <i class="fas fa-arrow-left"></i> Back to User List
     </a>
   </div>
+</div>
 
-  <!-- 2) Top Row: User Info + Summary Metrics -->
-  <div class="row mb-4 gy-3">
-    <!-- 2a) User Info Card (4 cols) -->
-    <div class="col-12 col-md-4">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-light">
-          <strong>User Details</strong>
-        </div>
-        <div class="card-body">
-          <p><strong>Email:</strong> {{ user.employee_email }}</p>
-          <p><strong>Departments:</strong>
-            {% if user.departments %}
-              {{ user.departments | map(attribute='name') | join(', ') }}
-            {% else %}
-              -
-            {% endif %}
-          </p>
-          <p><strong>Designation:</strong> {{ user.designation.title if user.designation else '-' }}</p>
-          <p><strong>Join Date:</strong> {{ user.join_date.strftime('%Y-%m-%d') if user.join_date else '-' }}</p>
-          <p><strong>Current Level:</strong> {{ user.get_current_level() }}</p>
-        </div>
-      </div>
+<!-- Grid: User Details + Stats -->
+<div class="tiq-grid tiq-grid-4 tiq-gap mb-4">
+  <!-- User Details Card (Colspan 2 equivalent or we do 1 column with custom style) -->
+  <div class="tiq-card" style="grid-column: span 2;">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-info-circle me-2"></i>User Profile Info</div>
     </div>
+    <div class="tiq-card-body" style="line-height: 1.8;">
+      <p><strong>Email:</strong> <code>{{ user.employee_email }}</code></p>
+      <p><strong>Departments:</strong>
+        {% if user.departments %}
+          {% for d in user.departments %}
+            <span class="tiq-badge tiq-badge-neutral">{{ d.name }}</span>
+          {% endfor %}
+        {% else %}
+          <span class="text-muted">-</span>
+        {% endif %}
+      </p>
+      <p><strong>Designation:</strong> {{ user.designation.title if user.designation else '-' }}</p>
+      <p><strong>Join Date:</strong> {{ user.join_date.strftime('%Y-%m-%d') if user.join_date else '-' }}</p>
+      <p><strong>Current Level:</strong> <span class="tiq-badge tiq-badge-primary">Level {{ user.get_current_level() }}</span></p>
+    </div>
+  </div>
 
-    <!-- 2b) Summary Metric Cards (8 cols split into three) -->
-    <div class="col-12 col-md-8">
-      <div class="row gx-3 gy-3">
-        <!-- Total Exams Taken -->
-        <div class="col-12 col-md-4">
-          <div class="card text-white bg-info h-100 shadow-sm">
-            <div class="card-body text-center py-3">
-              <h6 class="card-title mb-1"><i class="bi bi-journal-text"></i> Total Exams Taken</h6>
-              <h2 class="fw-bold">{{ exam_titles|length }}</h2>
-            </div>
+  <!-- Stat: Total Exams Taken -->
+  <div class="tiq-stat-card">
+    <div class="stat-icon tiq-icon-primary">
+      <i class="fas fa-file-signature"></i>
+    </div>
+    <div class="stat-value">{{ exam_titles|length }}</div>
+    <div class="stat-label">Total Exams Taken</div>
+  </div>
+
+  <!-- Stat: Avg Exam Score -->
+  <div class="tiq-stat-card">
+    <div class="stat-icon tiq-icon-success">
+      <i class="fas fa-award"></i>
+    </div>
+    <div class="stat-value">
+      {% if exam_scores %}
+        {{ (exam_scores | sum / (exam_scores|length)) | round(1) }}%
+      {% else %}
+        0%
+      {% endif %}
+    </div>
+    <div class="stat-label">Average Exam Score</div>
+  </div>
+</div>
+
+<div class="tiq-grid tiq-grid-2 tiq-gap mb-4">
+  <!-- Regular Exam Scores -->
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-poll me-2"></i>Regular Exam Grades</div>
+    </div>
+    <div class="tiq-card-body">
+      {# Horizontal Bar Chart or Gauge #}
+      {% if exam_titles|length == 1 and exam_scores|length > 0 %}
+        <div class="tiq-flex-center" style="flex-direction: column; padding: 1rem 0;">
+          <div style="width: 200px; height: 100px; position: relative;">
+            <canvas id="gaugeChart"></canvas>
+          </div>
+          <div class="mt-3">
+            {% set s = exam_scores[0] %}
+            <span class="fw-bold" style="font-size: 1.5rem;
+              {% if s >= 80 %}color: var(--tiq-success);{% elif s < 50 %}color: var(--tiq-danger);{% else %}color: var(--tiq-warning);{% endif %}">
+              {{ s }}%
+            </span>
+            <span class="ms-2">({{ exam_titles[0] }})</span>
           </div>
         </div>
-        <!-- Avg Regular Exam Score -->
-        <div class="col-12 col-md-4">
-          <div class="card text-white bg-success h-100 shadow-sm">
-            <div class="card-body text-center py-3">
-              <h6 class="card-title mb-1"><i class="bi bi-award-fill"></i> Avg Exam Score</h6>
-              <h2 class="fw-bold">
-                {% if exam_scores %}
-                  {{ (exam_scores | sum / (exam_scores|length)) | round(1) }}%
+      {% elif exam_titles|length > 1 %}
+        <div style="height: 240px; position: relative;">
+          <canvas id="userExamChart"></canvas>
+        </div>
+      {% else %}
+        <div class="tiq-empty" style="padding: 2rem 0;">
+          <div class="tiq-empty-icon"><i class="fas fa-calendar-times"></i></div>
+          <h3>No exam logs</h3>
+          <p>This user has not completed any curriculum exams yet.</p>
+        </div>
+      {% endif %}
+
+      {% if exam_titles|length > 0 %}
+      <div class="tiq-table-wrapper mt-4">
+        <table class="tiq-table">
+          <thead>
+            <tr>
+              <th>Exam Title</th>
+              <th class="tiq-text-center">Score Received</th>
+              <th>Completion Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for i in range(exam_titles|length) %}
+            <tr>
+              <td class="fw-bold">{{ exam_titles[i] }}</td>
+              <td class="tiq-text-center">
+                {% set s = exam_scores[i] %}
+                {% if s >= 80 %}
+                  <span class="tiq-badge tiq-badge-success">{{ s }}%</span>
+                {% elif s < 50 %}
+                  <span class="tiq-badge tiq-badge-danger">{{ s }}%</span>
                 {% else %}
-                  0%
+                  <span class="tiq-badge tiq-badge-warning">{{ s }}%</span>
                 {% endif %}
-              </h2>
+              </td>
+              <td>{{ exam_dates[i] }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Special Exam Details -->
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-star me-2"></i>Special Exam Modules</div>
+    </div>
+    <div class="tiq-card-body">
+      {% if special_paper1_score is none and special_paper2_score is none %}
+        <div class="tiq-empty" style="padding: 4rem 0;">
+          <div class="tiq-empty-icon"><i class="fas fa-user-shield"></i></div>
+          <h3>No Special Exam Record</h3>
+          <p>No certification or board-level special exams are logged for this user.</p>
+        </div>
+      {% else %}
+        <div class="tiq-grid tiq-grid-2 tiq-gap align-items-center">
+          <!-- Doughnut Gauge -->
+          <div class="tiq-flex-center" style="flex-direction: column;">
+            {% set sp_scores = [] %}
+            {% if special_paper1_score is not none %}{% set _ = sp_scores.append(special_paper1_score) %}{% endif %}
+            {% if special_paper2_score is not none %}{% set _ = sp_scores.append(special_paper2_score) %}{% endif %}
+            {% set sp_avg = (sp_scores|sum / (sp_scores|length)) | round(1) %}
+            <div style="width: 150px; height: 80px; position: relative;">
+              <canvas id="specialGauge"></canvas>
+            </div>
+            <div class="mt-3 text-center">
+              <span class="fw-bold" style="font-size: 1.25rem;
+                {% if sp_avg >= 80 %}color: var(--tiq-success);{% elif sp_avg < 50 %}color: var(--tiq-danger);{% else %}color: var(--tiq-warning);{% endif %}">
+                {{ sp_avg }}%
+              </span>
+              <div class="tiq-small">Overall Special Avg</div>
+            </div>
+          </div>
+
+          <!-- Paper Details Table -->
+          <div>
+            <div class="tiq-table-wrapper" style="border: 1px solid var(--tiq-border);">
+              <table class="tiq-table">
+                <tbody>
+                  <tr>
+                    <td class="fw-bold">Paper 1 Score</td>
+                    <td>
+                      {% if special_paper1_score is not none %}
+                        {% set s1 = special_paper1_score %}
+                        {% if s1 >= 80 %}
+                          <span class="tiq-badge tiq-badge-success">{{ s1 }}%</span>
+                        {% elif s1 < 50 %}
+                          <span class="tiq-badge tiq-badge-danger">{{ s1 }}%</span>
+                        {% else %}
+                          <span class="tiq-badge tiq-badge-warning">{{ s1 }}%</span>
+                        {% endif %}
+                      {% else %}
+                        <span class="text-muted">N/A</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Paper 2 Score</td>
+                    <td>
+                      {% if special_paper2_score is not none %}
+                        {% set s2 = special_paper2_score %}
+                        {% if s2 >= 80 %}
+                          <span class="tiq-badge tiq-badge-success">{{ s2 }}%</span>
+                        {% elif s2 < 50 %}
+                          <span class="tiq-badge tiq-badge-danger">{{ s2 }}%</span>
+                        {% else %}
+                          <span class="tiq-badge tiq-badge-warning">{{ s2 }}%</span>
+                        {% endif %}
+                      {% else %}
+                        <span class="text-muted">N/A</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Date Taken</td>
+                    <td>
+                      {% if special_exam_date %}{{ special_exam_date }}{% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
-        <!-- Avg Special Exam Score -->
-        <div class="col-12 col-md-4">
-          <div class="card text-white bg-secondary h-100 shadow-sm">
-            <div class="card-body text-center py-3">
-              <h6 class="card-title mb-1"><i class="bi bi-file-earmark-text"></i> Avg Special Exam</h6>
-              <h2 class="fw-bold">
-                {% if special_paper1_score is not none or special_paper2_score is not none %}
-                  {% set sp_scores = [] %}
-                  {% if special_paper1_score is not none %}{% set _ = sp_scores.append(special_paper1_score) %}{% endif %}
-                  {% if special_paper2_score is not none %}{% set _ = sp_scores.append(special_paper2_score) %}{% endif %}
-                  {{ (sp_scores|sum / (sp_scores|length)) | round(1) }}%
-                {% else %}
-                  N/A
-                {% endif %}
-              </h2>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 3) Second Row: Exam Scores & Special Exam -->
-  <div class="row mb-4 gx-3 gy-4">
-    <!-- 3a) Regular Exam Scores Card (6 cols) -->
-    <div class="col-12 col-md-6">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-light">
-          <strong>Exam Scores</strong>
-        </div>
-        <div class="card-body">
-          {# If there’s only one regular exam, show a gauge; else show a horizontal bar #}
-          {% if exam_titles|length == 1 %}
-            <div class="text-center mb-4">
-              <canvas id="gaugeChart" width="200" height="100"></canvas>
-              <div class="mt-2">
-                {% set s = exam_scores[0] %}
-                <span class="fw-bold fs-4
-                      {% if s >= 80 %}text-success{% elif s < 50 %}text-danger{% else %}text-secondary{% endif %}">
-                  {{ s }}%
-                </span>
-                <span class="ms-2">({{ exam_titles[0] }})</span>
-              </div>
-            </div>
-          {% elif exam_titles|length > 1 %}
-            <div style="height: 240px;">
-              <canvas id="userExamChart"></canvas>
-            </div>
-          {% else %}
-            <p class="text-muted">No exam records.</p>
-          {% endif %}
-
-          {% if exam_titles|length > 0 %}
-          <table class="table table-sm mt-3">
-            <thead>
-              <tr>
-                <th>Exam</th>
-                <th>Score</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for i in range(exam_titles|length) %}
-              <tr>
-                <td>{{ exam_titles[i] }}</td>
-                <td>
-                  {% set s = exam_scores[i] %}
-                  <span class="
-                      {% if s >= 80 %}text-success{% elif s < 50 %}text-danger{% else %}text-secondary{% endif %}">
-                    {{ s }}%
-                  </span>
-                </td>
-                <td>{{ exam_dates[i] }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-
-    <!-- 3b) Special Exam Card (6 cols) -->
-    <div class="col-12 col-md-6">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-light">
-          <strong>Special Exam (Paper 1 & Paper 2)</strong>
-        </div>
-        <div class="card-body">
-          {% if special_paper1_score is none and special_paper2_score is none %}
-            <p class="text-muted">No special exam records.</p>
-          {% else %}
-            <div class="row mb-3">
-              <!-- Gauge for overall special average -->
-              <div class="col-12 col-sm-6 text-center">
-                {% set sp_scores = [] %}
-                {% if special_paper1_score is not none %}{% set _ = sp_scores.append(special_paper1_score) %}{% endif %}
-                {% if special_paper2_score is not none %}{% set _ = sp_scores.append(special_paper2_score) %}{% endif %}
-                {% set sp_avg = (sp_scores|sum / (sp_scores|length)) | round(1) %}
-                <canvas id="specialGauge" width="150" height="80"></canvas>
-                <div class="mt-2">
-                  <span class="fw-bold fs-5
-                    {% if sp_avg >= 80 %}text-success{% elif sp_avg < 50 %}text-danger{% else %}text-secondary{% endif %}">
-                    {{ sp_avg }}%
-                  </span>
-                  <div class="small text-muted">Overall Avg</div>
-                </div>
-              </div>
-              <!-- Mini-Table: Paper 1 and Paper 2 scores -->
-              <div class="col-12 col-sm-6">
-                <table class="table table-borderless table-sm mb-0">
-                  <tbody>
-                    <tr>
-                      <td><strong>Paper 1:</strong></td>
-                      <td>
-                        {% if special_paper1_score is not none %}
-                          {% set s1 = special_paper1_score %}
-                          <span class="
-                            {% if s1 >= 80 %}text-success{% elif s1 < 50 %}text-danger{% else %}text-secondary{% endif %}">
-                            {{ s1 }}%
-                          </span>
-                        {% else %}
-                          <span class="text-muted">N/A</span>
-                        {% endif %}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><strong>Paper 2:</strong></td>
-                      <td>
-                        {% if special_paper2_score is not none %}
-                          {% set s2 = special_paper2_score %}
-                          <span class="
-                            {% if s2 >= 80 %}text-success{% elif s2 < 50 %}text-danger{% else %}text-secondary{% endif %}">
-                            {{ s2 }}%
-                          </span>
-                        {% else %}
-                          <span class="text-muted">N/A</span>
-                        {% endif %}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><strong>Date Taken:</strong></td>
-                      <td>
-                        {% if special_exam_date %}{{ special_exam_date }}{% else %}<span class="text-muted">–{% endif %}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 4) Third Row: Course Progress -->
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="card shadow-sm">
-        <div class="card-header bg-light">
-          <strong>Course Progress</strong>
-        </div>
-        <div class="card-body">
-          {% if course_titles|length == 0 %}
-            <p class="text-muted">No course progress data.</p>
-          {% else %}
-            <div style="height: 240px;">
-              <canvas id="userCourseChart"></canvas>
-            </div>
-            <table class="table table-sm mt-3">
-              <thead>
-                <tr>
-                  <th>Course</th>
-                  <th>Progress</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for i in range(course_titles|length) %}
-                <tr>
-                  <td>{{ course_titles[i] }}</td>
-                  <td>
-                    <div class="progress" style="height: 16px;">
-                      {% set p = course_percents[i] %}
-                      <div class="progress-bar
-                           {% if p >= 80 %}bg-success{% elif p < 50 %}bg-danger{% else %}bg-warning{% endif %}"
-                           role="progressbar"
-                           style="width: {{ p }}%;">
-                        {{ p }}%
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 5) Fourth Row: Activity Timeline -->
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="card shadow-sm">
-        <div class="card-header bg-light">
-          <strong>Activity Timeline</strong>
-        </div>
-        <div class="card-body">
-          {% if timeline|length == 0 %}
-            <p class="text-muted">No activity recorded.</p>
-          {% else %}
-            <ul class="timeline">
-              {% for event in timeline %}
-              <li>
-                <strong>{{ event[1] }}</strong> – {{ event[2] }}
-                {% if event[0] %}
-                  <span class="text-muted">({{ event[0].strftime('%Y-%m-%d') }})</span>
-                {% endif %}
-              </li>
-              {% endfor %}
-            </ul>
-          {% endif %}
-        </div>
-      </div>
+      {% endif %}
     </div>
   </div>
 </div>
 
-<!-- ================================
-     Chart.js & Plugins
-================================ -->
+<!-- Course Progress -->
+<div class="tiq-card mb-4">
+  <div class="tiq-card-header">
+    <div class="tiq-card-title"><i class="fas fa-graduation-cap me-2"></i>Curriculum Course Progress</div>
+  </div>
+  <div class="tiq-card-body">
+    {% if course_titles|length == 0 %}
+      <div class="tiq-empty" style="padding: 2rem 0;">
+        <div class="tiq-empty-icon"><i class="fas fa-book-open"></i></div>
+        <h3>No courses started</h3>
+        <p>No study material metrics recorded for this user.</p>
+      </div>
+    {% else %}
+      <div style="height: 240px; position: relative; margin-bottom: 2rem;">
+        <canvas id="userCourseChart"></canvas>
+      </div>
+      <div class="tiq-table-wrapper">
+        <table class="tiq-table">
+          <thead>
+            <tr>
+              <th>Course Name</th>
+              <th style="width: 300px;">Progress Bar</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for i in range(course_titles|length) %}
+            <tr>
+              <td class="fw-bold">{{ course_titles[i] }}</td>
+              <td>
+                {% set p = course_percents[i] %}
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div class="tiq-progress" style="flex: 1;">
+                    <div class="tiq-progress-bar" style="width: {{ p }}%;
+                         {% if p >= 80 %}background: var(--tiq-success);{% elif p < 50 %}background: var(--tiq-danger);{% else %}background: var(--tiq-warning);{% endif %}"></div>
+                  </div>
+                  <span class="fw-bold" style="font-size: 0.8rem; min-width: 32px;">{{ p }}%</span>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Activity Timeline -->
+<div class="tiq-card">
+  <div class="tiq-card-header">
+    <div class="tiq-card-title"><i class="fas fa-history me-2"></i>Activity Timeline</div>
+  </div>
+  <div class="tiq-card-body">
+    {% if timeline|length == 0 %}
+      <p class="text-muted">No activities have been logged for this user profile.</p>
+    {% else %}
+      <ul class="timeline">
+        {% for event in timeline %}
+        <li>
+          <strong style="color: var(--tiq-text);">{{ event[1] }}</strong> – <span style="color: var(--tiq-text-2);">{{ event[2] }}</span>
+          {% if event[0] %}
+            <span style="font-size: 0.75rem; color: var(--tiq-text-3); font-weight: 500;">({{ event[0].strftime('%Y-%m-%d') }})</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Timeline CSS -->
+<style>
+  .timeline {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+  }
+  .timeline li {
+    border-left: 2px solid var(--tiq-border);
+    margin-left: 8px;
+    padding-left: 20px;
+    padding-bottom: 20px;
+    position: relative;
+  }
+  .timeline li:last-child {
+    border-left: 2px solid transparent;
+    padding-bottom: 0;
+  }
+  .timeline li:before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 6px;
+    width: 10px;
+    height: 10px;
+    background: var(--tiq-primary);
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px var(--tiq-surface);
+  }
+</style>
+
+<!-- Chart JS -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script>
@@ -309,13 +342,11 @@
   ];
 
   document.addEventListener('DOMContentLoaded', () => {
-    // ────────────────────────────────────────────────────────────────────────
     // 1) Regular Exam Scores Chart
-    // ────────────────────────────────────────────────────────────────────────
     if (examTitles.length > 1) {
       const ctx = document.getElementById('userExamChart').getContext('2d');
       const barColors = examScores.map(s =>
-        s >= 80 ? '#27ae60' : (s < 50 ? '#e74c3c' : '#f39c12')
+        s >= 80 ? '#10B981' : (s < 50 ? '#EF4444' : '#F59E0B')
       );
       new Chart(ctx, {
         type: 'bar',
@@ -326,7 +357,7 @@
             data: examScores,
             backgroundColor: barColors,
             borderRadius: 6,
-            barThickness: 18
+            barThickness: 16
           }]
         },
         options: {
@@ -348,7 +379,8 @@
               anchor: 'end',
               align: 'right',
               formatter: value => value + '%',
-              color: '#333'
+              color: '#475569',
+              font: { weight: 'bold' }
             },
             legend: { display: false }
           }
@@ -357,7 +389,7 @@
       });
     }
     else if (examTitles.length === 1) {
-      // Single exam → gauge
+      // Single exam -> gauge
       const ctx = document.getElementById('gaugeChart').getContext('2d');
       const s = examScores[0];
       new Chart(ctx, {
@@ -367,8 +399,8 @@
           datasets: [{
             data: [s, 100 - s],
             backgroundColor: [
-              s >= 80 ? '#27ae60' : (s < 50 ? '#e74c3c' : '#f39c12'),
-              '#e0e0e0'
+              s >= 80 ? '#10B981' : (s < 50 ? '#EF4444' : '#F59E0B'),
+              '#E2E8F0'
             ],
             borderWidth: 0
           }]
@@ -376,7 +408,7 @@
         options: {
           rotation: Math.PI,
           circumference: Math.PI,
-          cutout: '70%',
+          cutout: '75%',
           plugins: {
             legend: { display: false },
             tooltip: { enabled: false },
@@ -386,9 +418,7 @@
       });
     }
 
-    // ────────────────────────────────────────────────────────────────────────
-    // 2) Special Exam Gauge (if any)
-    // ────────────────────────────────────────────────────────────────────────
+    // 2) Special Exam Gauge
     if (spScores.length > 0) {
       const avg = (spScores.reduce((a,b) => a + b, 0) / spScores.length).toFixed(1);
       const ctx2 = document.getElementById('specialGauge').getContext('2d');
@@ -399,8 +429,8 @@
           datasets: [{
             data: [avg, 100 - avg],
             backgroundColor: [
-              avg >= 80 ? '#27ae60' : (avg < 50 ? '#e74c3c' : '#f39c12'),
-              '#e0e0e0'
+              avg >= 80 ? '#10B981' : (avg < 50 ? '#EF4444' : '#F59E0B'),
+              '#E2E8F0'
             ],
             borderWidth: 0
           }]
@@ -408,7 +438,7 @@
         options: {
           rotation: Math.PI,
           circumference: Math.PI,
-          cutout: '70%',
+          cutout: '75%',
           plugins: {
             legend: { display: false },
             tooltip: { enabled: false },
@@ -418,13 +448,11 @@
       });
     }
 
-    // ────────────────────────────────────────────────────────────────────────
     // 3) Course Progress Chart
-    // ────────────────────────────────────────────────────────────────────────
     if (courseTitles.length > 0) {
       const ctx3 = document.getElementById('userCourseChart').getContext('2d');
       const cpColors = coursePercents.map(p =>
-        p >= 80 ? '#27ae60' : (p < 50 ? '#e74c3c' : '#f39c12')
+        p >= 80 ? '#10B981' : (p < 50 ? '#EF4444' : '#F59E0B')
       );
       new Chart(ctx3, {
         type: 'bar',
@@ -435,7 +463,7 @@
             data: coursePercents,
             backgroundColor: cpColors,
             borderRadius: 6,
-            barThickness: 18
+            barThickness: 16
           }]
         },
         options: {
@@ -460,31 +488,4 @@
     }
   });
 </script>
-
-<!-- ================================
-     Simple CSS for Timeline
-================================ -->
-<style>
-  .timeline {
-    list-style: none;
-    padding-left: 0;
-  }
-  .timeline li {
-    border-left: 2px solid #bdc3c7;
-    margin-left: 10px;
-    padding-left: 16px;
-    margin-bottom: 12px;
-    position: relative;
-  }
-  .timeline li:before {
-    content: "";
-    position: absolute;
-    left: -7px;
-    top: 6px;
-    width: 10px;
-    height: 10px;
-    background: #2980b9;
-    border-radius: 50%;
-  }
-</style>
 {% endblock %}

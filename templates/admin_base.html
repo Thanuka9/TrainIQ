@@ -1,314 +1,280 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{% block title %}Admin{% endblock %} – Collective Intranet</title>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}Admin{% endblock %} — {% if is_platform_brand %}TrainIQ Admin{% else %}{{ display_org_name }} Admin{% endif %}</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --tiq-primary: {{ primary_color }} !important;
+      --tiq-primary-rgb: {{ primary_color_rgb }} !important;
+      --tiq-secondary: {{ secondary_color }} !important;
+      --tiq-secondary-rgb: {{ secondary_color_rgb }} !important;
+    }
+    /* Admin sidebar overrides — amber accent */
+    .tiq-sidebar { --tiq-sidebar-active: #F59E0B; --tiq-sidebar-hover: rgba(245,158,11,0.1); }
+    .tiq-sidebar .brand-logo { background: linear-gradient(135deg, #F59E0B, #EF4444); }
+    .tiq-nav-item.active { background: rgba(245,158,11,0.15); color: #FCD34D; }
+    .tiq-nav-item.active::before { background: #F59E0B; }
+    .tiq-nav-item:hover { color: #FCD34D; }
+    .admin-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3);
+      color: #F59E0B; font-size: 0.7rem; font-weight: 700;
+      padding: 3px 10px; border-radius: var(--tiq-radius-full);
+      letter-spacing: 0.06em; text-transform: uppercase;
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
 
-    <!-- Bootstrap CSS -->
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
-    />
-    <!-- Font Awesome -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-    />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% with messages = get_flashed_messages(with_categories=True) %}
+  {% for category, message in messages %}
+    <div class="tiq-flash-data" data-category="{{ category }}" style="display:none">{{ message }}</div>
+  {% endfor %}
+{% endwith %}
 
-    <style>
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-      }
-      body {
-        display: flex;
-        flex-direction: column;
-        background: #f9f9f9;
-        font-family: Arial, sans-serif;
-      }
-      .container {
-        flex: 1;
-        padding: 2rem 1rem;
-      }
-      footer {
-        background: #343a40;
-        color: #fff;
-        text-align: center;
-        padding: 1rem 0;
-        margin-top: auto;
-      }
+<div class="tiq-app-layout">
+  <div class="tiq-sidebar-overlay" id="sidebarOverlay"></div>
 
-      /* Top Bar */
-      .top-bar {
-        position: relative;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: #fff;
-        border-bottom: 1px solid #ddd;
-        padding: 0.5rem 1rem;
-      }
-      .back-btn-top {
-        background: #6c757d;
-        color: #fff;
-        padding: 0.4rem 0.8rem;
-        border-radius: 4px;
-        text-decoration: none;
-        transition: background 0.3s;
-      }
-      .back-btn-top:hover {
-        background: #5a6268;
-      }
-      .logo-section {
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        align-items: center;
-      }
-      .logo-section img {
-        height: 40px;
-        margin-right: 0.5rem;
-      }
-      .logo {
-        font-size: 1.4rem;
-        font-weight: bold;
-      }
-      .logo .black {
-        color: #000;
-      }
-      .logo .red {
-        color: #ba1e24;
-      }
-      .btn-logout {
-        background: #ff4d4d;
-        color: #fff;
-        padding: 0.4rem 0.8rem;
-        border-radius: 4px;
-        text-decoration: none;
-        transition: background 0.3s;
-      }
-      .btn-logout:hover {
-        background: #e60000;
-      }
-
-      /* Nav Buttons */
-      .nav-section {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        justify-content: center;
-        margin-bottom: 2rem;
-      }
-      .nav-section .btn {
-        min-width: 120px;
-        transition: transform 0.2s, box-shadow 0.2s;
-        animation: fadeIn 0.5s ease-in-out;
-      }
-      .nav-section .btn:hover {
-        transform: translateY(-2px) scale(1.03);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      }
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <!-- Top Bar -->
-    <div class="top-bar">
-      <a
-        href="javascript:(history.length>1 ? history.back() : window.location.href='{{ url_for('admin_routes.admin_dashboard') }}');"
-        class="back-btn-top"
-      >
-        <i class="fas fa-arrow-left"></i> Back
-      </a>
-
-      <div class="logo-section">
-        <img
-          src="{{ url_for('static', filename='images/logo.png') }}"
-          alt="Logo"
-        />
-        <div class="logo">
-          <span class="black">Collect</span><span class="red">ive</span>
-        </div>
+  <!-- ── Admin Sidebar ────────────────────────────────── -->
+  <aside class="tiq-sidebar" id="tiqSidebar">
+    <div class="tiq-sidebar-brand">
+      <div class="brand-logo" style="overflow:hidden; display:flex; align-items:center; justify-content:center; {% if not global_logo_url %}background:linear-gradient(135deg,#F59E0B,#EF4444){% endif %}">
+        {% if global_logo_url %}
+          <img src="{{ global_logo_url }}" alt="Logo" style="width:100%; height:100%; object-fit:cover;">
+        {% else %}
+          {% if is_platform_brand %}
+            <i class="fas fa-shield-halved" style="font-size:1rem"></i>
+          {% else %}
+            {{ org_initial }}
+          {% endif %}
+        {% endif %}
       </div>
-
-      <a href="{{ url_for('auth_routes.logout') }}" class="btn-logout">
-        <i class="fas fa-sign-out-alt"></i> Logout
-      </a>
+      <div class="brand-text">
+        {% if is_platform_brand %}
+          Train<span style="color:#F59E0B">IQ</span>
+        {% else %}
+          {{ display_org_name }}
+        {% endif %}
+      </div>
+      <button class="tiq-sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <i class="fas fa-chevron-left"></i>
+      </button>
     </div>
 
-    <!-- Page Content -->
-    <div class="container">
-      <!-- Admin Nav -->
-      <div class="nav-section">
-        <a
-          href="{{ url_for('admin_routes.admin_dashboard') }}"
-          class="btn btn-secondary {% if request.endpoint=='admin_routes.admin_dashboard' %}active{% endif %}"
-        >
-          <i class="fas fa-tachometer-alt"></i> Dashboard
-        </a>
-        <a
-          href="{{ url_for('admin_routes.view_users') }}"
-          class="btn btn-primary {% if request.endpoint=='admin_routes.view_users' %}active{% endif %}"
-        >
-          <i class="fas fa-users"></i> Users
-        </a>
-        <a
-          href="{{ url_for('admin_routes.view_courses') }}"
-          class="btn btn-success {% if request.endpoint=='admin_routes.view_courses' %}active{% endif %}"
-        >
-          <i class="fas fa-book-open"></i> Courses
-        </a>
-        <a
-          href="{{ url_for('admin_routes.view_exams') }}"
-          class="btn btn-info {% if request.endpoint=='admin_routes.view_exams' %}active{% endif %}"
-        >
-          <i class="fas fa-file-alt"></i> Exams
-        </a>
-        <a
-          href="{{ url_for('admin_routes.view_analytics') }}"
-          class="btn btn-warning {% if request.endpoint=='admin_routes.view_analytics' %}active{% endif %}"
-        >
-          <i class="fas fa-chart-line"></i> Analytics
-        </a>
-        <a
-          href="{{ url_for('admin_routes.generate_reports') }}"
-          class="btn btn-danger {% if request.endpoint=='admin_routes.generate_reports' %}active{% endif %}"
-        >
-          <i class="fas fa-chart-bar"></i> Reports
-        </a>
-        <a
-          href="{{ url_for('admin_routes.view_roles') }}"
-          class="btn btn-dark {% if request.endpoint=='admin_routes.view_roles' %}active{% endif %}"
-        >
-          <i class="fas fa-user-shield"></i> Roles
-        </a>
-        <a
-          href="{{ url_for('admin_routes.manage_exam_requests') }}"
-          class="btn"
-          style="background: #6f42c1; color: #fff; border: 1px solid #6741d9"
-        >
-          <i class="fas fa-envelope-open-text"></i> Exam Requests
-        </a>
-        <a
-          href="{{ url_for('admin_routes.incorrect_summary') }}"
-          class="btn"
-          style="background: #20c997; color: #fff; border: 1px solid #198754"
-        >
-          <i class="fas fa-exclamation-circle"></i> Incorrect Answers
-        </a>
-
-        <a
-          href="{{ url_for('admin_routes.manage_level_areas') }}"
-          class="btn"
-          style="background: #322aa8; color: #fff; border: 1px solid #198754"
-        >
-          <i class="fas fa-layer-group"></i> Manage Level Areas
-        </a>
-
-        <a
-          href="{{ url_for('admin_routes.manage_user_clients') }}"
-          class="btn btn-sm"
-          style="background: #634242; color: #fff; border: 1px solid #322aa8"
-        >
-          <i class="fas fa-user-friends"></i> Manage User–Clients
-        </a>
-        <a
-          href="{{ url_for('admin_routes.manage_seeds') }}"
-          class="btn btn-success mr-2"
-          title="Manage Seed Data"
-        >
-          <i class="fas fa-database" aria-hidden="true"></i> Manage Seeds
-        </a>
-        <a
-          href="{{ url_for('admin_routes.admin_list_tickets') }}"
-          class="btn btn-info {% if request.endpoint=='admin_routes.admin_list_tickets' %}active{% endif %}"
-          title="Manage Support Tickets"
-        >
-          <i class="fas fa-headset"></i> Support
-        </a>
+    <!-- Admin badge -->
+    <div style="padding:0.5rem 1.25rem 0;transition:opacity var(--tiq-transition)">
+      <div class="admin-badge">
+        <i class="fas fa-shield-halved"></i> Admin Console
       </div>
+    </div>
 
+    <nav class="tiq-sidebar-nav" style="padding-top:0.75rem">
+
+      <div class="tiq-nav-section-label">Overview</div>
+      <a href="{{ url_for('admin_routes.admin_dashboard') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.admin_dashboard' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-tachometer-alt"></i></span>
+        <span class="nav-label">Dashboard</span>
+      </a>
+
+      <div class="tiq-nav-section-label" style="margin-top:1rem">Management</div>
+      <a href="{{ url_for('admin_routes.view_users') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.view_users' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-users"></i></span>
+        <span class="nav-label">Users</span>
+      </a>
+      <a href="{{ url_for('admin_routes.view_courses') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.view_courses' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-book-open"></i></span>
+        <span class="nav-label">Courses</span>
+      </a>
+      <a href="{{ url_for('admin_routes.view_exams') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.view_exams' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-file-alt"></i></span>
+        <span class="nav-label">Exams</span>
+      </a>
+      <a href="{{ url_for('admin_routes.view_roles') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.view_roles' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-user-shield"></i></span>
+        <span class="nav-label">Roles</span>
+      </a>
+      <a href="{{ url_for('admin_routes.manage_user_clients') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.manage_user_clients' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-user-tie"></i></span>
+        <span class="nav-label">User–Clients</span>
+      </a>
+      <a href="{{ url_for('admin_routes.manage_level_areas') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.manage_level_areas' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-layer-group"></i></span>
+        <span class="nav-label">Level Areas</span>
+      </a>
+
+      <div class="tiq-nav-section-label" style="margin-top:1rem">Data & Insights</div>
+      <a href="{{ url_for('admin_routes.view_analytics') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.view_analytics' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-chart-line"></i></span>
+        <span class="nav-label">Analytics</span>
+      </a>
+      <a href="{{ url_for('admin_routes.generate_reports') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.generate_reports' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-chart-bar"></i></span>
+        <span class="nav-label">Reports</span>
+      </a>
+      <a href="{{ url_for('admin_routes.incorrect_summary') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.incorrect_summary' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-exclamation-circle"></i></span>
+        <span class="nav-label">Incorrect Answers</span>
+      </a>
+      <a href="{{ url_for('admin_routes.proctoriq_review') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.proctoriq_review' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-shield-halved"></i></span>
+        <span class="nav-label">ProctorIQ Review</span>
+      </a>
+      <a href="{{ url_for('admin_routes.view_audit_logs') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.view_audit_logs' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-scroll"></i></span>
+        <span class="nav-label">Audit Logs</span>
+      </a>
+
+      <div class="tiq-nav-section-label" style="margin-top:1rem">Operations</div>
+      <a href="{{ url_for('admin_routes.manage_exam_requests') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.manage_exam_requests' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-envelope-open-text"></i></span>
+        <span class="nav-label">Exam Requests</span>
+      </a>
+      <a href="{{ url_for('admin_routes.admin_list_tickets') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.admin_list_tickets' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-headset"></i></span>
+        <span class="nav-label">Support Tickets</span>
+      </a>
+      <a href="{{ url_for('admin_routes.manage_seeds') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.manage_seeds' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-database"></i></span>
+        <span class="nav-label">Seed Data</span>
+      </a>
+
+      {% if current_user.is_super_admin %}
+      <a href="{{ url_for('billing_routes.billing_home') }}"
+         class="tiq-nav-item {% if request.endpoint and request.endpoint.startswith('billing_routes.') %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-credit-card"></i></span>
+        <span class="nav-label">Billing</span>
+      </a>
+      <a href="{{ url_for('admin_routes.tenant_settings') }}"
+         class="tiq-nav-item {% if request.endpoint=='admin_routes.tenant_settings' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-cog"></i></span>
+        <span class="nav-label">Org Settings</span>
+      </a>
+      {% endif %}
+
+      <div class="tiq-nav-section-label" style="margin-top:1rem">Navigation</div>
+      <a href="{{ url_for('general_routes.dashboard') }}" class="tiq-nav-item">
+        <span class="nav-icon"><i class="fas fa-arrow-left"></i></span>
+        <span class="nav-label">Back to App</span>
+      </a>
+
+    </nav>
+
+    <div class="tiq-sidebar-footer">
+      <div class="tiq-sidebar-user" data-tiq-dropdown="adminUserMenu">
+        <div class="user-avatar tiq-avatar tiq-avatar-md" title="{{ current_user.first_name }} {{ current_user.last_name }}">
+          {{ user_initials(current_user) }}
+        </div>
+        <div class="user-info">
+          <div class="user-name">{{ current_user.first_name }} {{ current_user.last_name }}</div>
+          <div class="user-role">Super Admin</div>
+        </div>
+        <i class="fas fa-ellipsis-vertical" style="color:rgba(148,163,184,0.5);margin-left:auto;font-size:0.8rem"></i>
+      </div>
+      <div class="tiq-dropdown" id="adminUserMenu" style="bottom:100%;top:auto;margin-bottom:8px;">
+        <a href="{{ url_for('profile_routes.profile') }}" class="tiq-dropdown-item"><i class="fas fa-user"></i> My Profile</a>
+        <div class="tiq-dropdown-divider"></div>
+        <a href="{{ url_for('auth_routes.logout') }}" class="tiq-dropdown-item danger"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Admin Main ──────────────────────────────────── -->
+  <main class="tiq-main" id="tiqMain">
+    <header class="tiq-topbar">
+      <button class="tiq-mobile-menu-btn" id="mobileSidebarBtn"><i class="fas fa-bars"></i></button>
+      <div style="flex:1">
+        <div class="tiq-breadcrumb">
+          <a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+          <span class="tiq-breadcrumb-sep"><i class="fas fa-chevron-right" style="font-size:0.6rem"></i></span>
+          <span>{% block breadcrumb %}Dashboard{% endblock %}</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <button class="tiq-theme-toggle" onclick="TrainIQ.Theme.toggle()" aria-label="Toggle theme">
+          <i class="fas fa-moon tiq-theme-icon"></i>
+        </button>
+        <div class="tiq-user-menu">
+          <button class="tiq-user-trigger" data-tiq-dropdown="adminTopMenu">
+            <div class="tiq-avatar tiq-avatar-md" title="{{ current_user.first_name }} {{ current_user.last_name }}">
+              {{ user_initials(current_user) }}
+            </div>
+            <i class="fas fa-chevron-down chevron"></i>
+          </button>
+          <div class="tiq-dropdown" id="adminTopMenu">
+            <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--tiq-border)">
+              <div style="font-weight:700;font-size:0.875rem">{{ current_user.first_name }} {{ current_user.last_name }}</div>
+              <div style="font-size:0.75rem;color:var(--tiq-text-3)">Super Administrator</div>
+            </div>
+            <a href="{{ url_for('profile_routes.profile') }}" class="tiq-dropdown-item"><i class="fas fa-user"></i> My Profile</a>
+            <a href="{{ url_for('general_routes.dashboard') }}" class="tiq-dropdown-item"><i class="fas fa-house"></i> User Dashboard</a>
+            <div class="tiq-dropdown-divider"></div>
+            <a href="{{ url_for('auth_routes.logout') }}" class="tiq-dropdown-item danger"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="tiq-page-content">
+      {% include 'partials/billing_usage_banner.html' %}
+      {% include 'partials/trial_checklist.html' %}
       {% block content %}{% endblock %}
     </div>
+  </main>
+</div>
 
-    <footer>Collective Intranet© 2024</footer>
-
-    <!-- Access Denied Modal -->
-    <div
-      class="modal fade"
-      id="accessDeniedModal"
-      tabindex="-1"
-      aria-labelledby="accessDeniedTitle"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="accessDeniedTitle">Access Denied</h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="modal-body text-center">
-            <i class="fas fa-ban display-1 text-danger"></i>
-            <p class="mt-3">
-              You don’t have permission to perform that action.
-            </p>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" data-bs-dismiss="modal">
-              Okay
-            </button>
-          </div>
-        </div>
-      </div>
+<!-- Access Denied Modal -->
+<div class="tiq-modal-backdrop" id="accessDeniedModal">
+  <div class="tiq-modal" style="max-width:400px">
+    <div class="tiq-modal-header">
+      <h3 style="font-size:1rem"><i class="fas fa-ban" style="color:var(--tiq-danger);margin-right:8px"></i>Access Denied</h3>
     </div>
+    <div class="tiq-modal-body" style="text-align:center">
+      <div style="font-size:3rem;color:var(--tiq-danger);opacity:0.3;margin-bottom:1rem"><i class="fas fa-lock"></i></div>
+      <p style="color:var(--tiq-text-2);font-size:0.9rem">You don't have permission to perform that action.</p>
+    </div>
+    <div class="tiq-modal-footer">
+      <button class="tiq-btn tiq-btn-secondary tiq-btn-sm" data-tiq-modal-close>Close</button>
+    </div>
+  </div>
+</div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+<div class="tiq-toast-container"></div>
+<button class="tiq-scroll-top"><i class="fas fa-chevron-up"></i></button>
 
-    <!-- Trigger the modal if we flashed ‘access_denied’ -->
-    <script>
-      {% with msgs = get_flashed_messages(category_filter=['access_denied']) %}
-        {% if msgs %}
-          window.addEventListener('load', () => {
-            const modal = document.getElementById('accessDeniedModal');
-            if (modal) {
-              new bootstrap.Modal(modal).show();
-            }
-          });
-        {% endif %}
-      {% endwith %}
-
-      // Keep session alive if user is active
-      setInterval(() => {
-        fetch('/ping', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        });
-      }, 300000); // every 5 minutes
-    </script>
-
-    <!-- Analytics and other page-specific scripts will be injected here -->
-    {% block scripts %}{% endblock %}
-  </body>
+<script src="{{ url_for('static', filename='js/trainiq.js') }}?v=1.3"></script>
+<script>
+  {% with msgs = get_flashed_messages(category_filter=['access_denied']) %}
+    {% if msgs %}
+      document.addEventListener('DOMContentLoaded', () => {
+        TrainIQ.Modal.open(document.getElementById('accessDeniedModal'));
+      });
+    {% endif %}
+  {% endwith %}
+</script>
+{% block scripts %}{% endblock %}
+</body>
 </html>

@@ -1,132 +1,109 @@
-{% extends 'admin_base.html' %} {% block title %}Manage All Seeds{% endblock %}
+{% extends 'admin_base.html' %}
+{% block title %}Manage All Seeds — {{ display_org_name }}{% endblock %}
+
+{% block breadcrumb %}
+  <a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <span>Seed Data Management</span>
+{% endblock %}
+
 {% block content %}
-<div class="container py-4">
-  <h1 class="mb-4">🛠️ Manage Seed Data</h1>
+<div class="tiq-page-header">
+  <h1>🛠️ Manage Seed Data</h1>
+  <p class="tiq-lead">Directly configure core taxonomic entities, lookup tables, and seed classifications for the organization.</p>
+</div>
 
-  <!-- Flash messages -->
-  {% with messages = get_flashed_messages(with_categories=true) %} {% if
-  messages %}
-  <div class="mt-3">
-    {% for category, msg in messages %}
-    <div
-      class="alert alert-{{ 'danger' if category == 'error' else ('warning' if category == 'warning' else 'success') }} alert-sm"
-    >
-      {{ msg }}
+{# Flash messages #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="mb-4">
+      {% for category, msg in messages %}
+        <div class="tiq-alert tiq-alert-{{ 'success' if category == 'success' else ('danger' if category == 'error' else 'warning') }}">
+          <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+          <div>{{ msg }}</div>
+        </div>
+      {% endfor %}
     </div>
-    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<!-- Dropdown to pick which seed-section to show -->
+<div class="tiq-card mb-4" style="max-width: 400px;">
+  <div class="tiq-card-body d-flex align-items-center justify-content-between gap-3">
+    <div style="flex: 1;">
+      <label for="seedSelect" class="tiq-label mb-1">Choose Seed Type</label>
+      <select id="seedSelect" class="tiq-select" style="font-weight: 600;">
+        <option value="roles">System Roles</option>
+        <option value="designations">Designations</option>
+        <option value="departments">Departments</option>
+        <option value="clients">Clients</option>
+        <option value="levels">Levels</option>
+        <option value="areas">Areas</option>
+        <option value="categories">Categories</option>
+      </select>
+    </div>
   </div>
-  {% endif %} {% endwith %}
+</div>
 
-  <!-- Dropdown to pick which seed‐section to show -->
-  <div class="mb-4">
-    <label for="seedSelect" class="form-label fw-bold">Choose Seed Type:</label>
-    <select id="seedSelect" class="form-select w-auto d-inline-block mb-2">
-      <option value="roles">Roles</option>
-      <option value="designations">Designations</option>
-      <option value="departments">Departments</option>
-      <option value="clients">Clients</option>
-      <option value="levels">Levels</option>
-      <option value="areas">Areas</option>
-      <option value="categories">Categories</option>
-    </select>
-  </div>
+<!-- ROLES Section -->
+<div id="seed-roles" class="seed-section">
+  <div class="tiq-card tiq-animate-fade-up">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-user-tag me-2"></i>Roles</div>
+    </div>
+    <div class="tiq-card-body">
+      <!-- Add New Role -->
+      <form class="tiq-grid tiq-grid-2 tiq-gap align-items-end mb-4" style="max-width: 600px;" method="POST" action="{{ url_for('admin_routes.add_role') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <div class="tiq-form-group mb-0">
+          <label class="tiq-label">New Role Name</label>
+          <input type="text" class="tiq-input" name="role_name" placeholder="e.g. Content Reviewer" required />
+        </div>
+        <div class="mb-0">
+          <button type="submit" class="tiq-btn tiq-btn-primary"><i class="fas fa-plus me-1"></i>Add Role</button>
+        </div>
+      </form>
 
-  <!-- ROLES Section -->
-  <div id="seed-roles" class="seed-section">
-    <div class="card mb-4">
-      <div class="card-header"><h2 class="h5 mb-0">Roles</h2></div>
-      <div class="card-body">
-        <!-- Add New Role -->
-        <form
-          class="row gx-2 mb-3"
-          method="POST"
-          action="{{ url_for('admin_routes.add_role') }}"
-        >
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <div class="col-auto">
-            <input
-              type="text"
-              class="form-control form-control-sm"
-              name="role_name"
-              placeholder="New role name"
-              required
-            />
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="btn btn-primary btn-sm">
-              Add Role
-            </button>
-          </div>
-        </form>
-
-        <!-- Existing Roles Table -->
-        <table
-          class="table table-bordered table-striped table-hover table-sm mb-0"
-        >
-          <thead class="table-light">
+      <div class="tiq-table-toolbar" style="padding-left:0; padding-right:0; border-bottom:none;">
+        <span style="font-size:0.875rem; color:var(--tiq-text-3);">{{ roles|length }} roles</span>
+        <input type="search" class="tiq-input tiq-table-search" placeholder="Search roles…" data-table-search="seedRolesTable" aria-label="Search seed roles">
+      </div>
+      <!-- Existing Roles Table -->
+      <div class="tiq-table-wrapper tiq-table-sticky">
+        <table class="tiq-table" id="seedRolesTable">
+          <thead>
             <tr>
-              <th style="width: 50px">#</th>
-              <th>Name</th>
-              <th style="width: 120px">Actions</th>
+              <th style="width: 80px;">Index</th>
+              <th>Role Name</th>
+              <th class="tiq-text-center" style="width: 120px;">Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for role in roles %}
             <tr>
-              <td>{{ loop.index }}</td>
-              <!-- Edit Role: single field in a single cell -->
+              <td><code>#{{ loop.index }}</code></td>
               <td>
-                <form
-                  method="POST"
-                  action="{{ url_for('admin_routes.edit_role', id=role.id) }}"
-                  class="d-flex gap-2"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                  />
-                  <input
-                    type="text"
-                    name="role_name"
-                    class="form-control form-control-sm"
-                    value="{{ role.name }}"
-                    required
-                  />
-                  <button
-                    class="btn btn-success btn-sm"
-                    type="submit"
-                    title="Save"
-                  >
+                <form id="role-edit-{{ role.id }}" method="POST" action="{{ url_for('admin_routes.edit_role', id=role.id) }}" class="d-none"></form>
+                <input type="hidden" form="role-edit-{{ role.id }}" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="text" name="role_name" form="role-edit-{{ role.id }}" class="tiq-input" style="padding: 0.35rem 0.75rem; font-size: 0.875rem;" value="{{ role.name }}" required />
+              </td>
+              <td class="tiq-text-center">
+                <div style="display: flex; gap: 0.5rem; justify-content: center; align-items: center;">
+                  <button type="submit" form="role-edit-{{ role.id }}" class="tiq-btn tiq-btn-icon-sm tiq-btn-success" title="Save">
                     <i class="fas fa-save"></i>
                   </button>
-                </form>
-              </td>
-              <!-- Delete Role -->
-              <td class="text-center">
-                <form
-                  method="POST"
-                  action="{{ url_for('admin_routes.delete_role', id=role.id) }}"
-                  onsubmit="return confirm('Delete this role?');"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                  />
-                  <button
-                    type="submit"
-                    class="btn btn-danger btn-sm"
-                    title="Delete"
-                  >
-                    <i class="fas fa-trash-alt"></i>
-                  </button>
-                </form>
+                  <form method="POST" action="{{ url_for('admin_routes.delete_role', id=role.id) }}" onsubmit="return confirm('Delete this role?');" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="tiq-btn tiq-btn-icon-sm tiq-btn-danger" title="Delete">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </form>
+                </div>
               </td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="3" class="text-center">No roles defined.</td>
+              <td colspan="3" class="tiq-text-center text-muted">No roles defined.</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -134,121 +111,71 @@
       </div>
     </div>
   </div>
+</div>
 
-  <!-- DESIGNATIONS Section -->
-  <div id="seed-designations" class="seed-section" style="display: none">
-    <div class="card mb-4">
-      <div class="card-header"><h2 class="h5 mb-0">Designations</h2></div>
-      <div class="card-body">
-        <!-- Add New Designation -->
-        <form
-          class="row gx-2 mb-3"
-          method="POST"
-          action="{{ url_for('admin_routes.add_designation') }}"
-        >
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <div class="col">
-            <input
-              type="text"
-              class="form-control form-control-sm"
-              name="desig_title"
-              placeholder="Title"
-              required
-            />
-          </div>
-          <div class="col">
-            <input
-              type="number"
-              class="form-control form-control-sm"
-              name="desig_starting_level"
-              placeholder="Starting Level"
-              min="1"
-              required
-            />
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="btn btn-primary btn-sm">
-              Add Designation
-            </button>
-          </div>
-        </form>
+<!-- DESIGNATIONS Section -->
+<div id="seed-designations" class="seed-section" style="display: none">
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-id-badge me-2"></i>Designations</div>
+    </div>
+    <div class="tiq-card-body">
+      <!-- Add New Designation -->
+      <form class="tiq-grid tiq-grid-3 tiq-gap align-items-end mb-4" method="POST" action="{{ url_for('admin_routes.add_designation') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <div class="tiq-form-group mb-0">
+          <label class="tiq-label">Designation Title</label>
+          <input type="text" class="tiq-input" name="desig_title" placeholder="e.g. Trainee" required />
+        </div>
+        <div class="tiq-form-group mb-0">
+          <label class="tiq-label">Starting Level</label>
+          <input type="number" class="tiq-input" name="desig_starting_level" placeholder="1" min="1" required />
+        </div>
+        <div class="mb-0">
+          <button type="submit" class="tiq-btn tiq-btn-primary tiq-w-full" style="justify-content: center;"><i class="fas fa-plus me-1"></i>Add Designation</button>
+        </div>
+      </form>
 
-        <!-- Existing Designations Table -->
-        <table
-          class="table table-bordered table-striped table-hover table-sm mb-0"
-        >
-          <thead class="table-light">
+      <!-- Existing Designations Table -->
+      <div class="tiq-table-wrapper">
+        <table class="tiq-table">
+          <thead>
             <tr>
-              <th style="width: 50px">#</th>
-              <th>Title &amp; Starting Level</th>
-              <th style="width: 120px">Actions</th>
+              <th style="width: 80px;">Index</th>
+              <th>Designation Title</th>
+              <th style="width: 150px;">Starting Level</th>
+              <th class="tiq-text-center" style="width: 120px;">Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for desig in designations %}
             <tr>
-              <td>{{ loop.index }}</td>
-              <!-- Edit both fields (title + starting_level) inside one cell -->
+              <td><code>#{{ loop.index }}</code></td>
               <td>
-                <form
-                  method="POST"
-                  action="{{ url_for('admin_routes.edit_designation', id=desig.id) }}"
-                  class="d-flex gap-2"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                  />
-                  <input
-                    type="text"
-                    name="desig_title"
-                    class="form-control form-control-sm"
-                    value="{{ desig.title }}"
-                    required
-                  />
-                  <input
-                    type="number"
-                    name="desig_starting_level"
-                    class="form-control form-control-sm"
-                    value="{{ desig.starting_level }}"
-                    min="1"
-                    required
-                  />
-                  <button
-                    class="btn btn-success btn-sm"
-                    type="submit"
-                    title="Save"
-                  >
+                <form id="desig-edit-{{ desig.id }}" method="POST" action="{{ url_for('admin_routes.edit_designation', id=desig.id) }}" class="d-none"></form>
+                <input type="hidden" form="desig-edit-{{ desig.id }}" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="text" name="desig_title" form="desig-edit-{{ desig.id }}" class="tiq-input" style="padding: 0.35rem 0.75rem; font-size: 0.875rem;" value="{{ desig.title }}" required />
+              </td>
+              <td>
+                <input type="number" name="desig_starting_level" form="desig-edit-{{ desig.id }}" class="tiq-input" style="padding: 0.35rem 0.75rem; font-size: 0.875rem;" value="{{ desig.starting_level }}" min="1" required />
+              </td>
+              <td class="tiq-text-center">
+                <div style="display: flex; gap: 0.5rem; justify-content: center; align-items: center;">
+                  <button type="submit" form="desig-edit-{{ desig.id }}" class="tiq-btn tiq-btn-icon-sm tiq-btn-success" title="Save">
                     <i class="fas fa-save"></i>
                   </button>
-                </form>
-              </td>
-              <!-- Delete Designation -->
-              <td class="text-center">
-                <form
-                  method="POST"
-                  action="{{ url_for('admin_routes.delete_designation', id=desig.id) }}"
-                  onsubmit="return confirm('Delete this designation?');"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                  />
-                  <button
-                    type="submit"
-                    class="btn btn-danger btn-sm"
-                    title="Delete"
-                  >
-                    <i class="fas fa-trash-alt"></i>
-                  </button>
-                </form>
+                  <form method="POST" action="{{ url_for('admin_routes.delete_designation', id=desig.id) }}" onsubmit="return confirm('Delete this designation?');" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="tiq-btn tiq-btn-icon-sm tiq-btn-danger" title="Delete">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </form>
+                </div>
               </td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="3" class="text-center">No designations defined.</td>
+              <td colspan="4" class="tiq-text-center text-muted">No designations defined.</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -256,103 +183,63 @@
       </div>
     </div>
   </div>
+</div>
 
-  <!-- DEPARTMENTS Section -->
-  <div id="seed-departments" class="seed-section" style="display: none">
-    <div class="card mb-4">
-      <div class="card-header"><h2 class="h5 mb-0">Departments</h2></div>
-      <div class="card-body">
-        <!-- Add New Department -->
-        <form
-          class="row gx-2 mb-3"
-          method="POST"
-          action="{{ url_for('admin_routes.add_department') }}"
-        >
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <div class="col">
-            <input
-              type="text"
-              name="dept_name"
-              class="form-control form-control-sm"
-              placeholder="New department"
-              required
-            />
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="btn btn-primary btn-sm">
-              Add Department
-            </button>
-          </div>
-        </form>
+<!-- DEPARTMENTS Section -->
+<div id="seed-departments" class="seed-section" style="display: none">
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-building me-2"></i>Departments</div>
+    </div>
+    <div class="tiq-card-body">
+      <!-- Add New Department -->
+      <form class="tiq-grid tiq-grid-2 tiq-gap align-items-end mb-4" style="max-width: 600px;" method="POST" action="{{ url_for('admin_routes.add_department') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <div class="tiq-form-group mb-0">
+          <label class="tiq-label">Department Name</label>
+          <input type="text" name="dept_name" class="tiq-input" placeholder="e.g. Operations" required />
+        </div>
+        <div class="mb-0">
+          <button type="submit" class="tiq-btn tiq-btn-primary"><i class="fas fa-plus me-1"></i>Add Department</button>
+        </div>
+      </form>
 
-        <!-- Existing Departments Table -->
-        <table
-          class="table table-bordered table-striped table-hover table-sm mb-0"
-        >
-          <thead class="table-light">
+      <!-- Existing Departments Table -->
+      <div class="tiq-table-wrapper">
+        <table class="tiq-table">
+          <thead>
             <tr>
-              <th style="width: 50px">#</th>
-              <th>Name</th>
-              <th style="width: 120px">Actions</th>
+              <th style="width: 80px;">Index</th>
+              <th>Department Name</th>
+              <th class="tiq-text-center" style="width: 120px;">Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for dept in departments %}
             <tr>
-              <td>{{ loop.index }}</td>
-              <!-- Edit Department Name -->
+              <td><code>#{{ loop.index }}</code></td>
               <td>
-                <form
-                  method="POST"
-                  action="{{ url_for('admin_routes.edit_department', id=dept.id) }}"
-                  class="d-flex gap-2"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                  />
-                  <input
-                    type="text"
-                    name="dept_name"
-                    class="form-control form-control-sm"
-                    value="{{ dept.name }}"
-                    required
-                  />
-                  <button
-                    class="btn btn-success btn-sm"
-                    type="submit"
-                    title="Save"
-                  >
+                <form id="dept-edit-{{ dept.id }}" method="POST" action="{{ url_for('admin_routes.edit_department', id=dept.id) }}" class="d-none"></form>
+                <input type="hidden" form="dept-edit-{{ dept.id }}" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="text" name="dept_name" form="dept-edit-{{ dept.id }}" class="tiq-input" style="padding: 0.35rem 0.75rem; font-size: 0.875rem;" value="{{ dept.name }}" required />
+              </td>
+              <td class="tiq-text-center">
+                <div style="display: flex; gap: 0.5rem; justify-content: center; align-items: center;">
+                  <button type="submit" form="dept-edit-{{ dept.id }}" class="tiq-btn tiq-btn-icon-sm tiq-btn-success" title="Save">
                     <i class="fas fa-save"></i>
                   </button>
-                </form>
-              </td>
-              <!-- Delete Department -->
-              <td class="text-center">
-                <form
-                  method="POST"
-                  action="{{ url_for('admin_routes.delete_department', id=dept.id) }}"
-                  onsubmit="return confirm('Delete this department?');"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                  />
-                  <button
-                    type="submit"
-                    class="btn btn-danger btn-sm"
-                    title="Delete"
-                  >
-                    <i class="fas fa-trash-alt"></i>
-                  </button>
-                </form>
+                  <form method="POST" action="{{ url_for('admin_routes.delete_department', id=dept.id) }}" onsubmit="return confirm('Delete this department?');" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="tiq-btn tiq-btn-icon-sm tiq-btn-danger" title="Delete">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </form>
+                </div>
               </td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="3" class="text-center">No departments defined.</td>
+              <td colspan="3" class="tiq-text-center text-muted">No departments defined.</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -360,103 +247,63 @@
       </div>
     </div>
   </div>
+</div>
 
-  <!-- CLIENTS Section -->
-  <div id="seed-clients" class="seed-section" style="display: none">
-    <div class="card mb-4">
-      <div class="card-header"><h2 class="h5 mb-0">Clients</h2></div>
-      <div class="card-body">
-        <!-- Add New Client -->
-        <form
-          class="row gx-2 mb-3"
-          method="POST"
-          action="{{ url_for('admin_routes.add_client') }}"
-        >
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <div class="col">
-            <input
-              type="text"
-              name="client_name"
-              class="form-control form-control-sm"
-              placeholder="New client name"
-              required
-            />
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="btn btn-primary btn-sm">
-              Add Client
-            </button>
-          </div>
-        </form>
+<!-- CLIENTS Section -->
+<div id="seed-clients" class="seed-section" style="display: none">
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-users-cog me-2"></i>Clients</div>
+    </div>
+    <div class="tiq-card-body">
+      <!-- Add New Client -->
+      <form class="tiq-grid tiq-grid-2 tiq-gap align-items-end mb-4" style="max-width: 600px;" method="POST" action="{{ url_for('admin_routes.add_client') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <div class="tiq-form-group mb-0">
+          <label class="tiq-label">Client Name</label>
+          <input type="text" name="client_name" class="tiq-input" placeholder="e.g. Acma Corp" required />
+        </div>
+        <div class="mb-0">
+          <button type="submit" class="tiq-btn tiq-btn-primary"><i class="fas fa-plus me-1"></i>Add Client</button>
+        </div>
+      </form>
 
-        <!-- Existing Clients Table -->
-        <table
-          class="table table-bordered table-striped table-hover table-sm mb-0"
-        >
-          <thead class="table-light">
+      <!-- Existing Clients Table -->
+      <div class="tiq-table-wrapper">
+        <table class="tiq-table">
+          <thead>
             <tr>
-              <th style="width: 50px">#</th>
-              <th>Name</th>
-              <th style="width: 120px">Actions</th>
+              <th style="width: 80px;">Index</th>
+              <th>Client Name</th>
+              <th class="tiq-text-center" style="width: 120px;">Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for client in clients %}
             <tr>
-              <td>{{ loop.index }}</td>
-              <!-- Edit Client Name -->
+              <td><code>#{{ loop.index }}</code></td>
               <td>
-                <form
-                  method="POST"
-                  action="{{ url_for('admin_routes.edit_client', id=client.id) }}"
-                  class="d-flex gap-2"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                  />
-                  <input
-                    type="text"
-                    name="client_name"
-                    class="form-control form-control-sm"
-                    value="{{ client.name }}"
-                    required
-                  />
-                  <button
-                    class="btn btn-success btn-sm"
-                    type="submit"
-                    title="Save"
-                  >
+                <form id="client-edit-{{ client.id }}" method="POST" action="{{ url_for('admin_routes.edit_client', id=client.id) }}" class="d-none"></form>
+                <input type="hidden" form="client-edit-{{ client.id }}" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="text" name="client_name" form="client-edit-{{ client.id }}" class="tiq-input" style="padding: 0.35rem 0.75rem; font-size: 0.875rem;" value="{{ client.name }}" required />
+              </td>
+              <td class="tiq-text-center">
+                <div style="display: flex; gap: 0.5rem; justify-content: center; align-items: center;">
+                  <button type="submit" form="client-edit-{{ client.id }}" class="tiq-btn tiq-btn-icon-sm tiq-btn-success" title="Save">
                     <i class="fas fa-save"></i>
                   </button>
-                </form>
-              </td>
-              <!-- Delete Client -->
-              <td class="text-center">
-                <form
-                  method="POST"
-                  action="{{ url_for('admin_routes.delete_client', id=client.id) }}"
-                  onsubmit="return confirm('Delete this client?');"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                  />
-                  <button
-                    type="submit"
-                    class="btn btn-danger btn-sm"
-                    title="Delete"
-                  >
-                    <i class="fas fa-trash-alt"></i>
-                  </button>
-                </form>
+                  <form method="POST" action="{{ url_for('admin_routes.delete_client', id=client.id) }}" onsubmit="return confirm('Delete this client?');" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="tiq-btn tiq-btn-icon-sm tiq-btn-danger" title="Delete">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </form>
+                </div>
               </td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="3" class="text-center">No clients defined.</td>
+              <td colspan="3" class="tiq-text-center text-muted">No clients defined.</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -464,121 +311,71 @@
       </div>
     </div>
   </div>
+</div>
 
-  <!-- LEVELS Section -->
-  <div id="seed-levels" class="seed-section" style="display: none">
-    <div class="card mb-4">
-      <div class="card-header"><h2 class="h5 mb-0">Levels</h2></div>
-      <div class="card-body">
-        <!-- Add New Level -->
-        <form
-          class="row gx-2 mb-3"
-          method="POST"
-          action="{{ url_for('admin_routes.add_level') }}"
-        >
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <div class="col">
-            <input
-              type="number"
-              name="level_number"
-              class="form-control form-control-sm"
-              placeholder="# (e.g. 1)"
-              min="1"
-              required
-            />
-          </div>
-          <div class="col">
-            <input
-              type="text"
-              name="level_title"
-              class="form-control form-control-sm"
-              placeholder="Title (e.g. Beginner)"
-              required
-            />
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="btn btn-primary btn-sm">
-              Add Level
-            </button>
-          </div>
-        </form>
+<!-- LEVELS Section -->
+<div id="seed-levels" class="seed-section" style="display: none">
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-layer-group me-2"></i>Levels</div>
+    </div>
+    <div class="tiq-card-body">
+      <!-- Add New Level -->
+      <form class="tiq-grid tiq-grid-3 tiq-gap align-items-end mb-4" method="POST" action="{{ url_for('admin_routes.add_level') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <div class="tiq-form-group mb-0">
+          <label class="tiq-label">Level Number</label>
+          <input type="number" name="level_number" class="tiq-input" placeholder="e.g. 1" min="1" required />
+        </div>
+        <div class="tiq-form-group mb-0">
+          <label class="tiq-label">Level Title</label>
+          <input type="text" name="level_title" class="tiq-input" placeholder="e.g. Associate" required />
+        </div>
+        <div class="mb-0">
+          <button type="submit" class="tiq-btn tiq-btn-primary tiq-w-full" style="justify-content: center;"><i class="fas fa-plus me-1"></i>Add Level</button>
+        </div>
+      </form>
 
-        <!-- Existing Levels Table -->
-        <table
-          class="table table-bordered table-striped table-hover table-sm mb-0"
-        >
-          <thead class="table-light">
+      <!-- Existing Levels Table -->
+      <div class="tiq-table-wrapper">
+        <table class="tiq-table">
+          <thead>
             <tr>
-              <th style="width: 50px">#</th>
-              <th>Level Number &amp; Title</th>
-              <th style="width: 120px">Actions</th>
+              <th style="width: 80px;">Index</th>
+              <th style="width: 120px;">Level Number</th>
+              <th>Level Title</th>
+              <th class="tiq-text-center" style="width: 120px;">Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for lvl in levels %}
             <tr>
-              <td>{{ loop.index }}</td>
-              <!-- Edit both fields (level_number + title) in one cell -->
+              <td><code>#{{ loop.index }}</code></td>
               <td>
-                <form
-                  method="POST"
-                  action="{{ url_for('admin_routes.edit_level', id=lvl.id) }}"
-                  class="d-flex gap-2"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                  />
-                  <input
-                    type="number"
-                    name="level_number"
-                    class="form-control form-control-sm"
-                    value="{{ lvl.level_number }}"
-                    min="1"
-                    required
-                  />
-                  <input
-                    type="text"
-                    name="level_title"
-                    class="form-control form-control-sm"
-                    value="{{ lvl.title }}"
-                    required
-                  />
-                  <button
-                    class="btn btn-success btn-sm"
-                    type="submit"
-                    title="Save"
-                  >
+                <form id="lvl-edit-{{ lvl.id }}" method="POST" action="{{ url_for('admin_routes.edit_level', id=lvl.id) }}" class="d-none"></form>
+                <input type="hidden" form="lvl-edit-{{ lvl.id }}" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="number" name="level_number" form="lvl-edit-{{ lvl.id }}" class="tiq-input" style="padding: 0.35rem 0.75rem; font-size: 0.875rem;" value="{{ lvl.level_number }}" min="1" required />
+              </td>
+              <td>
+                <input type="text" name="level_title" form="lvl-edit-{{ lvl.id }}" class="tiq-input" style="padding: 0.35rem 0.75rem; font-size: 0.875rem;" value="{{ lvl.title }}" required />
+              </td>
+              <td class="tiq-text-center">
+                <div style="display: flex; gap: 0.5rem; justify-content: center; align-items: center;">
+                  <button type="submit" form="lvl-edit-{{ lvl.id }}" class="tiq-btn tiq-btn-icon-sm tiq-btn-success" title="Save">
                     <i class="fas fa-save"></i>
                   </button>
-                </form>
-              </td>
-              <!-- Delete Level -->
-              <td class="text-center">
-                <form
-                  method="POST"
-                  action="{{ url_for('admin_routes.delete_level', id=lvl.id) }}"
-                  onsubmit="return confirm('Delete this level?');"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                  />
-                  <button
-                    type="submit"
-                    class="btn btn-danger btn-sm"
-                    title="Delete"
-                  >
-                    <i class="fas fa-trash-alt"></i>
-                  </button>
-                </form>
+                  <form method="POST" action="{{ url_for('admin_routes.delete_level', id=lvl.id) }}" onsubmit="return confirm('Delete this level?');" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="tiq-btn tiq-btn-icon-sm tiq-btn-danger" title="Delete">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </form>
+                </div>
               </td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="3" class="text-center">No levels defined.</td>
+              <td colspan="4" class="tiq-text-center text-muted">No levels defined.</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -586,103 +383,63 @@
       </div>
     </div>
   </div>
+</div>
 
-  <!-- AREAS Section -->
-  <div id="seed-areas" class="seed-section" style="display: none">
-    <div class="card mb-4">
-      <div class="card-header"><h2 class="h5 mb-0">Areas</h2></div>
-      <div class="card-body">
-        <!-- Add New Area -->
-        <form
-          class="row gx-2 mb-3"
-          method="POST"
-          action="{{ url_for('admin_routes.add_area') }}"
-        >
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <div class="col">
-            <input
-              type="text"
-              name="area_name"
-              class="form-control form-control-sm"
-              placeholder="New area name"
-              required
-            />
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="btn btn-primary btn-sm">
-              Add Area
-            </button>
-          </div>
-        </form>
+<!-- AREAS Section -->
+<div id="seed-areas" class="seed-section" style="display: none">
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-chart-area me-2"></i>Areas</div>
+    </div>
+    <div class="tiq-card-body">
+      <!-- Add New Area -->
+      <form class="tiq-grid tiq-grid-2 tiq-gap align-items-end mb-4" style="max-width: 600px;" method="POST" action="{{ url_for('admin_routes.add_area') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <div class="tiq-form-group mb-0">
+          <label class="tiq-label">Area Name</label>
+          <input type="text" name="area_name" class="tiq-input" placeholder="e.g. Coding Standards" required />
+        </div>
+        <div class="mb-0">
+          <button type="submit" class="tiq-btn tiq-btn-primary"><i class="fas fa-plus me-1"></i>Add Area</button>
+        </div>
+      </form>
 
-        <!-- Existing Areas Table -->
-        <table
-          class="table table-bordered table-striped table-hover table-sm mb-0"
-        >
-          <thead class="table-light">
+      <!-- Existing Areas Table -->
+      <div class="tiq-table-wrapper">
+        <table class="tiq-table">
+          <thead>
             <tr>
-              <th style="width: 50px">#</th>
-              <th>Name</th>
-              <th style="width: 120px">Actions</th>
+              <th style="width: 80px;">Index</th>
+              <th>Area Name</th>
+              <th class="tiq-text-center" style="width: 120px;">Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for area in areas %}
             <tr>
-              <td>{{ loop.index }}</td>
-              <!-- Edit Area Name -->
+              <td><code>#{{ loop.index }}</code></td>
               <td>
-                <form
-                  method="POST"
-                  action="{{ url_for('admin_routes.edit_area', id=area.id) }}"
-                  class="d-flex gap-2"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                  />
-                  <input
-                    type="text"
-                    name="area_name"
-                    class="form-control form-control-sm"
-                    value="{{ area.name }}"
-                    required
-                  />
-                  <button
-                    class="btn btn-success btn-sm"
-                    type="submit"
-                    title="Save"
-                  >
+                <form id="area-edit-{{ area.id }}" method="POST" action="{{ url_for('admin_routes.edit_area', id=area.id) }}" class="d-none"></form>
+                <input type="hidden" form="area-edit-{{ area.id }}" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="text" name="area_name" form="area-edit-{{ area.id }}" class="tiq-input" style="padding: 0.35rem 0.75rem; font-size: 0.875rem;" value="{{ area.name }}" required />
+              </td>
+              <td class="tiq-text-center">
+                <div style="display: flex; gap: 0.5rem; justify-content: center; align-items: center;">
+                  <button type="submit" form="area-edit-{{ area.id }}" class="tiq-btn tiq-btn-icon-sm tiq-btn-success" title="Save">
                     <i class="fas fa-save"></i>
                   </button>
-                </form>
-              </td>
-              <!-- Delete Area -->
-              <td class="text-center">
-                <form
-                  method="POST"
-                  action="{{ url_for('admin_routes.delete_area', id=area.id) }}"
-                  onsubmit="return confirm('Delete this area?');"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                  />
-                  <button
-                    type="submit"
-                    class="btn btn-danger btn-sm"
-                    title="Delete"
-                  >
-                    <i class="fas fa-trash-alt"></i>
-                  </button>
-                </form>
+                  <form method="POST" action="{{ url_for('admin_routes.delete_area', id=area.id) }}" onsubmit="return confirm('Delete this area?');" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="tiq-btn tiq-btn-icon-sm tiq-btn-danger" title="Delete">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </form>
+                </div>
               </td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="3" class="text-center">No areas defined.</td>
+              <td colspan="3" class="tiq-text-center text-muted">No areas defined.</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -690,103 +447,63 @@
       </div>
     </div>
   </div>
+</div>
 
-  <!-- CATEGORIES Section -->
-  <div id="seed-categories" class="seed-section" style="display: none">
-    <div class="card mb-4">
-      <div class="card-header"><h2 class="h5 mb-0">Categories</h2></div>
-      <div class="card-body">
-        <!-- Add New Category -->
-        <form
-          class="row gx-2 mb-3"
-          method="POST"
-          action="{{ url_for('admin_routes.add_category') }}"
-        >
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <div class="col">
-            <input
-              type="text"
-              name="category_name"
-              class="form-control form-control-sm"
-              placeholder="New category name"
-              required
-            />
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="btn btn-primary btn-sm">
-              Add Category
-            </button>
-          </div>
-        </form>
+<!-- CATEGORIES Section -->
+<div id="seed-categories" class="seed-section" style="display: none">
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-tags me-2"></i>Categories</div>
+    </div>
+    <div class="tiq-card-body">
+      <!-- Add New Category -->
+      <form class="tiq-grid tiq-grid-2 tiq-gap align-items-end mb-4" style="max-width: 600px;" method="POST" action="{{ url_for('admin_routes.add_category') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <div class="tiq-form-group mb-0">
+          <label class="tiq-label">Category Name</label>
+          <input type="text" name="category_name" class="tiq-input" placeholder="e.g. Technical Skills" required />
+        </div>
+        <div class="mb-0">
+          <button type="submit" class="tiq-btn tiq-btn-primary"><i class="fas fa-plus me-1"></i>Add Category</button>
+        </div>
+      </form>
 
-        <!-- Existing Categories Table -->
-        <table
-          class="table table-bordered table-striped table-hover table-sm mb-0"
-        >
-          <thead class="table-light">
+      <!-- Existing Categories Table -->
+      <div class="tiq-table-wrapper">
+        <table class="tiq-table">
+          <thead>
             <tr>
-              <th style="width: 50px">#</th>
-              <th>Name</th>
-              <th style="width: 120px">Actions</th>
+              <th style="width: 80px;">Index</th>
+              <th>Category Name</th>
+              <th class="tiq-text-center" style="width: 120px;">Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for cat in categories %}
             <tr>
-              <td>{{ loop.index }}</td>
-              <!-- Edit Category Name -->
+              <td><code>#{{ loop.index }}</code></td>
               <td>
-                <form
-                  method="POST"
-                  action="{{ url_for('admin_routes.edit_category', id=cat.id) }}"
-                  class="d-flex gap-2"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                  />
-                  <input
-                    type="text"
-                    name="category_name"
-                    class="form-control form-control-sm"
-                    value="{{ cat.name }}"
-                    required
-                  />
-                  <button
-                    class="btn btn-success btn-sm"
-                    type="submit"
-                    title="Save"
-                  >
+                <form id="cat-edit-{{ cat.id }}" method="POST" action="{{ url_for('admin_routes.edit_category', id=cat.id) }}" class="d-none"></form>
+                <input type="hidden" form="cat-edit-{{ cat.id }}" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="text" name="category_name" form="cat-edit-{{ cat.id }}" class="tiq-input" style="padding: 0.35rem 0.75rem; font-size: 0.875rem;" value="{{ cat.name }}" required />
+              </td>
+              <td class="tiq-text-center">
+                <div style="display: flex; gap: 0.5rem; justify-content: center; align-items: center;">
+                  <button type="submit" form="cat-edit-{{ cat.id }}" class="tiq-btn tiq-btn-icon-sm tiq-btn-success" title="Save">
                     <i class="fas fa-save"></i>
                   </button>
-                </form>
-              </td>
-              <!-- Delete Category -->
-              <td class="text-center">
-                <form
-                  method="POST"
-                  action="{{ url_for('admin_routes.delete_category', id=cat.id) }}"
-                  onsubmit="return confirm('Delete this category?');"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                  />
-                  <button
-                    type="submit"
-                    class="btn btn-danger btn-sm"
-                    title="Delete"
-                  >
-                    <i class="fas fa-trash-alt"></i>
-                  </button>
-                </form>
+                  <form method="POST" action="{{ url_for('admin_routes.delete_category', id=cat.id) }}" onsubmit="return confirm('Delete this category?');" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="tiq-btn tiq-btn-icon-sm tiq-btn-danger" title="Delete">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </form>
+                </div>
               </td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="3" class="text-center">No categories defined.</td>
+              <td colspan="3" class="tiq-text-center text-muted">No categories defined.</td>
             </tr>
             {% endfor %}
           </tbody>

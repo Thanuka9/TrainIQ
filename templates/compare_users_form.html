@@ -1,171 +1,653 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Compare Users - Collective</title>
+{% extends 'base.html' %}
+{% block title %}Compare Users — {{ display_org_name }}{% endblock %}
 
-    <!-- Bootstrap CSS -->
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
-    />
-    <!-- Font Awesome (for icons) -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-    />
+{% block breadcrumb %}
+  <a href="{{ url_for('general_routes.dashboard') }}">Home</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <a href="{{ url_for('general_routes.hr_management') }}">Management</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <span>Compare Users Selection</span>
+{% endblock %}
 
-    <style>
-      /* Basic page styling */
-      body {
-        background-color: #f4f7f9;
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
-      }
+{% block content %}
+<style>
+  /* Premium Search and Selection Styles */
+  .search-container {
+    max-width: 800px;
+    margin: 0 auto 2rem auto;
+  }
 
-      /* Top bar styling */
-      .top-bar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 15px;
-        background-color: #fff;
-        border-bottom: 1px solid #ddd;
-      }
-      .top-bar-left,
-      .top-bar-center,
-      .top-bar-right {
-        display: flex;
-        align-items: center;
-      }
-      .btn-back-top {
-        padding: 6px 12px;
-        font-size: 0.85rem;
-        color: #fff;
-        background-color: #6c757d;
-        border: none;
-        border-radius: 5px;
-        text-decoration: none;
-        margin-right: 10px;
-      }
-      .btn-back-top:hover {
-        background-color: #5a6268;
-      }
-      .logo-section img {
-        height: 40px;
-        margin-right: 8px;
-      }
-      .brand {
-        font-size: 1.4rem;
-        font-weight: 600;
-      }
-      .brand .black {
-        color: #000;
-      }
-      .brand .red {
-        color: red;
-      }
+  .search-wrapper {
+    position: relative;
+  }
 
-      /* Container & form styling */
-      .container {
-        max-width: 600px;
-        margin: 30px auto;
-        background: #fff;
-        padding: 30px;
-        border-radius: 8px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        flex: 1;
-      }
-      h1 {
-        text-align: center;
-        margin-bottom: 30px;
-      }
+  .search-icon {
+    position: absolute;
+    left: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--tiq-text-3);
+    font-size: 1.15rem;
+  }
 
-      /* Footer styling */
-      footer {
-        background-color: #343a40;
-        color: #ffffff;
-        text-align: center;
-        padding: 15px 0;
-        margin-top: auto;
-      }
-    </style>
-  </head>
+  .search-input {
+    width: 100%;
+    padding: 1rem 1rem 1rem 3rem;
+    border-radius: var(--tiq-radius-lg);
+    border: 1px solid var(--tiq-border);
+    background: var(--tiq-surface);
+    color: var(--tiq-text);
+    font-size: 1.05rem;
+    box-shadow: var(--tiq-shadow-sm);
+    transition: var(--tiq-transition);
+  }
 
-  <body>
-    <!-- Top Bar -->
-    <div class="top-bar">
-      <div class="top-bar-left">
-        <!-- Adjust this link to go back to your HR Management page, or anywhere else you prefer -->
-        <a
-          href="{{ url_for('general_routes.hr_management') }}"
-          class="btn-back-top"
-        >
-          <i class="fas fa-arrow-left"></i> Back
-        </a>
-      </div>
-      <div class="top-bar-center logo-section">
-        <img
-          src="{{ url_for('static', filename='images/logo.png') }}"
-          alt="Logo"
-        />
-        <div class="brand">
-          <span class="black">Collect</span><span class="red">ive</span>
+  .search-input:focus {
+    outline: none;
+    border-color: var(--tiq-primary);
+    box-shadow: var(--tiq-shadow-glow);
+  }
+
+  /* User Grid */
+  .users-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 8rem; /* Space for comparison footer */
+  }
+
+  .user-card {
+    background: var(--tiq-surface);
+    border: 1px solid var(--tiq-border);
+    border-radius: var(--tiq-radius-lg);
+    padding: 1.5rem;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--tiq-shadow-sm);
+    overflow: hidden;
+  }
+
+  .user-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--tiq-shadow-md);
+    border-color: var(--tiq-primary-light);
+  }
+
+  /* Selection Status Ring */
+  .user-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: transparent;
+    transition: var(--tiq-transition);
+  }
+
+  .user-card.selected-1 {
+    border-color: var(--tiq-primary);
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2), var(--tiq-shadow-md);
+  }
+  .user-card.selected-1::before {
+    background: var(--tiq-primary);
+  }
+
+  .user-card.selected-2 {
+    border-color: var(--tiq-secondary);
+    box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2), var(--tiq-shadow-md);
+  }
+  .user-card.selected-2::before {
+    background: var(--tiq-secondary);
+  }
+
+  .card-top {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .user-avatar {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: var(--tiq-radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: var(--tiq-text-invert);
+    background: var(--tiq-gradient);
+    flex-shrink: 0;
+    border: 2px solid var(--tiq-surface);
+    box-shadow: var(--tiq-shadow-sm);
+  }
+
+  .user-meta {
+    min-width: 0;
+  }
+
+  .user-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--tiq-text);
+    margin: 0 0 0.2rem 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .user-designation {
+    font-size: 0.85rem;
+    color: var(--tiq-text-2);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-details {
+    font-size: 0.85rem;
+    color: var(--tiq-text-3);
+    border-top: 1px solid var(--tiq-border);
+    padding-top: 0.75rem;
+    margin-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .detail-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .detail-row i {
+    width: 1rem;
+    text-align: center;
+  }
+
+  /* Slot indicators */
+  .slot-badge {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--tiq-radius-sm);
+    font-size: 0.75rem;
+    font-weight: bold;
+    display: none;
+    text-transform: uppercase;
+  }
+
+  .user-card.selected-1 .slot-badge.badge-1 {
+    display: block;
+    background: var(--tiq-primary);
+    color: var(--tiq-text-invert);
+  }
+
+  .user-card.selected-2 .slot-badge.badge-2 {
+    display: block;
+    background: var(--tiq-secondary);
+    color: var(--tiq-text-invert);
+  }
+
+  /* Floating footer compare dashboard */
+  .compare-bar {
+    position: fixed;
+    bottom: -100px;
+    left: var(--tiq-sidebar-width);
+    right: 0;
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 1.25rem 2rem;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    gap: 2rem;
+  }
+
+  /* Collapsed sidebar adjustments */
+  body.sidebar-collapsed .compare-bar {
+    left: var(--tiq-sidebar-collapsed);
+  }
+
+  .compare-bar.visible {
+    bottom: 0;
+  }
+
+  .compare-preview-slots {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-grow: 1;
+    max-width: 700px;
+  }
+
+  .preview-slot {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: var(--tiq-radius);
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 0;
+    height: 4.2rem;
+    transition: var(--tiq-transition);
+  }
+
+  .preview-slot.slot-1.active {
+    border: 1px solid var(--tiq-primary);
+    background: rgba(79, 70, 229, 0.1);
+  }
+
+  .preview-slot.slot-2.active {
+    border: 1px solid var(--tiq-secondary);
+    background: rgba(6, 182, 212, 0.1);
+  }
+
+  .preview-slot-empty {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .preview-slot-filled {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .preview-avatar {
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: var(--tiq-radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.95rem;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .preview-meta {
+    min-width: 0;
+  }
+
+  .preview-name {
+    color: #fff;
+    font-weight: bold;
+    font-size: 0.95rem;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .preview-desc {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .vs-badge {
+    color: rgba(255, 255, 255, 0.3);
+    font-weight: 900;
+    font-size: 1.1rem;
+    font-style: italic;
+  }
+
+  .compare-action {
+    flex-shrink: 0;
+  }
+
+  .compare-btn {
+    padding: 0.9rem 2rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border-radius: var(--tiq-radius);
+    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+  }
+
+  .compare-btn:disabled {
+    box-shadow: none;
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .no-results {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 3rem;
+    background: var(--tiq-surface);
+    border-radius: var(--tiq-radius-lg);
+    border: 1px dashed var(--tiq-border);
+    color: var(--tiq-text-3);
+  }
+</style>
+
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <h1>Compare Team Members</h1>
+      <p class="tiq-lead">Select two users to instantly run a side-by-side performance evaluation, comparative metrics, and dynamic strength analyses.</p>
+    </div>
+    <a href="{{ url_for('general_routes.hr_management') }}" class="tiq-btn tiq-btn-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Management
+    </a>
+  </div>
+</div>
+
+<!-- Search Wrapper -->
+<div class="search-container">
+  <div class="search-wrapper">
+    <i class="fas fa-search search-icon"></i>
+    <input type="text" id="user-search" class="search-input" placeholder="Search team members by name, email, department, or title...">
+  </div>
+</div>
+
+<!-- Team Members Grid -->
+<div class="users-grid" id="users-grid">
+  {% for user in users %}
+    <!-- Unique initials for gradient background -->
+    {% set first_initial = user.first_name[0] | upper if user.first_name else 'U' %}
+    {% set last_initial = user.last_name[0] | upper if user.last_name else '' %}
+    {% set initials = first_initial + last_initial %}
+    
+    <!-- Build random gradient variation to make the avatars colorful -->
+    {% set grad_idx = (user.id % 4) %}
+    {% if grad_idx == 0 %}
+      {% set avatar_style = "background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);" %}
+    {% elif grad_idx == 1 %}
+      {% set avatar_style = "background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);" %}
+    {% elif grad_idx == 2 %}
+      {% set avatar_style = "background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);" %}
+    {% else %}
+      {% set avatar_style = "background: linear-gradient(135deg, #f59e0b 0%, #e11d48 100%);" %}
+    {% endif %}
+
+    <div class="user-card" 
+         id="user-card-{{ user.id }}"
+         data-id="{{ user.id }}" 
+         data-name="{{ user.first_name }} {{ user.last_name }}"
+         data-desc="{{ user.designation.title if user.designation else 'No Title' }}"
+         data-initials="{{ initials }}"
+         data-avatar-style="{{ avatar_style }}"
+         data-search="{{ user.first_name|lower }} {{ user.last_name|lower }} {{ user.employee_email|lower }} {{ user.designation.title|lower if user.designation else '' }} {% for dept in user.departments %}{{ dept.name|lower }} {% endfor %}">
+      
+      <!-- Slot Badges -->
+      <span class="slot-badge badge-1">User 1</span>
+      <span class="slot-badge badge-2">User 2</span>
+
+      <div class="card-top">
+        <div class="user-avatar" style="{{ avatar_style }}">
+          {{ initials }}
+        </div>
+        <div class="user-meta">
+          <h3 class="user-name">{{ user.first_name }} {{ user.last_name }}</h3>
+          <p class="user-designation">{{ user.designation.title if user.designation else 'No Title' }}</p>
         </div>
       </div>
-      <div class="top-bar-right"></div>
+
+      <div class="card-details">
+        <div class="detail-row">
+          <i class="fas fa-envelope"></i>
+          <span>{{ user.employee_email }}</span>
+        </div>
+        <div class="detail-row">
+          <i class="fas fa-id-card"></i>
+          <span>ID: #{{ user.employee_id or 'N/A' }}</span>
+        </div>
+        <div class="detail-row">
+          <i class="fas fa-building"></i>
+          <span>
+            {% if user.departments %}
+              {{ user.departments|map(attribute='name')|join(', ') }}
+            {% else %}
+              No Department
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<!-- Comparison Floating Footer Dashboard -->
+<div class="compare-bar" id="compare-bar">
+  <div class="compare-preview-slots">
+    <!-- Slot 1 -->
+    <div class="preview-slot slot-1" id="preview-slot-1">
+      <div class="preview-slot-empty" id="slot-1-empty">
+        <i class="fas fa-user-plus"></i> Select User 1
+      </div>
+      <div class="preview-slot-filled" id="slot-1-filled" style="display:none;">
+        <div class="preview-avatar" id="slot-1-avatar"></div>
+        <div class="preview-meta">
+          <p class="preview-name" id="slot-1-name"></p>
+          <p class="preview-desc" id="slot-1-desc"></p>
+        </div>
+      </div>
     </div>
 
-    <!-- Main Container -->
-    <div class="container">
-      <h1>Compare Users</h1>
-      <form
-        action="{{ url_for('management_routes.compare_users') }}"
-        method="POST"
-      >
-        <!-- CSRF Token -->
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    <div class="vs-badge">VS</div>
 
-        <div class="mb-3">
-          <label for="user1" class="form-label">Select User 1</label>
-          <select name="user1" id="user1" class="form-select" required>
-            <option value="">--Select User--</option>
-            {% for user in users %}
-            <option value="{{ user.id }}">
-              {{ user.first_name }} {{ user.last_name }}
-            </option>
-            {% endfor %}
-          </select>
+    <!-- Slot 2 -->
+    <div class="preview-slot slot-2" id="preview-slot-2">
+      <div class="preview-slot-empty" id="slot-2-empty">
+        <i class="fas fa-user-plus"></i> Select User 2
+      </div>
+      <div class="preview-slot-filled" id="slot-2-filled" style="display:none;">
+        <div class="preview-avatar" id="slot-2-avatar"></div>
+        <div class="preview-meta">
+          <p class="preview-name" id="slot-2-name"></p>
+          <p class="preview-desc" id="slot-2-desc"></p>
         </div>
-
-        <div class="mb-3">
-          <label for="user2" class="form-label">Select User 2</label>
-          <select name="user2" id="user2" class="form-select" required>
-            <option value="">--Select User--</option>
-            {% for user in users %}
-            <option value="{{ user.id }}">
-              {{ user.first_name }} {{ user.last_name }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-users"></i> Compare
-        </button>
-      </form>
+      </div>
     </div>
+  </div>
 
-    <footer>
-      <p class="mb-0">Collective Intranet© 2024</p>
-    </footer>
+  <div class="compare-action">
+    <button class="tiq-btn tiq-btn-primary compare-btn" id="compare-submit-btn" disabled>
+      <i class="fas fa-balance-scale me-1"></i> Compare Selected
+    </button>
+  </div>
+</div>
 
-    <!-- Bootstrap JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-  </body>
-</html>
+<!-- Hidden Standard Form for Submission -->
+<form id="compare-form" action="{{ url_for('management_routes.compare_users') }}" method="POST" style="display:none;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+  <input type="hidden" name="user1" id="form-user1" value="" />
+  <input type="hidden" name="user2" id="form-user2" value="" />
+</form>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const searchInput = document.getElementById("user-search");
+    const userCards = document.querySelectorAll(".user-card");
+    const compareBar = document.getElementById("compare-bar");
+    const compareSubmitBtn = document.getElementById("compare-submit-btn");
+    const compareForm = document.getElementById("compare-form");
+    
+    const formUser1 = document.getElementById("form-user1");
+    const formUser2 = document.getElementById("form-user2");
+
+    const slot1Empty = document.getElementById("slot-1-empty");
+    const slot1Filled = document.getElementById("slot-1-filled");
+    const slot1Name = document.getElementById("slot-1-name");
+    const slot1Desc = document.getElementById("slot-1-desc");
+    const slot1Avatar = document.getElementById("slot-1-avatar");
+
+    const slot2Empty = document.getElementById("slot-2-empty");
+    const slot2Filled = document.getElementById("slot-2-filled");
+    const slot2Name = document.getElementById("slot-2-name");
+    const slot2Desc = document.getElementById("slot-2-desc");
+    const slot2Avatar = document.getElementById("slot-2-avatar");
+
+    let selectedUser1 = null; // { id, name, desc, initials, avatarStyle }
+    let selectedUser2 = null;
+
+    // Search filtering
+    searchInput.addEventListener("input", (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      let matchedCount = 0;
+
+      userCards.forEach(card => {
+        const searchText = card.getAttribute("data-search");
+        if (searchText.includes(query)) {
+          card.style.display = "block";
+          matchedCount++;
+        } else {
+          card.style.display = "none";
+        }
+      });
+
+      // No results check
+      const grid = document.getElementById("users-grid");
+      const existingNoResults = document.querySelector(".no-results");
+      if (matchedCount === 0) {
+        if (!existingNoResults) {
+          const nr = document.createElement("div");
+          nr.className = "no-results";
+          nr.innerHTML = '<i class="fas fa-search-minus fa-3x mb-3"></i><p>No team members found matching your search.</p>';
+          grid.appendChild(nr);
+        }
+      } else {
+        if (existingNoResults) {
+          existingNoResults.remove();
+        }
+      }
+    });
+
+    // Handle Card Clicks
+    userCards.forEach(card => {
+      card.addEventListener("click", () => {
+        const id = card.getAttribute("data-id");
+        const name = card.getAttribute("data-name");
+        const desc = card.getAttribute("data-desc");
+        const initials = card.getAttribute("data-initials");
+        const avatarStyle = card.getAttribute("data-avatar-style");
+
+        // Case 1: Clicked already selected User 1 -> Deselect it
+        if (selectedUser1 && selectedUser1.id === id) {
+          deselectUser1();
+        }
+        // Case 2: Clicked already selected User 2 -> Deselect it
+        else if (selectedUser2 && selectedUser2.id === id) {
+          deselectUser2();
+        }
+        // Case 3: Slot 1 is empty -> Select as User 1
+        else if (!selectedUser1) {
+          selectUser1({ id, name, desc, initials, avatarStyle });
+        }
+        // Case 4: Slot 2 is empty -> Select as User 2
+        else if (!selectedUser2) {
+          selectUser2({ id, name, desc, initials, avatarStyle });
+        }
+        // Case 5: Both slots are full -> Kick User 2 and set new one as User 2
+        else {
+          deselectUser2();
+          selectUser2({ id, name, desc, initials, avatarStyle });
+        }
+
+        updateCompareDashboard();
+      });
+    });
+
+    function selectUser1(user) {
+      selectedUser1 = user;
+      const card = document.getElementById(`user-card-${user.id}`);
+      card.classList.add("selected-1");
+      
+      slot1Empty.style.display = "none";
+      slot1Filled.style.display = "flex";
+      slot1Name.textContent = user.name;
+      slot1Desc.textContent = user.desc;
+      slot1Avatar.textContent = user.initials;
+      slot1Avatar.setAttribute("style", user.avatarStyle);
+      document.getElementById("preview-slot-1").classList.add("active");
+    }
+
+    function deselectUser1() {
+      if (!selectedUser1) return;
+      const card = document.getElementById(`user-card-${selectedUser1.id}`);
+      if (card) card.classList.remove("selected-1");
+
+      selectedUser1 = null;
+      slot1Empty.style.display = "flex";
+      slot1Filled.style.display = "none";
+      document.getElementById("preview-slot-1").classList.remove("active");
+    }
+
+    function selectUser2(user) {
+      selectedUser2 = user;
+      const card = document.getElementById(`user-card-${user.id}`);
+      card.classList.add("selected-2");
+
+      slot2Empty.style.display = "none";
+      slot2Filled.style.display = "flex";
+      slot2Name.textContent = user.name;
+      slot2Desc.textContent = user.desc;
+      slot2Avatar.textContent = user.initials;
+      slot2Avatar.setAttribute("style", user.avatarStyle);
+      document.getElementById("preview-slot-2").classList.add("active");
+    }
+
+    function deselectUser2() {
+      if (!selectedUser2) return;
+      const card = document.getElementById(`user-card-${selectedUser2.id}`);
+      if (card) card.classList.remove("selected-2");
+
+      selectedUser2 = null;
+      slot2Empty.style.display = "flex";
+      slot2Filled.style.display = "none";
+      document.getElementById("preview-slot-2").classList.remove("active");
+    }
+
+    function updateCompareDashboard() {
+      // Toggle compare-bar visibility
+      if (selectedUser1 || selectedUser2) {
+        compareBar.classList.add("visible");
+      } else {
+        compareBar.classList.remove("visible");
+      }
+
+      // Toggle submit button
+      if (selectedUser1 && selectedUser2) {
+        compareSubmitBtn.disabled = false;
+        formUser1.value = selectedUser1.id;
+        formUser2.value = selectedUser2.id;
+      } else {
+        compareSubmitBtn.disabled = true;
+        formUser1.value = "";
+        formUser2.value = "";
+      }
+    }
+
+    // Submit Action
+    compareSubmitBtn.addEventListener("click", () => {
+      if (selectedUser1 && selectedUser2) {
+        compareForm.submit();
+      }
+    });
+  });
+</script>
+{% endblock %}

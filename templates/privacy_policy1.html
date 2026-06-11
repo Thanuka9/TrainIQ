@@ -1,548 +1,350 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Collective Privacy Policy Agreement</title>
-    <!-- Bootstrap CSS -->
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <!-- Google Font -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
-      rel="stylesheet"
-    />
-    <!-- Bootstrap Icons -->
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
-      rel="stylesheet"
-    />
-    <style>
-      :root {
-        --primary: #0062ff;
-        --primary-hover: #004fcc;
-        --danger: #dc3545;
-        --danger-hover: #ba2532;
-        --light-bg: #f6f8fb;
-        --white: #fff;
-        --radius: 28px;
-        --border: #eaeaea;
-        --shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.1);
-        --header-height: 80px;
-        --brand-red: #dc3545;
-        --brand-black: #232c3d;
-      }
-      html,
-      body {
-        height: 100%;
-      }
-      body {
-        font-family: "Inter", sans-serif;
-        background: var(--light-bg);
-        margin: 0;
-        padding-bottom: 48px;
-        min-height: 100vh;
-      }
-      header {
-        width: 100vw;
-        height: var(--header-height);
-        background: var(--white);
-        border-bottom: 1px solid var(--border);
-        display: flex;
-        align-items: center;
-        position: sticky;
-        top: 0;
-        z-index: 1000;
-        box-shadow: 0 1px 10px rgba(0, 0, 0, 0.04);
-      }
-      .header-inner {
-        width: 100%;
-        max-width: 1200px;
-        margin: 0 auto;
-        display: flex;
-        align-items: center;
-        gap: 1.2rem;
-        padding: 0 2.4rem;
-      }
-      .logo {
-        height: 52px;
-        width: 52px;
-        border-radius: 10px;
-        background: #eee;
-        object-fit: contain;
-        margin-right: 0.5rem;
-      }
-      .brand-title {
-        font-size: 2rem;
-        font-weight: 800;
-        margin: 0;
-        letter-spacing: -1.1px;
-        display: flex;
-        align-items: center;
-        user-select: none;
-      }
-      .brand-title .collect {
-        color: var(--brand-black);
-      }
-      .brand-title .ive {
-        color: var(--brand-red);
-      }
-      .brand-title .privacy-policy {
-        color: var(--brand-black);
-        font-weight: 700;
-        margin-left: 0.7rem;
-        font-size: 1.5rem;
-        letter-spacing: -0.5px;
-      }
-      .policy-outer {
-        width: 100%;
-        min-height: calc(100vh - var(--header-height));
-        display: flex;
-        align-items: flex-start;
-        justify-content: center;
-        padding: 2.8vw 1vw 0 1vw;
-      }
-      .policy-container {
-        width: 100%;
-        max-width: 900px;
-        background: var(--white);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        margin: 0 auto;
-        padding: 2.7rem 2.2rem 1.5rem 2.2rem;
-        animation: fadeInUp 0.8s cubic-bezier(0.19, 1, 0.22, 1) 0s 1 both;
-      }
-      @keyframes fadeInUp {
-        from {
-          opacity: 0;
-          transform: translateY(44px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      .policy-container h2 {
-        font-weight: 900;
-        color: var(--brand-black);
-        margin-bottom: 2.2rem;
-        font-size: 2.2rem;
-        display: flex;
-        align-items: center;
-        gap: 0.7rem;
-      }
-      .policy-container h2 b {
-        font-weight: 900;
-      }
-      .policy-container h4 {
-        font-weight: 700;
-        margin-top: 2.6rem;
-        margin-bottom: 0.85rem;
-        color: var(--brand-black);
-      }
-      .policy-container ul,
-      .policy-container ol {
-        margin-bottom: 1.1rem;
-        padding-left: 1.4rem;
-      }
-      .policy-container li {
-        margin-bottom: 0.38rem;
-        font-size: 1.07rem;
-      }
-      .policy-container a {
-        color: var(--primary);
-        text-decoration: underline;
-      }
-      .divider {
-        border: none;
-        border-bottom: 1px solid var(--border);
-        margin: 2.1rem 0 2rem 0;
-      }
-      .policy-container .section-title {
-        font-weight: 800;
-        font-size: 1.3rem;
-        margin-top: 2.2rem;
-        margin-bottom: 0.9rem;
-        color: var(--brand-black);
-      }
-      .policy-container .text-muted {
-        color: #6d747e !important;
-        font-size: 1rem;
-      }
-      .policy-container b {
-        font-weight: 700;
-      }
-      /* Agreement buttons inside the content */
-      .agreement-btn-static {
-        display: flex;
-        justify-content: center;
-        gap: 1.25rem;
-        background: none;
-        border: none;
-        box-shadow: none;
-        padding: 1.3rem 0 0.5rem 0;
-        position: static;
-      }
-      .agreement-btn-static .btn {
-        font-size: 1.17rem;
-        font-weight: 700;
-        border-radius: 44px;
-        min-width: 150px;
-        padding: 0.7rem 2.2rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        transition: background 0.18s, color 0.18s, border 0.18s;
-      }
-      .btn-agree {
-        background: var(--primary);
-        color: #fff;
-        border: 2px solid var(--primary);
-      }
-      .btn-agree:hover {
-        background: var(--primary-hover);
-        border-color: var(--primary-hover);
-      }
-      .btn-disagree {
-        background: #fff;
-        color: var(--danger);
-        border: 2px solid var(--danger);
-      }
-      .btn-disagree:hover {
-        background: var(--danger);
-        color: #fff;
-      }
-      .policy-icon {
-        font-size: 2.1rem;
-        vertical-align: middle;
-        color: var(--primary);
-        margin-right: 0.7rem;
-      }
-      .section-icon {
-        font-size: 1.25rem;
-        color: var(--primary);
-        margin-right: 0.37rem;
-      }
-      @media (max-width: 700px) {
-        .policy-outer {
-          padding: 1.3rem 0.1vw 0 0.1vw;
-        }
-        .policy-container {
-          padding: 1.2rem 0.6rem 0.7rem 0.6rem;
-          margin-top: 0.5rem;
-        }
-        .header-inner {
-          padding: 0 0.5rem;
-        }
-        .logo {
-          height: 40px;
-          width: 40px;
-        }
-        .brand-title {
-          font-size: 1.3rem;
-        }
-        .policy-container h2 {
-          font-size: 1.25rem;
-        }
-        .agreement-btn-static .btn {
-          font-size: 1rem;
-          min-width: 110px;
-          padding: 0.5rem 1.1rem;
-        }
-      }
-      /* Hide the old fixed footer style if still present */
-      .agreement-btn {
-        display: none !important;
-      }
-      /* Custom scrollbar for desktop */
-      ::-webkit-scrollbar {
-        width: 8px;
-        background: #f2f3f5;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #dee2e6;
-        border-radius: 6px;
-      }
-    </style>
-  </head>
-  <body>
-    <header>
-      <div class="header-inner">
-        <img
-          src="{{ url_for('static', filename='images/logo.png') }}"
-          alt="Collective Logo"
-          class="logo"
-        />
-        <span class="brand-title">
-          <span class="collect">Collect</span><span class="ive">ive</span>
-          <span class="privacy-policy ms-2"
-            >Intranet System Privacy & Data Protection Policy</span
-          >
-        </span>
-      </div>
-    </header>
-    <div class="policy-outer">
-      <main class="policy-container" tabindex="0">
-        <h2>
-          <i class="bi bi-shield-lock policy-icon"></i>
-          <b>Privacy Policy Agreement</b>
-        </h2>
-        <p class="text-muted mb-1">
-          <i class="bi bi-calendar3 section-icon"></i>
-          <b>Effective Date:</b> January 1, 2025
-        </p>
-        <p class="text-muted mb-1">
-          <i class="bi bi-file-earmark-text section-icon"></i>
-          <b>Version:</b> 1.0
-        </p>
-        <p>
-          Welcome to the <b>Collective Intranet System</b> (“the System”). This
-          Privacy Policy outlines how we collect, use, store, and protect
-          personal and activity data belonging to employees, administrators, and
-          other authorized users of this platform.
-        </p>
-        <p>
-          This Privacy Policy is governed by and construed in accordance with
-          the laws of Sri Lanka, including but not limited to the Personal Data
-          Protection Act, No. 9 of 2022 (“PDPA”) and the Intellectual Property
-          Act, No. 36 of 2003 (“IP Act”).
-        </p>
-        <hr class="divider" />
-        <h4>1. Information We Collect</h4>
-        <p>
-          In accordance with Section 27(1) of the PDPA, we may collect and store
-          the following categories of information:
-        </p>
-        <ul>
-          <li>
-            <b>Personal Data:</b> Name, official email, employee ID, department,
-            designation, and user role
-          </li>
-          <li>
-            <b>Authentication Data:</b> Password hashes (bcrypt-encrypted),
-            login logs, and optional 2FA tokens
-          </li>
-          <li>
-            <b>Usage Data:</b> Task interactions, course progress, exam scores,
-            and dashboard activity
-          </li>
-          <li>
-            <b>Files &amp; Uploads:</b> Files submitted through the system
-            (secured via MongoDB GridFS)
-          </li>
-          <li>
-            <b>Technical Metadata:</b> IP address, device type, browser details
-            (used for security auditing only)
-          </li>
-        </ul>
-        <hr class="divider" />
-        <h4>2. How We Use Your Data</h4>
-        <p>Under Sections 5–6 of the PDPA, data is processed to:</p>
-        <ul>
-          <li>Enable secure, role-based platform access</li>
-          <li>
-            Assign, manage, and track tasks, training modules, and evaluations
-          </li>
-          <li>Generate personalized dashboards and administrative reports</li>
-          <li>Prevent unauthorized access or misuse of the platform</li>
-          <li>Communicate announcements and task-related notifications</li>
-        </ul>
-        <hr class="divider" />
-        <h4>3. Legal Basis for Processing</h4>
-        <p>We process data on the legal bases of:</p>
-        <ul>
-          <li>Operational necessity (PDPA §5(1))</li>
-          <li>Legitimate interest (PDPA §6(a))</li>
-          <li>User consent, where applicable (PDPA §7)</li>
-          <li>
-            In alignment with data minimization (PDPA §11) and purpose
-            limitation (PDPA §10)
-          </li>
-        </ul>
-        <hr class="divider" />
-        <h4>4. Data Access and Sharing</h4>
-        <ul>
-          <li>
-            Access is restricted to authorized administrators based on role and
-            necessity (PDPA §22)
-          </li>
-          <li>
-            We do not sell, share, or disclose personal data to third parties
-          </li>
-          <li>
-            Access logs and audit trails are regularly reviewed for compliance
-          </li>
-        </ul>
-        <hr class="divider" />
-        <h4>5. Document and File Storage</h4>
-        <ul>
-          <li>Files are securely stored in MongoDB GridFS</li>
-          <li>Upload validation (type, size, permissions) is enforced</li>
-          <li>
-            File access is encrypted in transit and restricted via role-based
-            controls
-          </li>
-        </ul>
-        <hr class="divider" />
-        <h4>6. Data Retention and Removal</h4>
-        <p>In accordance with PDPA §24:</p>
-        <ul>
-          <li>
-            Data is retained only for as long as required by operational or HR
-            needs
-          </li>
-          <li>
-            Upon resignation, role change, or deactivation, data is archived or
-            securely deleted based on HR protocols and statutory retention
-            requirements
-          </li>
-        </ul>
-        <hr class="divider" />
-        <h4>7. Your Rights Under the PDPA</h4>
-        <ul>
-          <li>Access personal data held (PDPA §13)</li>
-          <li>Correct inaccurate or outdated information (PDPA §14)</li>
-          <li>
-            Request deletion, subject to operational/legal constraints (PDPA
-            §15)
-          </li>
-          <li>Object to processing, under specific conditions (PDPA §17)</li>
-          <li>
-            Lodge a complaint with the Data Protection Authority of Sri Lanka
-            (PDPA §31)
-          </li>
-        </ul>
-        <p>
-          📧 To exercise any of the above rights, contact:
-          <a href="mailto:intranet@collectivercm.com"
-            >intranet@collectivercm.com</a
-          >
-        </p>
-        <hr class="divider" />
-        <h4>8. Cookies and Session Management</h4>
-        <ul>
-          <li>Only essential session cookies are used</li>
-          <li>We do not employ analytics or third-party tracking cookies</li>
-        </ul>
-        <hr class="divider" />
-        <h4>9. Security Measures</h4>
-        <p>As required by PDPA §23, we implement:</p>
-        <ul>
-          <li>bcrypt-encrypted password hashing</li>
-          <li>HTTPS/TLS 1.2+ secure communication</li>
-          <li>CSRF protection</li>
-          <li>Role-Based Access Control (RBAC)</li>
-          <li>Input sanitization to prevent injection and XSS attacks</li>
-        </ul>
-        <hr class="divider" />
-        <h4>10. User Responsibility</h4>
-        <ul>
-          <li>Maintain confidentiality of credentials</li>
-          <li>Promptly report any unauthorized access or suspected breaches</li>
-          <li>Avoid impersonation or system circumvention</li>
-        </ul>
-        <p>
-          Violations may result in disciplinary action or account suspension.
-        </p>
-        <hr class="divider" />
-        <h4>11. Updates to This Policy</h4>
-        <p>
-          This Privacy Policy may be updated due to regulatory, operational, or
-          technical changes. Material changes will be communicated via the
-          system dashboard. Users are bound by the most current version
-          available.
-        </p>
-        <hr class="divider" />
-        <h4>12. Contact Information</h4>
-        <p>
-          System Administrator<br />
-          📧
-          <a href="mailto:intranet@collectivercm.com"
-            >intranet@collectivercm.com</a
-          ><br />
-          🏛️ Subject to the Personal Data Protection Act, No. 9 of 2022 (PDPA)
-        </p>
-        <hr class="divider" />
-        <h4>13. Terms of Use &amp; Exam Rules</h4>
-        <p>
-          By using the System, you agree to the following conduct guidelines:
-        </p>
-        <ul>
-          <li>
-            <b>User Identity:</b> Exams must be taken only by the assigned
-            individual
-          </li>
-          <li>
-            <b>No External Assistance:</b> Unauthorized tools, notes, or aid are
-            prohibited
-          </li>
-          <li>
-            <b>Monitoring:</b> Logs including IP, timestamps, and attempts are
-            retained
-          </li>
-          <li>
-            <b>Integrity:</b> Manipulation of results will lead to invalidation
-            or HR action
-          </li>
-          <li>
-            <b>Confidentiality:</b> Exam content may not be shared, recorded, or
-            reproduced
-          </li>
-        </ul>
-        <hr class="divider" />
-        <h4>14. Copyright &amp; Intellectual Property</h4>
-        <p>Pursuant to the IP Act (Sections 6–13, 170):</p>
-        <ul>
-          <li>
-            All training materials, exams, documents, and visual content are the
-            exclusive property of <b>Collective</b>
-          </li>
-          <li>
-            All source code, UI/UX components, backend logic, and database
-            structures are the intellectual property of <b>Thanuka Ellepola</b>
-          </li>
-          <li>
-            Unauthorized duplication, reverse engineering, or reuse is strictly
-            prohibited and may result in disciplinary or legal consequences
-          </li>
-        </ul>
-        <div class="text-center my-4">
-          <i
-            class="bi bi-shield-check"
-            style="font-size: 2.5rem; color: var(--primary)"
-          ></i>
-        </div>
-        <!-- Agreement buttons INSIDE the content, not fixed -->
-        <div class="agreement-btn-static text-center mt-4">
-          <button id="disagreeBtn" type="button" class="btn btn-disagree mx-2">
-            <i class="bi bi-x-circle me-1"></i> Disagree
-          </button>
-          <button id="agreeBtn" type="button" class="btn btn-agree mx-2">
-            <i class="bi bi-check-circle me-1"></i> I Agree
-          </button>
-        </div>
-      </main>
-    </div>
-    <!-- CSRF token -->
-    <input type="hidden" id="csrfToken" value="{{ csrf_token() }}" />
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-      document
-        .getElementById("agreeBtn")
-        .addEventListener("click", function () {
-          const token = document.getElementById("csrfToken").value;
-          fetch("/privacy-policy-agreement", {
-            method: "POST",
-            headers: { "X-CSRFToken": token },
-            credentials: "include",
-          }).then(() => (window.location.href = "/dashboard"));
-        });
-      document
-        .getElementById("disagreeBtn")
-        .addEventListener("click", function () {
-          window.location.href = "/auth/login";
-        });
-    </script>
-  </body>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Privacy Policy Agreement — {{ display_org_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--tiq-gradient-hero);
+      position: relative;
+      overflow-y: auto;
+      padding: 3rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Animated orbs */
+    .pp-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+      animation: orbDrift 10s ease-in-out infinite alternate;
+    }
+    .pp-orb-1 { width: 500px; height: 500px; background: rgba(79,70,229,0.4); top: -150px; left: -150px; }
+    .pp-orb-2 { width: 400px; height: 400px; background: rgba(6,182,212,0.3); bottom: -100px; right: -100px; animation-delay: -5s; }
+    @keyframes orbDrift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(30px, 30px) scale(1.07); }
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='30'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    .pp-card {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 800px;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 24px;
+      padding: 3rem;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+      animation: cardIn 0.5s cubic-bezier(0.22,1,0.36,1) both;
+      color: rgba(255, 255, 255, 0.9);
+      line-height: 1.8;
+    }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(28px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .pp-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 2rem;
+    }
+    .pp-logo-icon {
+      width: 52px; height: 52px;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; font-weight: 900; color: white;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .pp-logo-name {
+      font-size: 1.6rem; font-weight: 800; color: white;
+      letter-spacing: -0.04em;
+    }
+    .pp-logo-name span { color: #67e8f9; }
+
+    .pp-title {
+      font-size: 1.8rem; font-weight: 800;
+      color: white; text-align: center;
+      letter-spacing: -0.04em; margin-bottom: 0.5rem;
+    }
+    .pp-subtitle {
+      font-size: 0.9375rem; color: rgba(255,255,255,0.6);
+      text-align: center; line-height: 1.6; margin-bottom: 2rem;
+    }
+
+    .pp-card h4 {
+      color: white;
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+    }
+    .pp-card ul {
+      padding-left: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .pp-card li {
+      margin-bottom: 0.35rem;
+    }
+    .pp-card a {
+      color: #67e8f9;
+      text-decoration: underline;
+    }
+    .pp-card a:hover {
+      color: white;
+    }
+
+    .pp-divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.15);
+      margin: 1.75rem 0;
+    }
+
+    .pp-actions {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 2.5rem;
+    }
+    
+    .pp-btn {
+      padding: 0.75rem 2rem;
+      border-radius: var(--tiq-radius);
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      font-size: 0.95rem;
+    }
+    .pp-btn-agree {
+      background: var(--tiq-primary);
+      color: white;
+      border: none;
+      box-shadow: 0 4px 16px rgba(79,70,229,0.4);
+    }
+    .pp-btn-agree:hover {
+      background: var(--tiq-primary-dark);
+      transform: translateY(-1px);
+    }
+    .pp-btn-disagree {
+      background: transparent;
+      color: #fca5a5;
+      border: 1.5px solid rgba(239, 68, 68, 0.4);
+    }
+    .pp-btn-disagree:hover {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: #ef4444;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+<div class="pp-orb pp-orb-1"></div>
+<div class="pp-orb pp-orb-2"></div>
+
+<div class="pp-card">
+
+  <!-- Logo -->
+  <div class="pp-logo">
+    <div class="pp-logo-icon"><i class="fas fa-brain"></i></div>
+    <div class="pp-logo-name">Train<span>IQ</span></div>
+  </div>
+
+  <h1 class="pp-title"><i class="fas fa-shield-halved" style="margin-right:8px; color:#67e8f9;"></i>Privacy Policy Agreement</h1>
+  <p class="pp-subtitle">Effective Date: January 1, 2025 | Version 1.0</p>
+  
+  <p>
+    Welcome to the <b>TrainIQ Platform</b> (“the System”). This Privacy Policy outlines how we collect, use, store, and protect personal and activity data belonging to employees, administrators, and other authorized users of this platform.
+  </p>
+  
+  <p>
+    This Privacy Policy is governed by and construed in accordance with standard global data protection frameworks, including the General Data Protection Regulation (GDPR) and the California Consumer Privacy Act (CCPA), as well as applicable industry security standards.
+  </p>
+  
+  <div class="pp-divider"></div>
+
+  <h4>1. Information We Collect</h4>
+  <p>In accordance with data minimization best practices, we may collect and store the following categories of information:</p>
+  <ul>
+    <li><b>Personal Data:</b> Name, official email, employee ID, department, designation, and user role.</li>
+    <li><b>Authentication Data:</b> Password hashes (bcrypt-encrypted), login logs, and optional 2FA tokens.</li>
+    <li><b>Usage Data:</b> Task interactions, course progress, exam scores, and dashboard activity.</li>
+    <li><b>Files &amp; Uploads:</b> Files submitted through the system.</li>
+    <li><b>Technical Metadata:</b> IP address, device type, browser details (used for security auditing only).</li>
+  </ul>
+
+  <div class="pp-divider"></div>
+
+  <h4>2. How We Use Your Data</h4>
+  <p>Data is processed for the following legitimate business purposes:</p>
+  <ul>
+    <li>Enable secure, role-based platform access.</li>
+    <li>Assign, manage, and track tasks, training modules, and evaluations.</li>
+    <li>Generate personalized dashboards and administrative reports.</li>
+    <li>Prevent unauthorized access or misuse of the platform.</li>
+    <li>Communicate announcements and task-related notifications.</li>
+  </ul>
+
+  <div class="pp-divider"></div>
+
+  <h4>3. Legal Basis for Processing</h4>
+  <p>We process data on the legal bases of:</p>
+  <ul>
+    <li>Operational necessity</li>
+    <li>Legitimate interest</li>
+    <li>User consent, where applicable</li>
+    <li>In alignment with data minimization and purpose limitation guidelines.</li>
+  </ul>
+
+  <div class="pp-divider"></div>
+
+  <h4>4. Data Access and Sharing</h4>
+  <ul>
+    <li>Access is restricted to authorized administrators based on role and necessity.</li>
+    <li>We do not sell, share, or disclose personal data to third parties.</li>
+    <li>Access logs and audit trails are regularly reviewed for compliance.</li>
+  </ul>
+
+  <div class="pp-divider"></div>
+
+  <h4>5. Document and File Storage</h4>
+  <ul>
+    <li>Files are securely stored in secure database structures and GridFS.</li>
+    <li>Upload validation (type, size, permissions) is enforced.</li>
+    <li>File access is encrypted in transit and restricted via role-based controls.</li>
+  </ul>
+
+  <div class="pp-divider"></div>
+
+  <h4>6. Data Retention and Removal</h4>
+  <p>In accordance with standard retention policies:</p>
+  <ul>
+    <li>Data is retained only for as long as required by operational or HR needs.</li>
+    <li>Upon resignation, role change, or deactivation, data is archived or securely deleted based on compliance protocols and statutory retention requirements.</li>
+  </ul>
+
+  <div class="pp-divider"></div>
+
+  <h4>7. Your Rights</h4>
+  <ul>
+    <li>Access personal data held.</li>
+    <li>Correct inaccurate or outdated information.</li>
+    <li>Request deletion, subject to operational/legal constraints.</li>
+    <li>Object to processing, under specific conditions.</li>
+    <li>Lodge a complaint with your local data protection authority.</li>
+  </ul>
+  <p>
+    📧 To exercise any of the above rights, contact: <a href="mailto:support@trainiq.com">support@trainiq.com</a>
+  </p>
+
+  <div class="pp-divider"></div>
+
+  <h4>8. Cookies and Session Management</h4>
+  <ul>
+    <li>Only essential session cookies are used.</li>
+    <li>We do not employ analytics or third-party tracking cookies.</li>
+  </ul>
+
+  <div class="pp-divider"></div>
+
+  <h4>9. Security Measures</h4>
+  <p>We implement appropriate technical and organizational measures, including:</p>
+  <ul>
+    <li>bcrypt-encrypted password hashing.</li>
+    <li>HTTPS/TLS 1.2+ secure communication.</li>
+    <li>CSRF protection.</li>
+    <li>Role-Based Access Control (RBAC).</li>
+    <li>Input sanitization to prevent injection and XSS attacks.</li>
+  </ul>
+
+  <div class="pp-divider"></div>
+
+  <h4>10. User Responsibility</h4>
+  <ul>
+    <li>Maintain confidentiality of credentials.</li>
+    <li>Promptly report any unauthorized access or suspected breaches.</li>
+    <li>Avoid impersonation or system circumvention.</li>
+  </ul>
+  <p>Violations may result in disciplinary action or account suspension.</p>
+
+  <div class="pp-divider"></div>
+
+  <h4>11. Terms of Use &amp; Exam Rules</h4>
+  <p>By using the System, you agree to the following conduct guidelines:</p>
+  <ul>
+    <li><b>User Identity:</b> Exams must be taken only by the assigned individual.</li>
+    <li><b>No External Assistance:</b> External tools, notes, or aid are prohibited.</li>
+    <li><b>Monitoring:</b> Logs including IP, timestamps, and attempts are retained.</li>
+    <li><b>Integrity:</b> Manipulation of results will lead to invalidation or HR action.</li>
+    <li><b>Confidentiality:</b> Exam content may not be shared, recorded, or reproduced.</li>
+  </ul>
+
+  <div class="pp-divider"></div>
+
+  <h4>12. Copyright &amp; Intellectual Property</h4>
+  <p>Pursuant to copyright and intellectual property standards:</p>
+  <ul>
+    <li>All training materials, exams, documents, and visual content remain the exclusive property of the organizing tenant or TrainIQ.</li>
+    <li>Duplication, reverse engineering, or unauthorized reuse is strictly prohibited and may result in disciplinary or legal consequences.</li>
+  </ul>
+
+  <div class="pp-divider"></div>
+
+  <!-- Agreement buttons -->
+  <div class="pp-actions">
+    <button id="disagreeBtn" type="button" class="pp-btn pp-btn-disagree">
+      <i class="fas fa-circle-xmark"></i> Disagree
+    </button>
+    <button id="agreeBtn" type="button" class="pp-btn pp-btn-agree">
+      <i class="fas fa-circle-check"></i> I Agree
+    </button>
+  </div>
+
+</div>
+
+<!-- CSRF token -->
+<input type="hidden" id="csrfToken" value="{{ csrf_token() }}"/>
+
+<script src="{{ url_for('static', filename='js/trainiq.js') }}"></script>
+<script>
+  document.getElementById("agreeBtn").addEventListener("click", function () {
+    const token = document.getElementById("csrfToken").value;
+    fetch("/privacy-policy-agreement", {
+      method: "POST",
+      headers: { "X-CSRFToken": token },
+      credentials: "include",
+    }).then(() => (window.location.href = "/dashboard"));
+  });
+  
+  document.getElementById("disagreeBtn").addEventListener("click", function () {
+    window.location.href = "/auth/login";
+  });
+</script>
+</body>
 </html>

@@ -1,0 +1,310 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}Organization Settings — {{ display_org_name }}{% endblock %}
+
+{% block breadcrumb %}
+  <a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <span>Org Settings</span>
+{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <h1>Organization Settings</h1>
+      <p class="tiq-lead">Configure your SaaS instance, manage registration domain routing, and upload your custom branding logo.</p>
+    </div>
+    <a href="{{ url_for('admin_routes.admin_dashboard') }}" class="tiq-btn-back">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+  </div>
+</div>
+
+{# Flash Alerts #}
+{% with messages = get_flashed_messages(with_categories=True) %}
+  {% if messages %}
+    <div class="mb-4">
+      {% for category, msg in messages %}
+        <div class="tiq-alert tiq-alert-{{ 'success' if category == 'success' else ('danger' if category == 'error' else 'warning') }}">
+          <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+          <div>{{ msg }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<div class="tiq-grid tiq-grid-2 tiq-gap">
+  <!-- Settings Form -->
+  <div class="tiq-card tiq-animate-fade-up">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-sliders me-2"></i>Branding &amp; Domain Routing</div>
+    </div>
+    <div class="tiq-card-body">
+      <form method="POST" action="{{ url_for('admin_routes.tenant_settings') }}" enctype="multipart/form-data" id="settingsForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- Logo Preview and File Slot -->
+        <div style="display:flex; align-items:center; gap: 1.5rem; margin-bottom: 2rem;">
+          <div style="width: 80px; height: 80px; border-radius: 12px; border: 2px dashed var(--tiq-border); display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--tiq-surface-2); flex-shrink: 0; box-shadow: var(--tiq-shadow);">
+            {% if tenant.logo_filename %}
+              <img id="logoPreview" src="{{ url_for('general_routes.serve_tenant_logo', tenant_id=tenant.id) }}" style="width: 100%; height: 100%; object-fit: cover;">
+            {% else %}
+              <div id="logoFallback" style="font-size: 2.25rem; font-weight: 800; color: var(--tiq-primary); font-family: var(--tiq-font-sans);">
+                {{ (tenant.name or 'T')[0]|upper }}
+              </div>
+            {% endif %}
+          </div>
+          <div>
+            <h4 style="margin: 0 0 0.25rem 0; font-size: 1rem; font-weight: 700; color: var(--tiq-text);">Corporate Logo</h4>
+            <p style="margin: 0; font-size: 0.8rem; color: var(--tiq-text-3);">Supports PNG, JPG, JPEG, or GIF. Max size 2MB.</p>
+          </div>
+        </div>
+
+        <!-- Org Name -->
+        <div class="tiq-form-group">
+          <label for="name" class="tiq-label">Organization Name</label>
+          <input type="text" class="tiq-input" id="name" name="name" value="{{ tenant.name }}" required placeholder="e.g. Acme Corporation">
+        </div>
+
+        <!-- Office Key -->
+        <div class="tiq-form-group">
+          <label class="tiq-label"><i class="fas fa-key me-1"></i>Office Key</label>
+          <input type="text" class="tiq-input" value="{{ tenant.office_key or '—' }}" readonly style="font-family:monospace;letter-spacing:0.08em;">
+          <div class="tiq-input-hint">Share this key with your team — everyone signs in with Office Key + work email. Data is isolated to your organization.</div>
+        </div>
+
+        <!-- Allowed Domains -->
+        <div class="tiq-form-group">
+          <label for="allowed_domain" class="tiq-label">Allowed Sign-up Domains</label>
+          <input type="text" class="tiq-input" id="allowed_domain" name="allowed_domain" value="{{ tenant.allowed_domain or '' }}" placeholder="e.g. acme.com, acme.co.uk">
+          <div class="tiq-input-hint"><i class="fas fa-circle-info me-1"></i>Comma-separated. Users registering with these email domains will be automatically added to this organization.</div>
+        </div>
+
+        <!-- Upload File Input -->
+        <div class="tiq-form-group">
+          <label for="logo_file" class="tiq-label">Upload New Logo</label>
+          <input type="file" class="tiq-input" id="logo_file" name="logo_file" accept=".png,.jpg,.jpeg,.gif" onchange="previewImage(event)">
+        </div>
+
+        <!-- Portal Tagline -->
+        <div class="tiq-form-group">
+          <label for="portal_tagline" class="tiq-label">Portal Tagline</label>
+          <input type="text" class="tiq-input" id="portal_tagline" name="portal_tagline" value="{{ tenant.portal_tagline or 'Centralized HR and Performance Hub' }}" placeholder="Tagline shown on portal headers">
+        </div>
+
+        <!-- Support Email -->
+        <div class="tiq-form-group">
+          <label for="support_email" class="tiq-label">Support Email Address</label>
+          <input type="email" class="tiq-input" id="support_email" name="support_email" value="{{ tenant.support_email or 'support@trainiq.com' }}" placeholder="support@domain.com">
+        </div>
+
+        <!-- Colors Grid -->
+        <div class="tiq-grid tiq-grid-2 tiq-gap" style="margin-bottom: 1.5rem;">
+          <div class="tiq-form-group" style="margin-bottom: 0;">
+            <label for="primary_color" class="tiq-label">Primary Brand Color</label>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <input type="color" id="primary_color_picker" value="{{ tenant.primary_color or '#4f46e5' }}" style="border:none; width:40px; height:38px; border-radius:var(--tiq-radius); cursor:pointer;" onchange="syncThemePreview(); document.getElementById('primary_color').value = this.value">
+              <input type="text" class="tiq-input" id="primary_color" name="primary_color" value="{{ tenant.primary_color or '#4f46e5' }}" style="flex:1;" onchange="syncThemePreview(); document.getElementById('primary_color_picker').value = this.value">
+            </div>
+          </div>
+
+          <div class="tiq-form-group" style="margin-bottom: 0;">
+            <label for="secondary_color" class="tiq-label">Secondary Brand Color</label>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <input type="color" id="secondary_color_picker" value="{{ tenant.secondary_color or '#06b6d4' }}" style="border:none; width:40px; height:38px; border-radius:var(--tiq-radius); cursor:pointer;" onchange="syncThemePreview(); document.getElementById('secondary_color').value = this.value">
+              <input type="text" class="tiq-input" id="secondary_color" name="secondary_color" value="{{ tenant.secondary_color or '#06b6d4' }}" style="flex:1;" onchange="syncThemePreview(); document.getElementById('secondary_color_picker').value = this.value">
+            </div>
+          </div>
+        </div>
+        <div class="tiq-theme-preview tiq-animate-scale-in" id="themePreview">
+          <div class="tiq-theme-preview-bar" id="themePreviewBar"></div>
+          <div style="font-size:0.85rem; font-weight:700; color:var(--tiq-text);">{{ tenant.name or 'Your Organization' }}</div>
+          <div style="font-size:0.75rem; color:var(--tiq-text-3); margin-top:0.25rem;">Live brand color preview</div>
+        </div>
+
+        <!-- Plan & Limits -->
+        <div class="tiq-form-group" style="background:var(--tiq-surface-2); padding:1rem 1.25rem; border-radius:var(--tiq-radius-lg); border:1px solid var(--tiq-border);">
+          <label class="tiq-label"><i class="fas fa-layer-group me-1"></i>Subscription</label>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.75rem;font-size:0.875rem;">
+            <div><span style="color:var(--tiq-text-3);">Plan</span><br><strong>{{ tenant.plan or 'trial' }}</strong></div>
+            <div><span style="color:var(--tiq-text-3);">Status</span><br><strong>{{ tenant.status or 'active' }}</strong></div>
+            <div><span style="color:var(--tiq-text-3);">Seats used</span><br><strong>{{ tenant_usage.users }} / {{ tenant_usage.max_users }}</strong></div>
+            <div><span style="color:var(--tiq-text-3);">Storage</span><br><strong>{{ tenant.max_storage_mb or 2048 }} MB</strong></div>
+          </div>
+          {% if tenant_usage.trial_days_left is not none and tenant.plan == 'trial' %}
+          <div class="tiq-alert tiq-alert-info" style="margin-top:0.75rem;font-size:0.85rem;">
+            Trial: {{ tenant_usage.trial_days_left }} day(s) left
+          </div>
+          {% endif %}
+          {% if tenant_usage.at_limit %}
+          <div class="tiq-alert tiq-alert-warning" style="margin-top:0.75rem;font-size:0.85rem;">
+            User limit reached. Upgrade to add more team members.
+          </div>
+          {% endif %}
+          <div style="margin-top:1rem;">
+            <a href="{{ url_for('billing_routes.billing_home') }}" class="tiq-btn tiq-btn-primary tiq-btn-sm">
+              <i class="fas fa-arrow-up"></i> Manage billing &amp; upgrade
+            </a>
+          </div>
+          <div class="tiq-form-group" style="margin-top:1rem;margin-bottom:0;">
+            <label for="billing_email" class="tiq-label">Billing Contact Email</label>
+            <input type="email" class="tiq-input" id="billing_email" name="billing_email" value="{{ tenant.billing_email or '' }}" placeholder="billing@yourcompany.com">
+          </div>
+        </div>
+
+        <!-- Super Admins -->
+        <div class="tiq-form-group">
+          <label class="tiq-label"><i class="fas fa-user-shield me-1"></i>Super Admins</label>
+          {% if super_admins %}
+            <ul style="margin:0 0 0.75rem 1rem;padding:0;font-size:0.9rem;color:var(--tiq-text-2);">
+              {% for sa in super_admins %}
+                <li>{{ sa.first_name }} {{ sa.last_name }} ({{ sa.employee_email }})</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p style="margin:0 0 0.75rem;font-size:0.875rem;color:var(--tiq-text-3);">No super admins assigned.</p>
+          {% endif %}
+          <div class="tiq-input-hint">Grant or revoke Super Admin from <a href="{{ url_for('admin_routes.view_users') }}">Users Management</a>. Each organization must keep at least one Super Admin.</div>
+        </div>
+
+        <!-- Security and Proctoring Options -->
+        <div class="tiq-form-group" style="background:var(--tiq-surface-2); padding:1.25rem; border-radius:var(--tiq-radius-lg); border:1px solid var(--tiq-border); margin-bottom:1.5rem;">
+          <h4 style="margin:0 0 1rem 0; font-size:0.95rem; font-weight:700; color:var(--tiq-text); display:flex; align-items:center; gap:8px;">
+            <i class="fas fa-shield-halved" style="color:var(--tiq-primary)"></i> Security &amp; Features
+          </h4>
+          
+          <div style="display:flex; flex-direction:column; gap:0.75rem;">
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.9rem; color:var(--tiq-text-2); margin:0;">
+              <input type="checkbox" name="enable_2fa" value="true" {% if tenant.enable_2fa %}checked{% endif %} style="width:16px; height:16px; accent-color:var(--tiq-primary);">
+              <div>Enforce Two-Factor Authentication (2FA) for logins</div>
+            </label>
+
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.9rem; color:var(--tiq-text-2); margin:0;">
+              <input type="checkbox" name="enable_invite_only" value="true" {% if tenant.enable_invite_only %}checked{% endif %} style="width:16px; height:16px; accent-color:var(--tiq-primary);">
+              <div>Require admin approval for new user registrations (invite-only mode)</div>
+            </label>
+
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.9rem; color:var(--tiq-text-2); margin:0;">
+              <input type="checkbox" name="enable_proctoring" value="true" {% if tenant.enable_proctoring %}checked{% endif %} style="width:16px; height:16px; accent-color:var(--tiq-primary);">
+              <div>Enable ProctorIQ anti-cheat proctoring on all assessments</div>
+            </label>
+          </div>
+        </div>
+
+        {% if tenant.plan == 'enterprise' %}
+        <div class="tiq-form-group" style="background:var(--tiq-surface-2); padding:1.25rem; border-radius:var(--tiq-radius-lg); border:1px solid var(--tiq-border); margin-bottom:1.5rem;">
+          <h4 style="margin:0 0 1rem 0; font-size:0.95rem; font-weight:700; color:var(--tiq-text); display:flex; align-items:center; gap:8px;">
+            <i class="fas fa-key" style="color:var(--tiq-primary)"></i> Enterprise SSO (OIDC)
+          </h4>
+          <p style="font-size:0.85rem;color:var(--tiq-text-3);margin:0 0 1rem;">
+            Connect Google Workspace, Microsoft Entra ID, or any OIDC provider. Users sign in from the login page with their Office Key + SSO.
+          </p>
+          <label style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;cursor:pointer;">
+            <input type="checkbox" name="sso_enabled" value="true" {% if tenant.sso_enabled %}checked{% endif %} style="width:16px;height:16px;accent-color:var(--tiq-primary);">
+            <span>Enable SSO for this organization</span>
+          </label>
+          <div class="tiq-form-group">
+            <label class="tiq-label" for="sso_provider">Provider</label>
+            <select class="tiq-input" id="sso_provider" name="sso_provider">
+              <option value="google" {% if tenant.sso_provider == 'google' %}selected{% endif %}>Google Workspace</option>
+              <option value="microsoft" {% if tenant.sso_provider == 'microsoft' %}selected{% endif %}>Microsoft Entra ID</option>
+              <option value="oidc" {% if tenant.sso_provider == 'oidc' %}selected{% endif %}>Custom OIDC</option>
+            </select>
+          </div>
+          <div class="tiq-form-group">
+            <label class="tiq-label" for="sso_client_id">Client ID</label>
+            <input type="text" class="tiq-input" id="sso_client_id" name="sso_client_id" value="{{ tenant.sso_client_id or '' }}" placeholder="OAuth client ID">
+          </div>
+          <div class="tiq-form-group">
+            <label class="tiq-label" for="sso_client_secret">Client Secret</label>
+            <input type="password" class="tiq-input" id="sso_client_secret" name="sso_client_secret" value="" placeholder="{% if tenant.sso_client_secret %}Leave blank to keep current{% else %}OAuth client secret{% endif %}" autocomplete="new-password">
+          </div>
+          <div class="tiq-form-group">
+            <label class="tiq-label" for="sso_tenant_domain">Microsoft tenant ID (Entra only)</label>
+            <input type="text" class="tiq-input" id="sso_tenant_domain" name="sso_tenant_domain" value="{{ tenant.sso_tenant_domain or '' }}" placeholder="common or your-tenant-id">
+          </div>
+          <div class="tiq-form-group" style="margin-bottom:0;">
+            <label class="tiq-label" for="sso_issuer_url">Custom issuer URL (OIDC only)</label>
+            <input type="text" class="tiq-input" id="sso_issuer_url" name="sso_issuer_url" value="{{ tenant.sso_issuer_url or '' }}" placeholder="https://your-idp.com">
+          </div>
+          <div class="tiq-input-hint" style="margin-top:0.75rem;">
+            Redirect URI to register with your IdP: <code style="font-size:0.75rem;">{{ sso_callback_url }}</code>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="mt-4">
+          <button type="submit" class="tiq-btn tiq-btn-primary" id="saveBtn">
+            <span id="saveBtnText"><i class="fas fa-save me-1"></i> Save Changes</span>
+            <span id="saveSpinner" class="tiq-spinner tiq-spinner-sm" style="display:none; border-top-color:white; border-color:rgba(255,255,255,0.3)"></span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Info / Help Column -->
+  <div class="tiq-card tiq-animate-fade-up" style="animation-delay:0.1s">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title"><i class="fas fa-circle-question me-2"></i>Multi-Tenant White-Labeling</div>
+    </div>
+    <div class="tiq-card-body" style="line-height:1.75; color:var(--tiq-text-2);">
+      <h4 style="font-size:1rem; font-weight:700; color:var(--tiq-text); margin-top:0; margin-bottom:0.5rem;">White-Labeled Experience</h4>
+      <p style="font-size:0.9rem; margin-bottom:1.5rem;">
+        TrainIQ provides an isolated, custom-branded environment for your team. Once you upload your logo, all your members (both managers and learners) will see your company's custom branding on their sidebar, headers, and dashboard interfaces.
+      </p>
+
+      <div class="tiq-divider"></div>
+
+      <h4 style="font-size:1rem; font-weight:700; color:var(--tiq-text); margin-bottom:0.5rem;">Domain Sign-up Routing</h4>
+      <p style="font-size:0.9rem; margin-bottom:1.5rem;">
+        By specifying <b>Allowed Sign-up Domains</b>, you allow new users from your company to sign up on TrainIQ without requiring a manual invitation.
+        For example, adding <code>yourcompany.com</code> will automatically associate any new user registering with a <code>*@yourcompany.com</code> email with your organization profile.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+  function syncThemePreview() {
+    const primary = document.getElementById('primary_color')?.value || '#4f46e5';
+    const secondary = document.getElementById('secondary_color')?.value || '#06b6d4';
+    const bar = document.getElementById('themePreviewBar');
+    if (bar) {
+      bar.style.background = `linear-gradient(90deg, ${primary}, ${secondary})`;
+    }
+  }
+  syncThemePreview();
+
+  function previewImage(event) {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const preview = document.getElementById('logoPreview');
+        const fallback = document.getElementById('logoFallback');
+        if (preview) {
+          preview.src = e.target.result;
+        } else if (fallback) {
+          const img = document.createElement('img');
+          img.id = 'logoPreview';
+          img.src = e.target.result;
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.style.objectFit = 'cover';
+          fallback.parentNode.replaceChild(img, fallback);
+        }
+      }
+      reader.readAsDataURL(file);
+    }
+  }
+
+  document.getElementById('settingsForm').addEventListener('submit', function() {
+    document.getElementById('saveBtnText').textContent = 'Saving...';
+    document.getElementById('saveSpinner').style.display = 'inline-block';
+    document.getElementById('saveBtn').disabled = true;
+  });
+</script>
+{% endblock %}

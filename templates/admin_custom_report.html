@@ -1,53 +1,77 @@
-{% extends 'admin_base.html' %} {% block title %}Custom Report Builder{%
-endblock %} {% block content %}
+{% extends 'admin_base.html' %}
 
-<div class="container mt-4">
-  <h1 class="text-center mb-4">Custom Report Builder</h1>
-  <form method="get" action="{{ url_for('admin_routes.download_report') }}">
-    <div class="mb-3">
-      <label for="report_model" class="form-label">Select Data Model</label>
-      <select
-        class="form-select"
-        name="report_model"
-        id="report_model"
-        required
-      >
-        <option value="">-- Choose One --</option>
-        {% for model_key, fields in report_models.items() %}
-        <option value="{{ model_key }}">
-          {{ model_key.replace('_', ' ').title() }}
-        </option>
-        {% endfor %}
-      </select>
+{% block title %}Custom Report Builder{% endblock %}
+
+{% block breadcrumb %}
+<a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+<span class="tiq-breadcrumb-sep">/</span>
+<a href="{{ url_for('admin_routes.generate_reports') }}">Reports</a>
+<span class="tiq-breadcrumb-sep">/</span>
+<span>Custom Builder</span>
+{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <div class="tiq-breadcrumb">
+        <a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+        <span class="tiq-breadcrumb-sep">/</span>
+        <a href="{{ url_for('admin_routes.generate_reports') }}">Reports</a>
+        <span class="tiq-breadcrumb-sep">/</span>
+        <span>Custom Builder</span>
+      </div>
+      <h1>Custom Report Builder</h1>
     </div>
-    <div class="mb-3">
-      <label class="form-label">Fields to Include</label>
-      {% for model_key, fields in report_models.items() %}
-      <div
-        class="fields-group mb-2"
-        data-model="{{ model_key }}"
-        style="display: none"
-      >
-        {% for f, label in fields %}
-        <div class="form-check">
-          <input
-            class="form-check-input"
-            type="checkbox"
-            name="fields"
-            value="{{ f }}"
-            id="{{ model_key }}-{{ f }}"
-          />
-          <label class="form-check-label" for="{{ model_key }}-{{ f }}"
-            >{{ label }}</label
-          >
+    <a href="{{ url_for('admin_routes.generate_reports') }}" class="tiq-btn tiq-btn-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Reports
+    </a>
+  </div>
+</div>
+
+<div class="tiq-card">
+  <div class="tiq-card-header">
+    <h2 class="tiq-card-title"><i class="fas fa-sliders-h" style="margin-right:8px; color:var(--tiq-accent);"></i>Configure Custom Export</h2>
+  </div>
+  <div class="tiq-card-body">
+    <form method="get" action="{{ url_for('admin_routes.download_report') }}">
+      <div class="tiq-form-group">
+        <label for="report_model" class="tiq-label">Select Data Model</label>
+        <select class="tiq-select" name="report_model" id="report_model" required>
+          <option value="">-- Choose One --</option>
+          {% for model_key, fields in report_models.items() %}
+          <option value="{{ model_key }}">
+            {{ model_key.replace('_', ' ').title() }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="tiq-form-group">
+        <label class="tiq-label">Fields to Include</label>
+        {% for model_key, fields in report_models.items() %}
+        <div class="fields-group" data-model="{{ model_key }}" style="display: none; background: var(--tiq-surface-2); padding: 1.5rem; border-radius: var(--tiq-radius); border: 1px solid var(--tiq-border); margin-top: 0.5rem;">
+          <div class="tiq-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+            {% for f, label in fields %}
+            <div class="tiq-flex" style="align-items: center; gap: 8px;">
+              <input type="checkbox" name="fields" value="{{ f }}" id="{{ model_key }}-{{ f }}" style="width:16px; height:16px; cursor:pointer;"/>
+              <label for="{{ model_key }}-{{ f }}" style="font-size:0.875rem; font-weight:500; cursor:pointer; color:var(--tiq-text-2);">{{ label }}</label>
+            </div>
+            {% endfor %}
+          </div>
         </div>
         {% endfor %}
       </div>
-      {% endfor %}
-    </div>
-    <input type="hidden" name="type" value="custom" />
-    <button type="submit" class="btn btn-primary">Download Custom CSV</button>
-  </form>
+
+      <input type="hidden" name="type" value="custom"/>
+      
+      <div style="margin-top: 2rem;">
+        <button type="submit" class="tiq-btn tiq-btn-primary">
+          <i class="fas fa-file-csv"></i> Download Custom CSV
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <script>

@@ -3,8 +3,8 @@ import random
 from datetime import datetime, timedelta
 from extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import Column, text, Text, Integer, String, LargeBinary, Date, DateTime, Boolean, ForeignKey, Text, Table, JSON, Index
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, text, Text, Integer, String, LargeBinary, Date, DateTime, Boolean, ForeignKey, Text, Table, JSON, Index, UniqueConstraint
+from sqlalchemy.orm import relationship, validates
 from flask_login import UserMixin
 from sqlalchemy import Float
 from flask import request
@@ -47,7 +47,60 @@ user_clients = Table(
 )
 
 # -------------------------------------
-# Role Model
+# Tenant Model
+# -------------------------------------
+class Tenant(db.Model):
+    __tablename__ = 'tenants'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)
+    allowed_domain = Column(String(200), nullable=True)
+    logo_filename = Column(String(200), nullable=True)
+    logo_data = Column(LargeBinary, nullable=True)
+    logo_mimetype = Column(String(50), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Customizable fields
+    primary_color = Column(String(7), nullable=True, default="#4f46e5")
+    secondary_color = Column(String(7), nullable=True, default="#06b6d4")
+    support_email = Column(String(120), nullable=True, default="support@trainiq.com")
+    portal_tagline = Column(String(255), nullable=True, default="Centralized HR and Performance Hub")
+    enable_2fa = Column(Boolean, nullable=False, default=False)
+    enable_proctoring = Column(Boolean, nullable=False, default=True)
+    office_key = Column(String(50), unique=True, nullable=True)
+
+    # SaaS subscription / limits
+    plan = Column(String(50), nullable=False, default="trial")
+    status = Column(String(30), nullable=False, default="trial")  # active, trial, suspended, expired
+    max_users = Column(Integer, nullable=False, default=10)
+    max_storage_mb = Column(Integer, nullable=False, default=2048)
+    trial_ends_at = Column(DateTime, nullable=True)
+    trial_reminder_7d_at = Column(DateTime, nullable=True)
+    trial_reminder_1d_at = Column(DateTime, nullable=True)
+    onboarding_welcome_at = Column(DateTime, nullable=True)
+    onboarding_drip_1_at = Column(DateTime, nullable=True)
+    onboarding_drip_3_at = Column(DateTime, nullable=True)
+    onboarding_drip_7_at = Column(DateTime, nullable=True)
+    billing_email = Column(String(120), nullable=True)
+    billing_cycle = Column(String(20), nullable=False, default="monthly")
+    stripe_customer_id = Column(String(120), nullable=True)
+    enable_invite_only = Column(Boolean, nullable=False, default=False)
+    suspended_at = Column(DateTime, nullable=True)
+    suspended_reason = Column(Text, nullable=True)
+
+    # Enterprise SSO (OIDC)
+    sso_enabled = Column(Boolean, nullable=False, default=False)
+    sso_provider = Column(String(30), nullable=True)  # google, microsoft, oidc
+    sso_client_id = Column(String(255), nullable=True)
+    sso_client_secret = Column(String(512), nullable=True)
+    sso_issuer_url = Column(String(512), nullable=True)
+    sso_tenant_domain = Column(String(255), nullable=True)  # Azure AD tenant id or domain
+
+    invites = relationship("TenantInvite", back_populates="tenant", cascade="all, delete-orphan")
+
+    @validates('office_key')
+    def _normalize_office_key(self, _key, value):
+        from utils.tenant_utils import normalize_office_key
+        return normalize_office_key(value)
 # -------------------------------------
 class Role(db.Model):
     __tablename__ = 'roles'
@@ -65,10 +118,15 @@ class Role(db.Model):
 # -------------------------------------
 class Designation(db.Model):
     __tablename__ = 'designations'
+    __table_args__ = (
+        UniqueConstraint('tenant_id', 'title', name='uq_designation_tenant_title'),
+    )
 
     id = Column(Integer, primary_key=True)
-    title = Column(String(50), unique=True, nullable=False)
-    starting_level = Column(Integer, default=0)  # Minimum level required for this designation
+    title = Column(String(50), nullable=False)
+    starting_level = Column(Integer, default=0)
+    tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
+    tenant = relationship("Tenant", backref=db.backref("designations", lazy=True))
 
     # Relationships
     users = relationship("User", back_populates="designation")
@@ -85,9 +143,14 @@ class Designation(db.Model):
 # -------------------------------------
 class Category(db.Model):
     __tablename__ = 'categories'
+    __table_args__ = (
+        UniqueConstraint('tenant_id', 'name', name='uq_category_tenant_name'),
+    )
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False, unique=True)  # Billing, Posting, VOB, etc.
+    name = Column(String(100), nullable=False)
+    tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
+    tenant = relationship("Tenant", backref=db.backref("categories", lazy=True))
 
     # Relationships
     level_areas = relationship("LevelArea", back_populates="category")
@@ -105,9 +168,14 @@ class Category(db.Model):
 
 class Client(db.Model):
     __tablename__ = 'clients'
+    __table_args__ = (
+        UniqueConstraint('tenant_id', 'name', name='uq_client_tenant_name'),
+    )
 
     id   = Column(Integer, primary_key=True)
-    name = Column(String(100), unique=True, nullable=False)
+    name = Column(String(100), nullable=False)
+    tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
+    tenant = relationship("Tenant", backref=db.backref("clients", lazy=True))
 
     # Many-to-many relationship to User
     users = relationship(
@@ -148,6 +216,8 @@ class StudyMaterial(db.Model):
     # Foreign Keys
     category_id = Column(Integer, ForeignKey('categories.id'), nullable=True)
     level_id    = Column(Integer, ForeignKey('levels.id'), nullable=True)
+    tenant_id   = Column(Integer, ForeignKey('tenants.id'), nullable=True)
+    tenant      = relationship("Tenant", backref=db.backref("study_materials", lazy=True))
 
     # Relationships
     category      = relationship("Category", back_populates="study_materials")
@@ -235,10 +305,15 @@ class UserProgress(db.Model):
 # -------------------------------------
 class Level(db.Model):
     __tablename__ = 'levels'
+    __table_args__ = (
+        UniqueConstraint('tenant_id', 'level_number', name='uq_level_tenant_number'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
-    level_number = db.Column(db.Integer, nullable=False, unique=True)
+    level_number = db.Column(db.Integer, nullable=False)
     title = db.Column(db.String(255), nullable=False)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=True)
+    tenant = db.relationship("Tenant", backref=db.backref("levels", lazy=True))
 
     # Relationships
     level_areas = db.relationship("LevelArea", back_populates="level", cascade="all, delete-orphan")
@@ -317,11 +392,15 @@ class User(db.Model, UserMixin):
     )
 
     is_super_admin = Column(Boolean, default=False)  # Super admin privileges
+    trial_checklist_dismissed = Column(Boolean, default=False, nullable=False)
     current_level = Column(Integer, default=0)  # Tracks the user's current active level
 
     # ---------------------------------
     # Foreign Key Relationships
     # ---------------------------------
+    tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
+    tenant = relationship("Tenant", backref=db.backref("users", lazy=True))
+
     designation_id = Column(Integer, ForeignKey('designations.id'), nullable=True)
     designation = relationship("Designation", back_populates="users")
 
@@ -562,6 +641,11 @@ class Exam(db.Model):
     # New Additions
     minimum_level = Column(Integer, nullable=True)             # Minimum level required for this exam
     minimum_designation_level = Column(Integer, nullable=True) # Designation level required for skipping
+    tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
+    passing_score = Column(Float, nullable=False, default=70.0)
+
+    # Relationships
+    tenant = relationship("Tenant", backref=db.backref("exams", lazy=True))
 
     # Relationships
     level = relationship("Level", back_populates="exams")
@@ -611,8 +695,9 @@ class Question(db.Model):
     exam_id = Column(Integer, ForeignKey('exams.id', ondelete='CASCADE'), nullable=False)
     question_text = Column(Text, nullable=False)
     choices = Column(Text, nullable=False)  # Stores comma-separated choices
-    correct_answer = Column(String(255), nullable=False)
+    correct_answer = Column(Text, nullable=False)
     category_id = Column(Integer, ForeignKey('categories.id', ondelete='CASCADE'), nullable=False)
+    question_type = Column(String(50), nullable=False, default='single_choice')
 
     # Relationships
     exam = relationship("Exam", back_populates="questions", passive_deletes=True)
@@ -629,6 +714,35 @@ class Question(db.Model):
         """Set the choices as a comma-separated string"""
         self.choices = ','.join(choices_list)
 
+    @property
+    def correct_ans(self):
+        """
+        Returns the letter (A, B, C, or D) corresponding to correct_answer.
+        """
+        try:
+            choices_list = self.get_choices()
+            idx = choices_list.index(self.correct_answer)
+            if 0 <= idx < 4:
+                return 'ABCD'[idx]
+        except (ValueError, TypeError, IndexError):
+            pass
+        return None
+
+    @correct_ans.setter
+    def correct_ans(self, value):
+        """
+        Sets correct_answer based on the letter (A, B, C, or D).
+        """
+        try:
+            choices_list = self.get_choices()
+            val = value.strip().upper()
+            if len(val) == 1 and 'A' <= val <= 'D':
+                idx = ord(val) - ord('A')
+                if 0 <= idx < len(choices_list):
+                    self.correct_answer = choices_list[idx]
+        except Exception:
+            pass
+
 # -------------------------------
 # UserScore Model
 # -------------------------------
@@ -643,6 +757,9 @@ class UserScore(db.Model):
     category_id = Column(Integer, ForeignKey('categories.id'), nullable=False)
     score = Column(Float, nullable=False)  # Changed from Integer to Float
     attempts = Column(Integer, default=1)  # Tracks attempts for better analytics
+    trust_score = Column(Float, nullable=True)       # ProctorIQ integrity score (0-100)
+    proctor_events = Column(Text, nullable=True)     # JSON blob of proctoring events
+    proctor_narrative = Column(Text, nullable=True)  # AI-generated integrity assessment
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -685,7 +802,8 @@ class ExamAccessRequest(db.Model):
 
     @property
     def is_special_exam(self):
-        return self.exam_id in (9991, 9992)
+        from utils.special_exams import is_special_exam_id
+        return is_special_exam_id(self.exam_id)
 
 # --------------------------------    
 # Task Model
@@ -713,6 +831,10 @@ class Task(db.Model):
         nullable=True
     )
     client_id = db.Column(db.Integer, db.ForeignKey('clients.id', ondelete='CASCADE'), nullable=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=True)
+
+    # Relationships
+    tenant = db.relationship("Tenant", backref=db.backref("tasks", lazy=True))
 
     # Relationships
     assigned_by_user = db.relationship(
@@ -843,9 +965,14 @@ class Event(db.Model):
 # -------------------------------
 class Area(db.Model):
     __tablename__ = 'areas'
+    __table_args__ = (
+        UniqueConstraint('tenant_id', 'name', name='uq_area_tenant_name'),
+    )
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(50), unique=True, nullable=False)  # Billing, Posting, VOB, etc.t
+    name = Column(String(50), nullable=False)
+    tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
+    tenant = relationship("Tenant", backref=db.backref("areas", lazy=True))
 
     # Relationships
     level_areas = relationship("LevelArea", back_populates="area", cascade="all, delete-orphan")
@@ -928,10 +1055,15 @@ class SpecialExamRecord(db.Model):
 # -------------------------------------
 class Department(db.Model):
     __tablename__ = 'departments'
-    
+    __table_args__ = (
+        UniqueConstraint('tenant_id', 'name', name='uq_department_tenant_name'),
+    )
+
     id = Column(Integer, primary_key=True)
-    name = Column(String(100), unique=True, nullable=False)
-    
+    name = Column(String(100), nullable=False)
+    tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
+    tenant = relationship("Tenant", backref=db.backref("departments", lazy=True))
+
     # Relationship: Users assigned to this department
     users = relationship(
         "User",
@@ -971,6 +1103,31 @@ class IncorrectAnswer(db.Model):
         back_populates='incorrect_answers',
         passive_deletes=True
     )
+
+# -------------------------------------
+# TenantInvite Model
+# -------------------------------------
+class TenantInvite(db.Model):
+    __tablename__ = "tenant_invites"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    email = Column(String(120), nullable=False, index=True)
+    token = Column(String(128), nullable=False, unique=True, index=True)
+    invited_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    used_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    tenant = relationship("Tenant", back_populates="invites")
+    invited_by = relationship("User", foreign_keys=[invited_by_user_id])
+    used_by = relationship("User", foreign_keys=[used_by_user_id])
+
+    @property
+    def is_valid(self):
+        return self.used_at is None and self.expires_at > datetime.utcnow()
+
 
 # -------------------------------------
 # PasswordResetRequest Model

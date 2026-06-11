@@ -1,0 +1,56 @@
+{# Usage / trial / limit banner for Super Admins — include in dashboard & admin pages #}
+
+{% if tenant_usage_global and current_user.is_super_admin %}
+
+  {% set u = tenant_usage_global %}
+
+  {% if u.trial_expired %}
+
+  <div class="tiq-alert tiq-alert-danger" style="margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
+
+    <span><i class="fas fa-clock"></i> Your free trial has ended. Upgrade to restore access for your team.</span>
+
+    <a href="{{ url_for('billing_routes.billing_home') }}" class="tiq-btn tiq-btn-primary tiq-btn-sm">Upgrade now</a>
+
+  </div>
+
+  {% else %}
+
+    {% if u.trial_days_left is not none and u.plan.get('id') == 'trial' and u.trial_days_left <= 7 %}
+
+    <div class="tiq-alert tiq-alert-warning" style="margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
+
+      <span><i class="fas fa-hourglass-half"></i> Trial ends in <strong>{{ u.trial_days_left }}</strong> day{{ 's' if u.trial_days_left != 1 else '' }} · {{ u.users }}/{{ u.max_users }} seats used</span>
+
+      <a href="{{ url_for('billing_routes.billing_home') }}" class="tiq-btn tiq-btn-primary tiq-btn-sm">Choose a plan</a>
+
+    </div>
+
+    {% endif %}
+
+    {% if u.at_limit %}
+
+    <div class="tiq-alert tiq-alert-warning" style="margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
+
+      <span><i class="fas fa-users"></i> Seat limit reached{% if u.plan.get('id') == 'trial' %} ({{ u.users }}/{{ u.max_users }}){% else %} on <strong>{{ u.plan.name }}</strong> ({{ u.users }}/{{ u.max_users }}){% endif %}. Upgrade to invite more team members.</span>
+
+      <a href="{{ url_for('billing_routes.billing_home', upgrade=1) }}" class="tiq-btn tiq-btn-primary tiq-btn-sm">Upgrade plan</a>
+
+    </div>
+
+    {% elif u.usage_percent >= 80 %}
+
+    <div class="tiq-alert tiq-alert-info" style="margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
+
+      <span><i class="fas fa-chart-line"></i> {{ u.users }}/{{ u.max_users }} seats used{% if u.trial_days_left is not none and u.plan.get('id') == 'trial' %} · {{ u.trial_days_left }} trial days remaining{% else %} — consider upgrading before you hit the limit{% endif %}.</span>
+
+      <a href="{{ url_for('billing_routes.billing_home') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">View plans</a>
+
+    </div>
+
+    {% endif %}
+
+  {% endif %}
+
+{% endif %}
+

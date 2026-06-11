@@ -1,130 +1,185 @@
 {% extends 'admin_base.html' %}
-{% block title %}Manage Level Areas{% endblock %}
+{% block title %}Manage Level Areas — {{ display_org_name }}{% endblock %}
+
+{% block breadcrumb %}
+  <a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <span>Level Areas</span>
+{% endblock %}
 
 {% block content %}
-  <div class="mb-4">
+  <div class="tiq-page-header">
     <h1>Manage Level Areas</h1>
+    <p class="tiq-lead">Define rules mapping departments/levels to categories, areas, and required exams.</p>
   </div>
 
+  {# Flash messages #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="mb-4">
+        {% for category, text in messages %}
+          <div class="tiq-alert tiq-alert-{{ 'success' if category == 'success' else ('danger' if category == 'error' else 'warning') }}">
+            <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+            <div>{{ text }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
   <!-- Create New Rule -->
-  <div class="card mb-5">
-    <div class="card-body">
-      <h2 class="h5 mb-3">Add New Level-Area Rule</h2>
-      <form method="POST" action="{{ url_for('admin_routes.create_level_area') }}" class="row g-3 align-items-end">
+  <div class="tiq-card mb-5">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title">
+        <i class="fas fa-plus-circle me-2"></i>Add New Level-Area Rule
+      </div>
+    </div>
+    <div class="tiq-card-body">
+      <form method="POST" action="{{ url_for('admin_routes.create_level_area') }}" class="tiq-grid tiq-grid-4 tiq-gap align-items-end">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="col-md-3">
-          <label for="level_id" class="form-label">Level</label>
-          <select id="level_id" name="level_id" class="form-select" required>
+        
+        <div class="tiq-form-group mb-0">
+          <label for="level_id" class="tiq-label">Level</label>
+          <select id="level_id" name="level_id" class="tiq-select" required>
             {% for lvl in levels %}
               <option value="{{ lvl.id }}">Level {{ lvl.level_number }}: {{ lvl.title }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-3">
-          <label for="category_id" class="form-label">Category</label>
-          <select id="category_id" name="category_id" class="form-select" required>
+
+        <div class="tiq-form-group mb-0">
+          <label for="category_id" class="tiq-label">Category</label>
+          <select id="category_id" name="category_id" class="tiq-select" required>
             {% for cat in categories %}
               <option value="{{ cat.id }}">{{ cat.name }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-3">
-          <label for="area_id" class="form-label">Area</label>
-          <select id="area_id" name="area_id" class="form-select" required>
+
+        <div class="tiq-form-group mb-0">
+          <label for="area_id" class="tiq-label">Area</label>
+          <select id="area_id" name="area_id" class="tiq-select" required>
             {% for ar in areas %}
               <option value="{{ ar.id }}">{{ ar.name }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-3">
-          <label for="required_exam_id" class="form-label">Required Exam</label>
-          <select id="required_exam_id" name="required_exam_id" class="form-select">
+
+        <div class="tiq-form-group mb-0">
+          <label for="required_exam_id" class="tiq-label">Required Exam</label>
+          <select id="required_exam_id" name="required_exam_id" class="tiq-select">
             <option value="">— None —</option>
             {% for ex in exams %}
               <option value="{{ ex.id }}">{{ ex.title }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-primary">Add Rule</button>
+
+        <div class="col-span-full tiq-text-right mt-3">
+          <button type="submit" class="tiq-btn tiq-btn-primary">
+            <i class="fas fa-plus me-1"></i>Add Rule
+          </button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- Existing Rules -->
-  <table class="table table-bordered table-hover mb-5">
-    <thead class="table-light">
-      <tr>
-        <th>#</th>
-        <th>Level</th>
-        <th>Category</th>
-        <th>Area</th>
-        <th>Exam</th>
-        <th class="text-center">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for la in level_areas %}
-        <tr>
-          <td>{{ la.id }}</td>
-          <td>
-            <form method="POST" action="{{ url_for('admin_routes.edit_level_area', id=la.id) }}" class="d-flex">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <select name="level_id" class="form-select form-select-sm me-2">
-                {% for lvl in levels %}
-                  <option value="{{ lvl.id }}" {% if lvl.id == la.level_id %}selected{% endif %}>
-                    Level {{ lvl.level_number }}: {{ lvl.title }}
-                  </option>
-                {% endfor %}
-              </select>
-          </td>
-          <td>
-              <select name="category_id" class="form-select form-select-sm me-2">
-                {% for cat in categories %}
-                  <option value="{{ cat.id }}" {% if cat.id == la.category_id %}selected{% endif %}>
-                    {{ cat.name }}
-                  </option>
-                {% endfor %}
-              </select>
-          </td>
-          <td>
-              <select name="area_id" class="form-select form-select-sm me-2">
-                {% for ar in areas %}
-                  <option value="{{ ar.id }}" {% if ar.id == la.area_id %}selected{% endif %}>
-                    {{ ar.name }}
-                  </option>
-                {% endfor %}
-              </select>
-          </td>
-          <td>
-              <select name="required_exam_id" class="form-select form-select-sm me-2">
-                <option value="" {% if not la.required_exam_id %}selected{% endif %}>— None —</option>
-                {% for ex in exams %}
-                  <option value="{{ ex.id }}" {% if la.required_exam_id == ex.id %}selected{% endif %}>
-                    {{ ex.title }}
-                  </option>
-                {% endfor %}
-              </select>
-          </td>
-          <td class="text-center">
-              <button type="submit" class="btn btn-sm btn-success me-1" title="Save Changes">
-                <i class="fas fa-save"></i>
-              </button>
-            </form>
-            <form method="POST" action="{{ url_for('admin_routes.delete_level_area', id=la.id) }}" class="d-inline-block">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-sm btn-danger" title="Delete Rule">
-                <i class="fas fa-trash-alt"></i>
-              </button>
-            </form>
-          </td>
-        </tr>
-      {% else %}
-        <tr>
-          <td colspan="6" class="text-center text-muted">No level-area rules defined yet.</td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="tiq-card tiq-animate-fade-up">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title">
+        <i class="fas fa-list-ul me-2"></i>Active Level-Area Mappings
+      </div>
+    </div>
+    <div class="tiq-table-toolbar">
+      <span style="font-size:0.875rem; color:var(--tiq-text-3);">{{ level_areas|length }} rules</span>
+      <input type="search" class="tiq-input tiq-table-search" placeholder="Search level, category, area…" data-table-search="levelAreasTable" aria-label="Search level areas">
+    </div>
+    <div class="tiq-p-0">
+      <div class="tiq-table-wrapper tiq-table-sticky">
+        <table class="tiq-table" id="levelAreasTable">
+          <thead>
+            <tr>
+              <th style="width: 80px;">Rule ID</th>
+              <th>Level</th>
+              <th>Category</th>
+              <th>Area</th>
+              <th>Required Exam</th>
+              <th class="tiq-text-center" style="width: 150px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for la in level_areas %}
+              <tr>
+                <td>{{ la.id }}</td>
+                <td style="min-width: 180px;">
+                  <form id="edit-form-{{ la.id }}" method="POST" action="{{ url_for('admin_routes.edit_level_area', id=la.id) }}" class="d-none"></form>
+                  <input type="hidden" form="edit-form-{{ la.id }}" name="csrf_token" value="{{ csrf_token() }}">
+                  
+                  <select name="level_id" form="edit-form-{{ la.id }}" class="tiq-select" style="padding: 0.35rem 2rem 0.35rem 0.75rem; font-size: 0.8125rem;">
+                    {% for lvl in levels %}
+                      <option value="{{ lvl.id }}" {% if lvl.id == la.level_id %}selected{% endif %}>
+                        Level {{ lvl.level_number }}: {{ lvl.title }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td style="min-width: 180px;">
+                  <select name="category_id" form="edit-form-{{ la.id }}" class="tiq-select" style="padding: 0.35rem 2rem 0.35rem 0.75rem; font-size: 0.8125rem;">
+                    {% for cat in categories %}
+                      <option value="{{ cat.id }}" {% if cat.id == la.category_id %}selected{% endif %}>
+                        {{ cat.name }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td style="min-width: 180px;">
+                  <select name="area_id" form="edit-form-{{ la.id }}" class="tiq-select" style="padding: 0.35rem 2rem 0.35rem 0.75rem; font-size: 0.8125rem;">
+                    {% for ar in areas %}
+                      <option value="{{ ar.id }}" {% if ar.id == la.area_id %}selected{% endif %}>
+                        {{ ar.name }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td style="min-width: 180px;">
+                  <select name="required_exam_id" form="edit-form-{{ la.id }}" class="tiq-select" style="padding: 0.35rem 2rem 0.35rem 0.75rem; font-size: 0.8125rem;">
+                    <option value="" {% if not la.required_exam_id %}selected{% endif %}>— None —</option>
+                    {% for ex in exams %}
+                      <option value="{{ ex.id }}" {% if la.required_exam_id == ex.id %}selected{% endif %}>
+                        {{ ex.title }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td class="tiq-text-center">
+                  <div style="display: flex; gap: 0.5rem; justify-content: center; align-items: center;">
+                    <button type="submit" form="edit-form-{{ la.id }}" class="tiq-btn tiq-btn-icon-sm tiq-btn-success" title="Save Changes">
+                      <i class="fas fa-save"></i>
+                    </button>
+                    <form method="POST" action="{{ url_for('admin_routes.delete_level_area', id=la.id) }}" style="margin: 0;" onsubmit="return confirm('Are you sure you want to delete this rule?');">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="tiq-btn tiq-btn-icon-sm tiq-btn-danger" title="Delete Rule">
+                        <i class="fas fa-trash-alt"></i>
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="6" class="tiq-text-center" style="padding: 3rem 1rem;">
+                  <div class="tiq-empty" style="padding: 0;">
+                    <div class="tiq-empty-icon"><i class="fas fa-project-diagram"></i></div>
+                    <h3>No rules defined yet</h3>
+                    <p>Level-area rules map progress boundaries for study courses and required exams.</p>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 {% endblock %}

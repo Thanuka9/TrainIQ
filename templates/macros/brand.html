@@ -1,0 +1,37 @@
+{# Organization / platform branding — use display_org_name & is_platform_brand from context #}
+
+{% macro logo_icon(size='32px') %}
+  {% if global_logo_url %}
+    <img src="{{ global_logo_url }}" alt="{{ display_org_name }}" style="width:{{ size }};height:{{ size }};border-radius:8px;object-fit:cover;">
+  {% else %}
+    <div class="logo-icon" style="width:{{ size }};height:{{ size }};">
+      {% if is_platform_brand %}
+        <i class="fas fa-brain"></i>
+      {% else %}
+        {{ org_initial }}
+      {% endif %}
+    </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro logo_text(class='logo-text') %}
+  <div class="{{ class }}">
+    {% if is_platform_brand %}
+      Train<span>IQ</span>
+    {% else %}
+      {{ display_org_name }}
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{% macro sidebar_brand_text() %}
+  {% if is_platform_brand %}
+    Train<span>IQ</span>
+  {% else %}
+    {{ display_org_name }}
+  {% endif %}
+{% endmacro %}
+
+{% macro copyright(year=2026) %}{{ display_org_name }}© {{ year }}{% endmacro %}
+
+{% macro title_suffix(page) %}{{ page }} — {{ display_org_name }}{% endmacro %}

@@ -1,162 +1,249 @@
-{% extends 'admin_base.html' %} {% block title %}Audit Logs{% endblock %} {%
-block content %}
-<h1 class="text-center mb-4">Activity &amp; Audit Logs</h1>
+{% extends 'admin_base.html' %}
 
-<form method="get" class="row g-2 align-items-end mb-4">
-  <div class="col-md-2">
-    <label for="start" class="form-label">From</label>
-    <input
-      type="date"
-      id="start"
-      name="start"
-      class="form-control form-control-sm"
-      value="{{ filters.start or '' }}"
-    />
-  </div>
+{% block title %}Audit Logs{% endblock %}
 
-  <div class="col-md-2">
-    <label for="end" class="form-label">To</label>
-    <input
-      type="date"
-      id="end"
-      name="end"
-      class="form-control form-control-sm"
-      value="{{ filters.end or '' }}"
-    />
-  </div>
+{% block breadcrumb %}
+<a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+<span class="tiq-breadcrumb-sep">/</span>
+<span>Audit Logs</span>
+{% endblock %}
 
-  <div class="col-md-3">
-    <label for="q" class="form-label">Search</label>
-    <input
-      type="text"
-      id="q"
-      name="q"
-      class="form-control form-control-sm"
-      placeholder="Search events, IP, details..."
-      value="{{ filters.q or '' }}"
-    />
-  </div>
-
-  <div class="col-md-2">
-    <label for="event_type" class="form-label">Event Type</label>
-    <input
-      type="text"
-      id="event_type"
-      name="event_type"
-      class="form-control form-control-sm"
-      placeholder="e.g. USER_LOGIN"
-      value="{{ filters.event_type or '' }}"
-    />
-  </div>
-
-  <div class="col-md-2">
-    <label for="user_id" class="form-label">User ID</label>
-    <input
-      type="text"
-      id="user_id"
-      name="user_id"
-      class="form-control form-control-sm"
-      placeholder="User ID"
-      value="{{ filters.user_id or '' }}"
-    />
-  </div>
-
-  <div class="col-md-1 d-grid">
-    <button type="submit" class="btn btn-sm btn-primary">
-      <i class="fas fa-filter"></i> Apply
-    </button>
-  </div>
-
-  <div class="col-12 text-end">
-    <a
-      href="{{ url_for('admin_routes.download_report',
-                       type='audit_logs',
-                       start=filters.start,
-                       end=filters.end,
-                       search=filters.q,
-                       event_type=filters.event_type,
-                       user_id=filters.user_id) }}"
-      class="btn btn-sm btn-outline-secondary"
-    >
-      <i class="fas fa-file-csv"></i> Export CSV
-    </a>
-  </div>
-</form>
-
-<div class="card shadow-sm">
-  <div class="card-body p-0">
-    <table class="table table-striped table-sm mb-0">
-      <thead class="table-light">
-        <tr>
-          <th>When</th>
-          <th>Type</th>
-          <th>User</th>
-          <th>IP Address</th>
-          <th>Target</th>
-          <th>Details</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% if audit_logs %} {% for log in audit_logs %}
-        <tr>
-          <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-          <td>{{ log.event_type }}</td>
-          <td>
-            {% if log.actor_user %} {{ log.actor_user.employee_email }} {% else
-            %} &mdash; {% endif %}
-          </td>
-          <td>{{ log.ip_address or '&mdash;' }}</td>
-          <td>
-            {% if log.target_table %} {{ log.target_table }}#{{ log.target_id or
-            '' }} {% else %} &mdash; {% endif %}
-          </td>
-          <td>
-            <pre class="mb-0">{{ log.description | tojson(indent=2) }}</pre>
-          </td>
-        </tr>
-        {% endfor %} {% else %}
-        <tr>
-          <td colspan="6" class="text-center py-3">No audit logs found.</td>
-        </tr>
-        {% endif %}
-      </tbody>
-    </table>
+{% block content %}
+<div class="tiq-page-header tiq-reveal">
+  <div class="tiq-flex-between" style="flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1>Activity &amp; Audit Logs</h1>
+      <p class="tiq-lead">Security events, admin actions, and platform activity — filterable and exportable.</p>
+    </div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <a href="{{ url_for('admin_routes.view_audit_logs') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">
+        <i class="fas fa-rotate-right"></i> Reset Filters
+      </a>
+      <a href="{{ url_for('admin_routes.download_report',
+                         type='audit_logs',
+                         start=filters.start,
+                         end=filters.end,
+                         search=filters.q,
+                         event_type=filters.event_type,
+                         user_id=filters.user_id) }}"
+         class="tiq-btn tiq-btn-primary tiq-btn-sm">
+        <i class="fas fa-file-csv"></i> Export CSV
+      </a>
+    </div>
   </div>
 </div>
 
-<nav aria-label="Page navigation" class="mt-3">
-  <ul class="pagination justify-content-center mb-0">
-    {% if pagination.has_prev %}
-    <li class="page-item">
-      <a
-        class="page-link"
-        href="{{ url_for('admin_routes.view_audit_logs', page=pagination.prev_num, start=filters.start, end=filters.end, q=filters.q, event_type=filters.event_type, user_id=filters.user_id) }}"
-      >
-        Previous
-      </a>
-    </li>
-    {% else %}
-    <li class="page-item disabled"><span class="page-link">Previous</span></li>
-    {% endif %}
+<!-- KPI row -->
+<div class="admin-stat-grid tiq-stagger-reveal" style="margin-bottom:1.5rem;">
+  <div class="tiq-stat-card tiq-reveal">
+    <div class="stat-icon" style="background:linear-gradient(135deg,#6366F1,#4F46E5);"><i class="fas fa-list-ul"></i></div>
+    <div class="stat-value">{{ total_matching }}</div>
+    <div class="stat-label">Matching Events</div>
+    <div class="stat-change neutral"><i class="fas fa-filter"></i> Current filters</div>
+  </div>
+  <div class="tiq-stat-card tiq-reveal">
+    <div class="stat-icon" style="background:linear-gradient(135deg,#06B6D4,#0891B2);"><i class="fas fa-calendar-day"></i></div>
+    <div class="stat-value">{{ events_today }}</div>
+    <div class="stat-label">Events Today</div>
+    <div class="stat-change up"><i class="fas fa-clock"></i> UTC day</div>
+  </div>
+  <div class="tiq-stat-card tiq-reveal">
+    <div class="stat-icon" style="background:linear-gradient(135deg,#EF4444,#DC2626);"><i class="fas fa-shield-halved"></i></div>
+    <div class="stat-value">{{ security_events }}</div>
+    <div class="stat-label">Security Alerts</div>
+    <div class="stat-change down"><i class="fas fa-triangle-exclamation"></i> Fail / delete / denied</div>
+  </div>
+  <div class="tiq-stat-card tiq-reveal">
+    <div class="stat-icon" style="background:linear-gradient(135deg,#10B981,#059669);"><i class="fas fa-users"></i></div>
+    <div class="stat-value">{{ unique_actors }}</div>
+    <div class="stat-label">Unique Actors</div>
+    <div class="stat-change neutral"><i class="fas fa-user-check"></i> In filtered set</div>
+  </div>
+</div>
 
-    <li class="page-item disabled">
-      <span class="page-link"
-        >{{ pagination.page }} / {{ pagination.pages }}</span
-      >
-    </li>
+<div class="tiq-grid tiq-gap" style="grid-template-columns: 2fr 1fr; margin-bottom: 1.5rem; gap: 1.5rem;">
+  <!-- Filters -->
+  <div class="tiq-card tiq-reveal">
+    <div class="tiq-card-header">
+      <h2 class="tiq-card-title"><i class="fas fa-filter" style="margin-right:8px;color:var(--tiq-primary);"></i>Filter Records</h2>
+    </div>
+    <div class="tiq-card-body">
+      <form method="get" class="tiq-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; align-items: flex-end;">
+        <div class="tiq-form-group" style="margin-bottom:0;">
+          <label for="start" class="tiq-label">From</label>
+          <input type="date" id="start" name="start" class="tiq-input" value="{{ filters.start or '' }}"/>
+        </div>
+        <div class="tiq-form-group" style="margin-bottom:0;">
+          <label for="end" class="tiq-label">To</label>
+          <input type="date" id="end" name="end" class="tiq-input" value="{{ filters.end or '' }}"/>
+        </div>
+        <div class="tiq-form-group" style="margin-bottom:0; grid-column: span 2;">
+          <label for="q" class="tiq-label">Search</label>
+          <input type="text" id="q" name="q" class="tiq-input" placeholder="Event, IP, details…" value="{{ filters.q or '' }}"/>
+        </div>
+        <div class="tiq-form-group" style="margin-bottom:0;">
+          <label for="event_type" class="tiq-label">Event Type</label>
+          <select id="event_type" name="event_type" class="tiq-select">
+            <option value="">All types</option>
+            {% for et in event_type_options %}
+              <option value="{{ et }}" {% if filters.event_type == et %}selected{% endif %}>{{ et }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="tiq-form-group" style="margin-bottom:0;">
+          <label for="user_id" class="tiq-label">User ID</label>
+          <input type="text" id="user_id" name="user_id" class="tiq-input" placeholder="Actor ID" value="{{ filters.user_id or '' }}"/>
+        </div>
+        <button type="submit" class="tiq-btn tiq-btn-primary" style="height:42px;justify-content:center;">
+          <i class="fas fa-search"></i> Apply
+        </button>
+      </form>
+    </div>
+  </div>
 
-    {% if pagination.has_next %}
-    <li class="page-item">
-      <a
-        class="page-link"
-        href="{{ url_for('admin_routes.view_audit_logs', page=pagination.next_num, start=filters.start, end=filters.end, q=filters.q, event_type=filters.event_type, user_id=filters.user_id) }}"
-      >
-        Next
-      </a>
-    </li>
-    {% else %}
-    <li class="page-item disabled"><span class="page-link">Next</span></li>
-    {% endif %}
-  </ul>
+  <!-- Event breakdown chart -->
+  <div class="tiq-card tiq-reveal">
+    <div class="tiq-card-header">
+      <h2 class="tiq-card-title"><i class="fas fa-chart-pie" style="margin-right:8px;color:var(--tiq-accent);"></i>Top Event Types</h2>
+    </div>
+    <div class="tiq-card-body tiq-flex-center" style="min-height:220px;position:relative;">
+      {% if event_breakdown_labels %}
+        <canvas id="auditEventChart" style="max-width:100%;max-height:200px;"></canvas>
+      {% else %}
+        <p style="color:var(--tiq-text-3);font-size:0.875rem;margin:0;">No events for current filters.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Records table -->
+<div class="tiq-card tiq-reveal">
+  <div class="tiq-card-header">
+    <h2 class="tiq-card-title"><i class="fas fa-scroll" style="margin-right:8px;color:var(--tiq-accent);"></i>Security Audit Records</h2>
+    <span style="font-size:0.8125rem;color:var(--tiq-text-3);">Showing {{ audit_logs|length }} of {{ total_matching }}</span>
+  </div>
+  <div class="tiq-card-body" style="padding:0;">
+    <div class="tiq-table-wrapper tiq-table-sticky">
+      <table class="tiq-table" id="auditLogTable">
+        <thead>
+          <tr>
+            <th style="padding-left:1.5rem;width:155px;">When</th>
+            <th style="width:150px;">Type</th>
+            <th>Actor</th>
+            <th style="width:120px;">IP</th>
+            <th style="width:130px;">Target</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if audit_logs %}
+            {% for log in audit_logs %}
+            <tr>
+              <td style="padding-left:1.5rem;font-size:0.8125rem;color:var(--tiq-text-3);white-space:nowrap;">
+                {{ log.created_at.strftime('%Y-%m-%d %H:%M') }}
+              </td>
+              <td>
+                <span class="tiq-badge {% if 'FAIL' in log.event_type or 'DELETE' in log.event_type or 'DENIED' in log.event_type %}tiq-badge-danger{% elif 'CREATE' in log.event_type or 'ADD' in log.event_type or 'AGREED' in log.event_type or 'LOGIN' in log.event_type %}tiq-badge-success{% else %}tiq-badge-neutral{% endif %}">
+                  {{ log.event_type }}
+                </span>
+              </td>
+              <td>
+                {% if log.actor_user %}
+                  <div class="tiq-flex" style="align-items:center;gap:8px;">
+                    <span class="tiq-avatar tiq-avatar-sm">{{ log.actor_user.first_name|first }}{{ log.actor_user.last_name|first }}</span>
+                    <span style="font-weight:600;font-size:0.875rem;">{{ log.actor_user.employee_email }}</span>
+                  </div>
+                {% else %}
+                  <span style="color:var(--tiq-text-3);font-style:italic;">System</span>
+                {% endif %}
+              </td>
+              <td style="font-family:monospace;font-size:0.8rem;">{{ log.ip_address or '—' }}</td>
+              <td>
+                {% if log.target_table %}
+                  <code style="background:var(--tiq-surface-2);padding:2px 6px;border-radius:4px;font-size:0.75rem;">{{ log.target_table }}#{{ log.target_id or '' }}</code>
+                {% else %}—{% endif %}
+              </td>
+              <td>
+                <details style="cursor:pointer;">
+                  <summary style="font-size:0.8125rem;color:var(--tiq-primary);">View payload</summary>
+                  <pre style="margin:0.5rem 0 0;font-family:monospace;font-size:0.75rem;background:var(--tiq-surface-2);padding:0.5rem;border-radius:var(--tiq-radius);max-height:100px;overflow:auto;color:var(--tiq-text-2);">{{ log.description | tojson(indent=2) }}</pre>
+                </details>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="6" class="tiq-text-center" style="padding:3rem;color:var(--tiq-text-3);">
+                No audit logs found matching your criteria.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if pagination and pagination.pages > 1 %}
+<nav aria-label="Audit log pagination" class="tiq-flex-center tiq-reveal" style="margin-top:1.5rem;">
+  <div class="tiq-flex" style="gap:12px;align-items:center;">
+    <a class="tiq-btn tiq-btn-secondary tiq-btn-sm {% if not pagination.has_prev %}disabled{% endif %}"
+       href="{% if pagination.has_prev %}{{ url_for('admin_routes.view_audit_logs', page=pagination.prev_num, start=filters.start, end=filters.end, q=filters.q, event_type=filters.event_type, user_id=filters.user_id) }}{% else %}#{% endif %}"
+       {% if not pagination.has_prev %}style="opacity:0.5;pointer-events:none;"{% endif %}>
+      <i class="fas fa-chevron-left"></i> Previous
+    </a>
+    <span style="font-size:0.875rem;color:var(--tiq-text-2);">
+      Page <strong>{{ pagination.page }}</strong> of <strong>{{ pagination.pages }}</strong>
+    </span>
+    <a class="tiq-btn tiq-btn-secondary tiq-btn-sm {% if not pagination.has_next %}disabled{% endif %}"
+       href="{% if pagination.has_next %}{{ url_for('admin_routes.view_audit_logs', page=pagination.next_num, start=filters.start, end=filters.end, q=filters.q, event_type=filters.event_type, user_id=filters.user_id) }}{% else %}#{% endif %}"
+       {% if not pagination.has_next %}style="opacity:0.5;pointer-events:none;"{% endif %}>
+      Next <i class="fas fa-chevron-right"></i>
+    </a>
+  </div>
 </nav>
-{% endblock %} ```
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const labels = {{ event_breakdown_labels|tojson }};
+  const values = {{ event_breakdown_values|tojson }};
+  const canvas = document.getElementById('auditEventChart');
+  if (canvas && labels.length) {
+    const root = getComputedStyle(document.documentElement);
+    const palette = [
+      root.getPropertyValue('--tiq-primary').trim() || '#6366F1',
+      root.getPropertyValue('--tiq-secondary').trim() || '#06B6D4',
+      root.getPropertyValue('--tiq-success').trim() || '#10B981',
+      root.getPropertyValue('--tiq-warning').trim() || '#F59E0B',
+      root.getPropertyValue('--tiq-danger').trim() || '#EF4444',
+      '#8B5CF6', '#EC4899', '#64748B'
+    ];
+    new Chart(canvas.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: palette.slice(0, labels.length),
+          borderWidth: 2,
+          borderColor: 'var(--tiq-surface)',
+          hoverOffset: 8
+        }]
+      },
+      options: {
+        cutout: '62%',
+        responsive: true,
+        animation: { duration: 800, easing: 'easeOutQuart' },
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
+        }
+      }
+    });
+  }
+});
+</script>
+{% endblock %}

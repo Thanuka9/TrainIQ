@@ -3,6 +3,7 @@ from flask import (
 )
 from utils.email_utils import send_task_assignment_email, send_task_completion_email
 from flask_login import login_required, current_user
+from utils.tenant_utils import filter_by_user_tenant, assert_tenant_access, user_tenant_id
 from extensions import db, scheduler
 from models import User, Designation, Event, Client, UserScore, Task, TaskDocument
 from mongodb_operations import get_profile_picture, save_profile_picture, delete_profile_picture
@@ -13,8 +14,10 @@ import logging
 import os
 import io
 from datetime import datetime, timedelta, timezone
-import pandas as pd 
 from sqlalchemy import func
+import pandas as pd
+from utils.tenant_utils import filter_by_user_tenant, assert_tenant_access, user_tenant_id, assert_user_in_tenant
+from utils.task_filters import assigned_to_user, involves_user, user_is_assignee
 
 # Define Blueprint for task routes
 task_routes = Blueprint('task_routes', __name__)
@@ -100,21 +103,21 @@ def view_tasks():
     if current_user.role in elevated_roles:
         # elevated: see all tasks for these clients
         if client_ids:
-            base = Task.query.filter(Task.client_id.in_(client_ids))
+            base = filter_by_user_tenant(Task.query.filter(Task.client_id.in_(client_ids)), Task)
         else:
-            base = Task.query.filter_by(client_id=None)  # no clients → none internal
+            base = filter_by_user_tenant(Task.query.filter_by(client_id=None), Task)  # no clients → none internal
     else:
         # non-elevated: only tasks assigned to me and for my clients
         if client_ids:
-            base = Task.query.filter(
+            base = filter_by_user_tenant(Task.query.filter(
                 Task.assignees.contains(current_user),
                 Task.client_id.in_(client_ids)
-            )
+            ), Task)
         else:
-            base = Task.query.filter(
+            base = filter_by_user_tenant(Task.query.filter(
                 Task.assignees.contains(current_user),
                 Task.client_id.is_(None)
-            )
+            ), Task)
 
     # apply search
     if q:
@@ -123,16 +126,16 @@ def view_tasks():
     internal_tasks = base.order_by(Task.due_date.asc()).all()
 
     # external tasks: those assigned to me and client_id is NULL
-    ext = Task.query.filter(
+    ext = filter_by_user_tenant(Task.query.filter(
         Task.assignees.contains(current_user),
         Task.client_id.is_(None)
-    )
+    ), Task)
     if q:
         ext = ext.filter(Task.title.ilike(f'%{q}%'))
     external_tasks = ext.order_by(Task.due_date.asc()).all()
 
     # tasks I assigned
-    by_you = Task.query.filter_by(assigned_by=current_user.id)
+    by_you = filter_by_user_tenant(Task.query.filter_by(assigned_by=current_user.id), Task)
     if q:
         by_you = by_you.filter(Task.title.ilike(f'%{q}%'))
     tasks_assigned_by_you = by_you.order_by(Task.due_date.asc()).all()
@@ -179,7 +182,8 @@ def assign_task():
             assigned_by = current_user.id,
             client_id   = (client_id if task_type == 'internal' else None),
             status      = "Getting Things Started...",
-            progress    = STATUS_PROGRESS_MAP["Getting Things Started..."]
+            progress    = STATUS_PROGRESS_MAP["Getting Things Started..."],
+            tenant_id   = current_user.tenant_id
         )
         db.session.add(task)
 
@@ -221,7 +225,11 @@ def assign_task():
         for uid in request.form.getlist(key):
             user = User.query.get(uid)
             if user:
-                task.assignees.append(user)
+                try:
+                    assert_user_in_tenant(user)
+                    task.assignees.append(user)
+                except Exception:
+                    continue
 
         # 6) Commit everything in one go
         try:
@@ -238,14 +246,15 @@ def assign_task():
         flash("Task assigned and notifications sent.", "success")
         return redirect(url_for('task_routes.view_tasks'))
 
-    # GET: build team / external lists
+    # GET: build team / external lists (tenant-scoped)
+    tid = user_tenant_id()
     client_ids = [c.id for c in current_user.clients]
     if client_ids:
-        team_members   = User.query.join(User.clients).filter(Client.id.in_(client_ids)).all()
-        external_users = User.query.filter(~User.clients.any(Client.id.in_(client_ids))).all()
+        team_members   = filter_by_user_tenant(User.query, User).join(User.clients).filter(Client.id.in_(client_ids)).all()
+        external_users = filter_by_user_tenant(User.query, User).filter(~User.clients.any(Client.id.in_(client_ids))).all()
     else:
         team_members   = []
-        external_users = User.query.all()
+        external_users = filter_by_user_tenant(User.query, User).all()
 
     return render_template(
         'assign_task.html',
@@ -263,13 +272,14 @@ def view_task(task_id):
     and schedule deletion 24 h later.
     """
     task = Task.query.get_or_404(task_id)
+    assert_tenant_access(task)
 
     # Permission check
-    if current_user not in task.assignees and task.assigned_by != current_user.id:
+    if not user_is_assignee(task, current_user) and task.assigned_by != current_user.id:
         flash("Access denied.", "danger")
         return redirect(url_for('task_routes.view_tasks'))
 
-    if request.method == 'POST' and current_user in task.assignees:
+    if request.method == 'POST' and user_is_assignee(task, current_user):
         try:
             # Get potential new status from the form
             new_status_from_form = request.form.get('status')
@@ -356,6 +366,7 @@ def edit_task(task_id):
     Edit an existing task (title, description, due date, priority, attachments).
     """
     task = Task.query.get_or_404(task_id)
+    assert_tenant_access(task)
     if task.assigned_by != current_user.id and not current_user.is_manager():
         flash("Access denied to edit this task", "danger")
         return redirect(url_for('task_routes.view_tasks'))
@@ -454,6 +465,7 @@ def delete_task(task_id):
     Delete a task if the current user is authorized (assigned_by or manager).
     """
     task = Task.query.get_or_404(task_id)
+    assert_tenant_access(task)
     if task.assigned_by != current_user.id and not current_user.is_manager():
         flash("Access denied to delete this task", "danger")
         return redirect(url_for('task_routes.view_tasks'))
@@ -490,7 +502,7 @@ def analytics_dashboard():
       - smartly displays completion rate and task status analytics using the template
     """
     # Base query: any task involving this user, including completed ones until the 24h scheduled deletion
-    tasks = Task.query.filter(
+    tasks = filter_by_user_tenant(Task.query, Task).filter(
         (Task.assignees.contains(current_user)) |
         (Task.assigned_by == current_user.id)
     )
@@ -508,7 +520,8 @@ def analytics_dashboard():
     ).filter(
         (Task.assignees.contains(current_user)) |
         (Task.assigned_by == current_user.id)
-    ).group_by(Task.status).all()
+    )
+    task_by_status = filter_by_user_tenant(task_by_status, Task).group_by(Task.status).all()
 
     status_data = [
         {"status": status, "count": count}

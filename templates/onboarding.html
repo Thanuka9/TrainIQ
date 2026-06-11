@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Get Started — TrainIQ Onboarding</title>
+  <meta name="description" content="Create your TrainIQ workspace and launch your customized training platform."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; font-family: 'Inter', sans-serif; background: var(--tiq-bg); }
+
+    /* Left panel */
+    .onb-left {
+      flex: 1; min-height: 100vh;
+      background: var(--tiq-gradient-hero);
+      display: flex; flex-direction: column;
+      justify-content: space-between;
+      padding: 2.5rem;
+      position: relative; overflow: hidden;
+    }
+    .onb-left::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='30'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .onb-left-orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(80px); pointer-events: none;
+    }
+    .orb-1 { width: 400px; height: 400px; background: rgba(79,70,229,0.5); top: -100px; right: -100px; }
+    .orb-2 { width: 300px; height: 300px; background: rgba(6,182,212,0.3); bottom: -80px; left: -60px; }
+
+    .onb-brand {
+      display: flex; align-items: center; gap: 12px;
+      position: relative; z-index: 2;
+    }
+    .onb-brand-logo {
+      width: 44px; height: 44px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; font-weight: 900; color: white;
+      backdrop-filter: blur(8px);
+    }
+    .onb-brand-name {
+      font-size: 1.5rem; font-weight: 800; color: white;
+      letter-spacing: -0.04em;
+    }
+    .onb-brand-name span { color: var(--tiq-secondary); }
+
+    .onb-left-content {
+      flex: 1; display: flex; flex-direction: column;
+      justify-content: center; padding: 2rem 0;
+      position: relative; z-index: 2;
+    }
+    .onb-left-content h2 {
+      font-size: 2.2rem;
+      font-weight: 900; color: white;
+      letter-spacing: -0.04em; margin-bottom: 2rem;
+    }
+    
+    /* Step Indicators */
+    .onb-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      max-width: 350px;
+    }
+    .onb-step-item {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      opacity: 0.5;
+      transition: opacity 0.3s;
+    }
+    .onb-step-item.active {
+      opacity: 1;
+    }
+    .onb-step-number {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 2px solid white;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; color: white;
+      font-size: 0.85rem;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .onb-step-item.active .onb-step-number {
+      background: white;
+      color: var(--tiq-primary);
+    }
+    .onb-step-label h4 {
+      margin: 0; font-size: 0.95rem; font-weight: 700; color: white;
+    }
+    .onb-step-label p {
+      margin: 0; font-size: 0.8rem; color: rgba(255,255,255,0.6);
+    }
+
+    .onb-left-footer {
+      font-size: 0.8rem; color: rgba(255,255,255,0.3);
+      position: relative; z-index: 2;
+    }
+
+    @media (max-width: 992px) { .onb-left { display: none; } }
+
+    /* Right panel */
+    .onb-right {
+      width: 580px; min-height: 100vh;
+      display: flex; flex-direction: column;
+      justify-content: center;
+      padding: 3rem 4rem;
+      background: var(--tiq-bg);
+      box-sizing: border-box;
+    }
+    @media (max-width: 992px) { .onb-right { width: 100%; padding: 2.5rem 1.5rem; } }
+
+    .onb-card {
+      background: var(--tiq-surface);
+      border: 1px solid var(--tiq-border);
+      border-radius: 20px;
+      padding: 2.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+    }
+
+    .onb-header { margin-bottom: 2rem; }
+    .onb-header h1 { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 0.5rem; }
+    .onb-header p { color: var(--tiq-muted); font-size: 0.95rem; margin: 0; }
+
+    /* Form wizards */
+    .onb-form-step { display: none; }
+    .onb-form-step.active { display: block; animation: stepFade 0.4s ease-in-out forwards; }
+    
+    @keyframes stepFade {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Progress Bar */
+    .onb-progress-bar-container {
+      height: 4px;
+      background: var(--tiq-border);
+      border-radius: 2px;
+      margin-bottom: 2.5rem;
+      overflow: hidden;
+    }
+    .onb-progress-bar {
+      height: 100%;
+      background: var(--tiq-gradient);
+      width: 33.3%;
+      transition: width 0.4s ease;
+    }
+
+    .onb-navigation {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 2rem;
+      gap: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Left Sidebar Panel -->
+  <div class="onb-left">
+    <div class="onb-left-orb orb-1"></div>
+    <div class="onb-left-orb orb-2"></div>
+    
+    <div class="onb-brand">
+      <div class="onb-brand-logo" style="overflow:hidden; display:flex; align-items:center; justify-content:center;">
+        {% if global_logo_url %}
+          <img src="{{ global_logo_url }}" alt="Logo" style="width:100%; height:100%; object-fit:cover;">
+        {% else %}
+          <i class="fas fa-graduation-cap"></i>
+        {% endif %}
+      </div>
+      <div class="onb-brand-name">
+        {% if is_platform_brand %}
+          Train<span>IQ</span>
+        {% else %}
+          {{ display_org_name }}
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="onb-left-content">
+      <h2>Transform Your Team in Minutes</h2>
+      
+      <div class="onb-steps">
+        <div class="onb-step-item active" id="indicator-1">
+          <div class="onb-step-number">1</div>
+          <div class="onb-step-label">
+            <h4>Workspace Setup</h4>
+            <p>Establish your organization and initial client</p>
+          </div>
+        </div>
+        <div class="onb-step-item" id="indicator-2">
+          <div class="onb-step-number">2</div>
+          <div class="onb-step-label">
+            <h4>Administrator Details</h4>
+            <p>Configure the primary super-admin account</p>
+          </div>
+        </div>
+        <div class="onb-step-item" id="indicator-3">
+          <div class="onb-step-number">3</div>
+          <div class="onb-step-label">
+            <h4>Review &amp; Launch</h4>
+            <p>HIPAA terms and database deployment</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="onb-left-footer">
+      &copy; 2026 TrainIQ SaaS Platform. Powered by MongoDB GridFS &amp; PostgreSQL.
+    </div>
+  </div>
+
+  <!-- Right Form Panel -->
+  <div class="onb-right">
+    <div class="onb-card">
+      <div class="onb-header">
+        <h1 id="onb-header-title">Create Workspace</h1>
+        <p id="onb-header-desc">Step 1 of 3: Enter your organization settings below.</p>
+      </div>
+
+      <div class="tiq-alert tiq-alert-info" style="margin-bottom:1.25rem;font-size:0.875rem;">
+        <i class="fas fa-gift"></i>
+        <strong>{{ trial_days }}-day free trial</strong> — up to {{ trial_max_users }} users, full platform access. No credit card required.
+        {% if selected_plan and selected_plan != 'trial' %}
+        After trial, you'll be prompted to start the <strong>{{ selected_plan|capitalize }}</strong> plan.
+        {% endif %}
+      </div>
+
+      <div class="onb-progress-bar-container">
+        <div class="onb-progress-bar" id="onb-progress"></div>
+      </div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="tiq-alert tiq-alert-{% if category == 'error' %}danger{% else %}{{ category }}{% endif %} mb-4">
+              <i class="fas fa-{% if category == 'error' %}exclamation-circle{% else %}check-circle{% endif %} me-2"></i>
+              {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <form action="{{ url_for('auth_routes.onboarding') }}" method="POST" id="onboarding-form" onsubmit="showSpinner()">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+        <!-- STEP 1: Workspace / Company -->
+        <div class="onb-form-step active" id="step-1">
+          <div class="tiq-form-group">
+            <label class="tiq-label" for="org_name">Organization Name</label>
+            <input type="text" class="tiq-input" id="org_name" name="org_name" placeholder="e.g. HealthCare RCM Systems" required>
+            <small class="text-muted" style="font-size:0.75rem;margin-top:4px;display:block;">This will customize your TrainIQ branding title.</small>
+          </div>
+
+          <div class="tiq-form-group">
+            <label class="tiq-label" for="client_name">First Client Account Name</label>
+            <input type="text" class="tiq-input" id="client_name" name="client_name" placeholder="e.g. Medicare Aetna" required>
+            <small class="text-muted" style="font-size:0.75rem;margin-top:4px;display:block;">Your initial tenant client mapping to scope documents.</small>
+          </div>
+        </div>
+
+        <!-- STEP 2: Administrator Profile -->
+        <div class="onb-form-step" id="step-2">
+          <div class="tiq-row" style="display:flex; gap:1rem; margin-bottom:1.25rem;">
+            <div class="tiq-form-group" style="flex:1; margin-bottom:0;">
+              <label class="tiq-label" for="first_name">First Name</label>
+              <input type="text" class="tiq-input" id="first_name" name="first_name" placeholder="John" required disabled>
+            </div>
+            <div class="tiq-form-group" style="flex:1; margin-bottom:0;">
+              <label class="tiq-label" for="last_name">Last Name</label>
+              <input type="text" class="tiq-input" id="last_name" name="last_name" placeholder="Doe" required disabled>
+            </div>
+          </div>
+
+          <div class="tiq-form-group">
+            <label class="tiq-label" for="email">Admin Email Address</label>
+            <input type="email" class="tiq-input" id="email" name="email" placeholder="john.doe@company.com" required disabled>
+          </div>
+
+          <div class="tiq-form-group">
+            <label class="tiq-label" for="password">Password</label>
+            <div class="tiq-input-icon-wrapper" style="position:relative;">
+              <input type="password" class="tiq-input" id="password" name="password" placeholder="••••••••" required disabled style="padding-right:45px;">
+              <button type="button" class="password-toggle" onclick="togglePass()" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--tiq-muted);"><i class="fas fa-eye" id="pass-eye"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 3: Review & Terms -->
+        <div class="onb-form-step" id="step-3">
+          <div class="tiq-card mb-4" style="background: var(--tiq-bg); padding:1.25rem;">
+            <h4 style="margin:0 0 10px 0; font-size:0.95rem; font-weight:700;">Workspace Configuration Summary</h4>
+            <div style="font-size:0.85rem; line-height:1.6; color:var(--tiq-muted);">
+              <div><strong style="color:var(--tiq-text);">Workspace:</strong> <span id="summary-org"></span></div>
+              <div><strong style="color:var(--tiq-text);">Initial Client:</strong> <span id="summary-client"></span></div>
+              <div><strong style="color:var(--tiq-text);">Super Admin:</strong> <span id="summary-admin"></span></div>
+              <div style="margin-top:10px; border-top:1px solid var(--tiq-border); padding-top:10px;">
+                <div><i class="fas fa-clock text-primary me-1"></i> <strong>Plan:</strong> {{ trial_days }}-day trial ({{ trial_max_users }} seats)</div>
+                <div style="margin-top:6px;"><i class="fas fa-shield-alt text-success me-1"></i> Isolated tenant · per-org MongoDB bucket · ProctorIQ enabled</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tiq-form-group" style="display:flex; align-items:flex-start; gap:10px;">
+            <input type="checkbox" id="terms" name="terms" required disabled style="margin-top: 4px;">
+            <label class="tiq-label" for="terms" style="font-weight: 500; font-size: 0.85rem; line-height: 1.5; color:var(--tiq-muted);">
+              I agree to the <a href="{{ url_for('general_routes.privacy_policy') }}" target="_blank" style="color:var(--tiq-primary); font-weight:700;">TrainIQ Terms of Service</a> and confirm that all custom document uploads comply with HIPAA security regulations.
+            </label>
+          </div>
+        </div>
+
+        <!-- Navigation buttons -->
+        <div class="onb-navigation">
+          <button type="button" class="tiq-btn tiq-btn-ghost" id="btn-prev" onclick="moveStep(-1)" style="display:none; border: 1px solid var(--tiq-border); color:var(--tiq-text);">Back</button>
+          <div style="flex-grow:1;"></div>
+          <button type="button" class="tiq-btn tiq-btn-primary" id="btn-next" onclick="moveStep(1)">Continue</button>
+          
+          <button type="submit" class="tiq-btn tiq-btn-primary" id="btn-submit" style="display:none;">
+            <span id="btn-text">Launch Workspace</span>
+            <i class="fas fa-spinner fa-spin ms-2" id="btn-spinner" style="display:none;"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let currentStep = 1;
+
+    const steps = [
+      { id: 1, title: 'Create Workspace', desc: 'Step 1 of 3: Enter your organization settings below.' },
+      { id: 2, title: 'Administrator Profile', desc: 'Step 2 of 3: Set up the owner account.' },
+      { id: 3, title: 'Confirm & Launch', desc: 'Step 3 of 3: Review summary and terms.' }
+    ];
+
+    function updateStepUI() {
+      // Hide all steps, show current
+      document.querySelectorAll('.onb-form-step').forEach((el, index) => {
+        if (index + 1 === currentStep) {
+          el.classList.add('active');
+          // Enable inputs inside current step so validation works and values submit
+          el.querySelectorAll('input').forEach(input => input.removeAttribute('disabled'));
+        } else {
+          el.classList.remove('active');
+          // Disable inputs outside current step to prevent them from blocking HTML5 validation
+          el.querySelectorAll('input').forEach(input => input.setAttribute('disabled', 'true'));
+        }
+      });
+
+      // Update sidebar step indicator
+      document.querySelectorAll('.onb-step-item').forEach((el, index) => {
+        if (index + 1 <= currentStep) {
+          el.classList.add('active');
+        } else {
+          el.classList.remove('active');
+        }
+      });
+
+      // Update progress bar
+      const progressPercent = (currentStep / 3) * 100;
+      document.getElementById('onb-progress').style.width = `${progressPercent}%`;
+
+      // Update headers
+      const stepConfig = steps[currentStep - 1];
+      document.getElementById('onb-header-title').innerText = stepConfig.title;
+      document.getElementById('onb-header-desc').innerText = stepConfig.desc;
+
+      // Update navigation buttons
+      const btnPrev = document.getElementById('btn-prev');
+      const btnNext = document.getElementById('btn-next');
+      const btnSubmit = document.getElementById('btn-submit');
+
+      if (currentStep === 1) {
+        btnPrev.style.display = 'none';
+        btnNext.style.display = 'block';
+        btnSubmit.style.display = 'none';
+      } else if (currentStep === 2) {
+        btnPrev.style.display = 'block';
+        btnNext.style.display = 'block';
+        btnSubmit.style.display = 'none';
+      } else {
+        btnPrev.style.display = 'block';
+        btnNext.style.display = 'none';
+        btnSubmit.style.display = 'block';
+
+        // Populate summary variables
+        document.getElementById('summary-org').innerText = document.getElementById('org_name').value || 'Acme';
+        document.getElementById('summary-client').innerText = document.getElementById('client_name').value || 'Aetna';
+        const firstName = document.getElementById('first_name').value || '';
+        const lastName = document.getElementById('last_name').value || '';
+        const email = document.getElementById('email').value || '';
+        document.getElementById('summary-admin').innerText = `${firstName} ${lastName} (${email})`;
+      }
+    }
+
+    function moveStep(direction) {
+      if (direction === 1) {
+        // Run standard HTML5 validation check on current step inputs
+        const currentStepDiv = document.querySelector('.onb-form-step.active');
+        const inputs = currentStepDiv.querySelectorAll('input');
+        let isValid = true;
+        for (let input of inputs) {
+          if (!input.reportValidity()) {
+            isValid = false;
+            break;
+          }
+        }
+        if (!isValid) return; // Block step change if input is invalid
+      }
+
+      currentStep += direction;
+      if (currentStep < 1) currentStep = 1;
+      if (currentStep > 3) currentStep = 3;
+
+      updateStepUI();
+    }
+
+    function togglePass() {
+      const passInput = document.getElementById('password');
+      const passEye = document.getElementById('pass-eye');
+      if (passInput.type === 'password') {
+        passInput.type = 'text';
+        passEye.classList.remove('fa-eye');
+        passEye.classList.add('fa-eye-slash');
+      } else {
+        passInput.type = 'password';
+        passEye.classList.remove('fa-eye-slash');
+        passEye.classList.add('fa-eye');
+      }
+    }
+
+    function showSpinner() {
+      document.getElementById('btn-text').innerText = 'Initializing Workspace...';
+      document.getElementById('btn-spinner').style.display = 'inline-block';
+      document.getElementById('btn-submit').setAttribute('disabled', 'true');
+      document.getElementById('btn-prev').setAttribute('disabled', 'true');
+    }
+
+    // Initialize UI on load
+    window.addEventListener('DOMContentLoaded', () => {
+      updateStepUI();
+    });
+  </script>
+</body>
+</html>

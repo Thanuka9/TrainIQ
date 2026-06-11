@@ -1,0 +1,145 @@
+{# Trial onboarding checklist — Super Admins on free trial (dismissible) #}
+
+{% if trial_checklist and current_user.is_super_admin and not trial_checklist.all_done %}
+
+<div id="trialChecklistCard" class="tiq-card tiq-animate-fade-up" style="margin-bottom:1.5rem;border:1px solid rgba(79,70,229,0.2);">
+
+  <div class="tiq-card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
+
+    <div class="tiq-card-title"><i class="fas fa-rocket me-2" style="color:var(--tiq-primary)"></i>Trial setup checklist</div>
+
+    <div style="display:flex;align-items:center;gap:0.5rem;">
+
+      <span class="tiq-badge tiq-badge-primary">{{ trial_checklist.completed }}/{{ trial_checklist.total }} complete</span>
+
+      <button type="button" class="tiq-btn tiq-btn-icon-sm tiq-btn-ghost" onclick="dismissTrialChecklist()" title="Dismiss checklist" aria-label="Dismiss checklist" style="color:var(--tiq-muted);">
+
+        <i class="fas fa-times"></i>
+
+      </button>
+
+    </div>
+
+  </div>
+
+  <div class="tiq-card-body">
+
+    <div style="height:8px;background:var(--tiq-surface-2);border-radius:999px;overflow:hidden;margin-bottom:1.25rem;">
+
+      <div style="height:100%;width:{{ trial_checklist.percent }}%;background:var(--tiq-gradient);transition:width 0.4s ease;"></div>
+
+    </div>
+
+    {% if trial_checklist.trial_days_left is not none %}
+
+    <p style="font-size:0.85rem;color:var(--tiq-muted);margin:0 0 1rem;">
+
+      Complete these steps before your trial ends in <strong>{{ trial_checklist.trial_days_left }}</strong> day{{ 's' if trial_checklist.trial_days_left != 1 else '' }}.
+
+    </p>
+
+    {% endif %}
+
+    <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0.75rem;">
+
+      {% for step in trial_checklist.steps %}
+
+      <li style="display:flex;align-items:center;gap:1rem;padding:0.75rem 1rem;border-radius:12px;background:{% if step.done %}rgba(16,185,129,0.08){% else %}var(--tiq-surface-2){% endif %};">
+
+        <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:{% if step.done %}var(--tiq-success){% else %}var(--tiq-border){% endif %};color:{% if step.done %}#fff{% else %}var(--tiq-muted){% endif %};">
+
+          <i class="fas {% if step.done %}fa-check{% else %}{{ step.icon }}{% endif %}"></i>
+
+        </div>
+
+        <div style="flex:1;min-width:0;">
+
+          <div style="font-weight:600;font-size:0.9rem;{% if step.done %}text-decoration:line-through;color:var(--tiq-muted){% endif %}">{{ step.label }}</div>
+
+          <div style="font-size:0.8rem;color:var(--tiq-muted);">{{ step.description }}</div>
+
+        </div>
+
+        {% if not step.done %}
+
+        <a href="{{ url_for(step.url_name) }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">Go</a>
+
+        {% endif %}
+
+      </li>
+
+      {% endfor %}
+
+    </ul>
+
+  </div>
+
+</div>
+
+{% elif trial_checklist and current_user.is_super_admin and trial_checklist.all_done %}
+
+<div id="trialChecklistDone" class="tiq-alert tiq-alert-success" style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
+
+  <span><i class="fas fa-check-circle"></i> Trial checklist complete — your pilot is ready. <a href="{{ url_for('billing_routes.billing_home') }}">Choose a plan</a> to keep going.</span>
+
+  <button type="button" class="tiq-btn tiq-btn-icon-sm tiq-btn-ghost" onclick="dismissTrialChecklist()" title="Dismiss" aria-label="Dismiss">
+
+    <i class="fas fa-times"></i>
+
+  </button>
+
+</div>
+
+{% endif %}
+
+
+
+<script>
+
+function dismissTrialChecklist() {
+
+  var csrf = document.querySelector('meta[name="csrf-token"]');
+
+  var token = csrf ? csrf.getAttribute('content') : '';
+
+  fetch('{{ url_for("general_routes.dismiss_trial_checklist") }}', {
+
+    method: 'POST',
+
+    headers: {
+
+      'X-CSRFToken': token,
+
+      'Content-Type': 'application/json'
+
+    },
+
+    credentials: 'same-origin'
+
+  }).then(function() {
+
+    var card = document.getElementById('trialChecklistCard');
+
+    var done = document.getElementById('trialChecklistDone');
+
+    if (card) card.remove();
+
+    if (done) done.remove();
+
+  }).catch(function() {
+
+    var card = document.getElementById('trialChecklistCard');
+
+    var done = document.getElementById('trialChecklistDone');
+
+    if (card) card.remove();
+
+    if (done) done.remove();
+
+  });
+
+}
+
+</script>
+
+

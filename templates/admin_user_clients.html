@@ -1,43 +1,47 @@
 {% extends 'admin_base.html' %}
-{% block title %}User–Client Associations{% endblock %}
+{% block title %}User–Client Associations — {{ display_org_name }}{% endblock %}
+
+{% block breadcrumb %}
+  <a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <span>User–Client Associations</span>
+{% endblock %}
 
 {% block content %}
-  <h1 class="mb-4">
-    <i class="bi bi-link-45deg"></i> User ↔ Client Associations
-  </h1>
+  <div class="tiq-page-header">
+    <h1>User ↔ Client Associations</h1>
+    <p class="tiq-lead">Associate platform users with specific client entities for granular context-scoping.</p>
+  </div>
 
-  {# Flash messages (success, error, etc.) #}
+  {# Flash messages #}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      <div class="row mb-3">
-        <div class="col-12">
-          {% for category, text in messages %}
-            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-              {{ text }}
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-          {% endfor %}
-        </div>
+      <div class="mb-4">
+        {% for category, text in messages %}
+          <div class="tiq-alert tiq-alert-{{ 'success' if category == 'success' else ('danger' if category == 'error' else 'warning') }}">
+            <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+            <div>{{ text }}</div>
+          </div>
+        {% endfor %}
       </div>
     {% endif %}
   {% endwith %}
 
   <!-- Add New Association -->
-  <div class="card mb-5 shadow-sm">
-    <div class="card-header bg-light fw-bold">
-      <i class="bi bi-plus-circle"></i> Add New Association
+  <div class="tiq-card mb-5">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title">
+        <i class="fas fa-link me-2"></i>Create New Association
+      </div>
     </div>
-    <div class="card-body">
-      <form
-        action="{{ url_for('admin_routes.add_user_client') }}"
-        method="post"
-        class="row g-3 align-items-end"
-      >
+    <div class="tiq-card-body">
+      <form action="{{ url_for('admin_routes.add_user_client') }}" method="post" class="tiq-grid tiq-grid-3 tiq-gap align-items-end">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="col-sm-5">
-          <label for="userSelect" class="form-label small">User</label>
-          <select id="userSelect" name="user_id" class="form-select form-select-sm" required>
-            <option value="" disabled selected>Select user…</option>
+        
+        <div class="tiq-form-group mb-0">
+          <label for="userSelect" class="tiq-label">Select User</label>
+          <select id="userSelect" name="user_id" class="tiq-select" required>
+            <option value="" disabled selected>Choose a user...</option>
             {% for u in users %}
               <option value="{{ u.id }}">
                 {{ u.first_name }} {{ u.last_name }} (ID: {{ u.id }})
@@ -45,10 +49,11 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-sm-5">
-          <label for="clientSelect" class="form-label small">Client</label>
-          <select id="clientSelect" name="client_id" class="form-select form-select-sm" required>
-            <option value="" disabled selected>Select client…</option>
+
+        <div class="tiq-form-group mb-0">
+          <label for="clientSelect" class="tiq-label">Select Client</label>
+          <select id="clientSelect" name="client_id" class="tiq-select" required>
+            <option value="" disabled selected>Choose a client...</option>
             {% for c in clients %}
               <option value="{{ c.id }}">
                 {{ c.name }} (ID: {{ c.id }})
@@ -56,9 +61,10 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-sm-2 d-grid">
-          <button type="submit" class="btn btn-success btn-sm">
-            <i class="bi bi-check-circle"></i> Add
+
+        <div class="mb-0">
+          <button type="submit" class="tiq-btn tiq-btn-primary tiq-w-full" style="justify-content: center;">
+            <i class="fas fa-plus-circle me-1"></i>Associate
           </button>
         </div>
       </form>
@@ -66,81 +72,60 @@
   </div>
 
   <!-- Existing Associations -->
-  <div class="card shadow-sm">
-    <div class="card-header bg-light fw-bold">
-      <i class="bi bi-table"></i> Existing Associations
+  <div class="tiq-card">
+    <div class="tiq-card-header">
+      <div class="tiq-card-title">
+        <i class="fas fa-table me-2"></i>Active Associations List
+      </div>
     </div>
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-striped table-hover mb-0 align-middle">
-          <thead class="table-light">
+    <div class="tiq-p-0">
+      <div class="tiq-table-wrapper">
+        <table class="tiq-table">
+          <thead>
             <tr>
-              <th scope="col">User ID</th>
-              <th scope="col">User Name</th>
-              <th scope="col">Client ID</th>
-              <th scope="col">Client Name</th>
-              <th scope="col" class="text-center">Actions</th>
+              <th style="width: 100px;">User ID</th>
+              <th>User Name</th>
+              <th style="width: 100px;">Client ID</th>
+              <th>Client Name</th>
+              <th class="tiq-text-center" style="width: 300px;">Update Client Connection</th>
             </tr>
           </thead>
           <tbody>
-            {# Loop through each user; if they have clients, list them; otherwise show a “none” row #}
             {% for u in users %}
               {% if u.clients %}
                 {% for c in u.clients %}
                   <tr>
-                    <td>{{ u.id }}</td>
-                    <td>{{ u.first_name }} {{ u.last_name }}</td>
-                    <td>{{ c.id }}</td>
-                    <td>{{ c.name }}</td>
-                    <td class="text-center">
-                      <div class="d-flex justify-content-center gap-1">
-                        <!-- Edit Association -->
-                        <form
-                          action="{{ url_for('admin_routes.edit_user_client') }}"
-                          method="post"
-                          class="d-inline-block"
-                        >
+                    <td><code>#{{ u.id }}</code></td>
+                    <td class="fw-bold">{{ u.first_name }} {{ u.last_name }}</td>
+                    <td><code>#{{ c.id }}</code></td>
+                    <td><span class="tiq-badge tiq-badge-info">{{ c.name }}</span></td>
+                    <td class="tiq-text-center">
+                      <div style="display: flex; gap: 0.5rem; justify-content: center; align-items: center;">
+                        <!-- Edit Association Form -->
+                        <form id="edit-form-{{ u.id }}-{{ c.id }}" action="{{ url_for('admin_routes.edit_user_client') }}" method="post" style="display: flex; gap: 0.35rem; margin: 0;">
                           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                          <input type="hidden" name="user_id"      value="{{ u.id }}">
+                          <input type="hidden" name="user_id" value="{{ u.id }}">
                           <input type="hidden" name="old_client_id" value="{{ c.id }}">
-                          <div class="input-group input-group-sm">
-                            <select
-                              name="new_client_id"
-                              class="form-select form-select-sm"
-                              aria-label="Change client"
-                            >
-                              {% for x in clients %}
-                                <option value="{{ x.id }}" {% if x.id == c.id %}selected{% endif %}>
-                                  {{ x.name }} (ID: {{ x.id }})
-                                </option>
-                              {% endfor %}
-                            </select>
-                            <button
-                              type="submit"
-                              class="btn btn-primary"
-                              title="Save changes"
-                            >
-                              <i class="bi bi-save"></i>
-                            </button>
-                          </div>
+                          
+                          <select name="new_client_id" class="tiq-select" style="padding: 0.35rem 2rem 0.35rem 0.5rem; font-size: 0.8125rem; width: 160px; height: auto;">
+                            {% for x in clients %}
+                              <option value="{{ x.id }}" {% if x.id == c.id %}selected{% endif %}>
+                                {{ x.name }}
+                              </option>
+                            {% endfor %}
+                          </select>
+                          <button type="submit" class="tiq-btn tiq-btn-icon-sm tiq-btn-secondary" title="Save new client mapping">
+                            <i class="fas fa-save"></i>
+                          </button>
                         </form>
 
-                        <!-- Delete Association -->
-                        <form
-                          action="{{ url_for('admin_routes.delete_user_client') }}"
-                          method="post"
-                          class="d-inline-block"
-                          onsubmit="return confirm('Are you sure you want to remove this association?');"
-                        >
+                        <!-- Delete Association Form -->
+                        <form action="{{ url_for('admin_routes.delete_user_client') }}" method="post" style="margin: 0;" onsubmit="return confirm('Remove association between {{ u.first_name }} and {{ c.name }}?');">
                           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                          <input type="hidden" name="user_id"   value="{{ u.id }}">
+                          <input type="hidden" name="user_id" value="{{ u.id }}">
                           <input type="hidden" name="client_id" value="{{ c.id }}">
-                          <button
-                            type="submit"
-                            class="btn btn-danger btn-sm"
-                            title="Delete association"
-                          >
-                            <i class="bi bi-trash"></i>
+                          <button type="submit" class="tiq-btn tiq-btn-icon-sm tiq-btn-danger" title="Remove Association">
+                            <i class="fas fa-trash-alt"></i>
                           </button>
                         </form>
                       </div>
@@ -148,11 +133,13 @@
                   </tr>
                 {% endfor %}
               {% else %}
-                <tr class="table-secondary">
-                  <td>{{ u.id }}</td>
+                <tr>
+                  <td><code>#{{ u.id }}</code></td>
                   <td>{{ u.first_name }} {{ u.last_name }}</td>
-                  <td colspan="3" class="text-center text-muted">
-                    No client assigned
+                  <td>—</td>
+                  <td><span class="tiq-badge tiq-badge-neutral">Unassociated</span></td>
+                  <td class="tiq-text-center text-muted" style="font-size: 0.8125rem;">
+                    No clients assigned
                   </td>
                 </tr>
               {% endif %}

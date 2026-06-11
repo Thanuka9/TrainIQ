@@ -1,357 +1,360 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Upload Exam</title>
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-    />
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        background: linear-gradient(135deg, #e0eafc, #cfdef3);
-        padding: 0;
-        margin: 0;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-      }
-      .top-bar {
-        background-color: #fff;
-        padding: 10px 20px;
-        border-bottom: 1px solid #ddd;
-        display: flex;
-        align-items: center;
-      }
-      .top-bar img {
-        height: 40px;
-        margin-right: 10px;
-      }
-      .brand {
-        font-size: 1.5rem;
-        font-weight: bold;
-      }
-      .brand .black {
-        color: black;
-      }
-      .brand .red {
-        color: red;
-      }
+{% extends 'base.html' %}
+{% block title %}Upload Exam — {{ display_org_name }}{% endblock %}
 
-      .container {
-        max-width: 900px;
-        margin: 40px auto;
-        background-color: white;
-        padding: 30px;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      }
-      h1 {
-        text-align: center;
-        color: #007bff;
-        margin-bottom: 30px;
-      }
-      label {
-        font-weight: bold;
-      }
-      input,
-      select {
-        padding: 10px;
-        border-radius: 6px;
-        border: 1px solid #ccc;
-        width: 100%;
-        margin-bottom: 15px;
-      }
-      .question {
-        margin-top: 20px;
-        background-color: #f8f9fa;
-        padding: 15px;
-        border-radius: 6px;
-        border: 1px solid #dee2e6;
-      }
-      .add-question-btn,
-      .remove-question-btn {
-        padding: 8px 12px;
-        border: none;
-        border-radius: 5px;
-        font-weight: bold;
-        margin-top: 10px;
-      }
-      .add-question-btn {
-        background-color: #28a745;
-        color: white;
-      }
-      .add-question-btn:hover {
-        background-color: #218838;
-      }
-      .remove-question-btn {
-        background-color: #dc3545;
-        color: white;
-      }
-      .remove-question-btn:hover {
-        background-color: #c82333;
-      }
-      .btn-submit {
-        background-color: #007bff;
-        color: white;
-        width: 100%;
-        margin-top: 20px;
-      }
-      .btn-submit:hover {
-        background-color: #0056b3;
-      }
-      footer {
-        background-color: #343a40;
-        color: white;
-        text-align: center;
-        padding: 15px 0;
-        margin-top: auto;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="top-bar">
-      <img src="/static/images/logo.png" alt="Logo" />
-      <div class="brand">
-        <span class="black">Collect</span><span class="red">ive</span>
-      </div>
+{% block breadcrumb %}
+  <a href="{{ url_for('general_routes.dashboard') }}">Home</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <a href="{{ url_for('exams_routes.list_exams') }}">Exams</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <span>Upload Exam</span>
+{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <h1>Upload New Exam</h1>
+      <p class="tiq-lead">Create a new curriculum evaluation exam, set proctoring parameters, and append questions dynamically.</p>
     </div>
+    <a href="{{ url_for('study_material_routes.study_materials') }}" class="tiq-btn tiq-btn-secondary">
+      <i class="fas fa-arrow-left"></i> Back to KB
+    </a>
+  </div>
+</div>
 
-    <div class="container">
-      <a
-        href="{{ url_for('study_material_routes.study_materials') }}"
-        class="btn btn-secondary mb-3"
-      >
-        <i class="fas fa-arrow-left"></i> Back
-      </a>
-      <h1><i class="fas fa-file-alt"></i> Upload Exam</h1>
+<div class="tiq-card" style="max-width: 900px; margin: 0 auto;">
+  <div class="tiq-card-header">
+    <div class="tiq-card-title"><i class="fas fa-file-signature me-2"></i>Exam Parameters</div>
+  </div>
+  <div class="tiq-card-body">
+    <form id="uploadExamForm" method="POST" action="{{ url_for('exams_routes.create_exam') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
-      <form
-        id="uploadExamForm"
-        method="POST"
-        action="{{ url_for('exams_routes.create_exam') }}"
-      >
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-
+      <div class="tiq-grid tiq-grid-2 tiq-gap mb-4">
         <!-- Exam Title -->
-        <label for="title">Exam Title</label>
-        <input
-          type="text"
-          id="title"
-          name="title"
-          placeholder="Enter exam title"
-          required
-        />
-
-        <!-- Exam Duration -->
-        <label for="duration">Exam Duration (in minutes)</label>
-        <input
-          type="number"
-          id="duration"
-          name="duration"
-          placeholder="Enter exam duration"
-          min="1"
-          required
-        />
-
-        <!-- Minimum Designation Level -->
-        <label for="minimum_designation_level">Minimum Designation Level</label>
-        <select
-          id="minimum_designation_level"
-          name="minimum_designation_level"
-          required
-        >
-          <option value="">Select Designation Level</option>
-          {% for desig in designation_levels %}
-          <option value="{{ desig.id }}">{{ desig.title }}</option>
-          {% endfor %}
-        </select>
-
-        <!-- Exam Level -->
-        <label for="level_id">Exam Level</label>
-        <select id="level_id" name="level_id" required>
-          <option value="">Select Level</option>
-          {% for lvl in levels %}
-          <option value="{{ lvl.id }}">Level {{ lvl.level_number }}</option>
-          {% endfor %}
-        </select>
-
-        <!-- Course -->
-        <label for="course_id">Course</label>
-        <select id="course_id" name="course_id" required>
-          <option value="">Select Course</option>
-          {% for c in courses %}
-          <option value="{{ c.id }}">{{ c.title }}</option>
-          {% endfor %}
-        </select>
-
-        <!-- Category -->
-        <label for="category_id">Category</label>
-        <select id="category_id" name="category_id" required>
-          <option value="">Select Category</option>
-          {% for cat in categories %}
-          <option value="{{ cat.id }}">{{ cat.name }}</option>
-          {% endfor %}
-        </select>
-
-        <!-- Area -->
-        <label for="area_id">Area</label>
-        <select id="area_id" name="area_id" required>
-          <option value="">Select Area</option>
-          {% for a in areas %}
-          <option value="{{ a.id }}">{{ a.name }}</option>
-          {% endfor %}
-        </select>
-
-        <!-- Questions Container -->
-        <div class="question-container" id="questionsContainer">
-          <h4 class="mt-4">Questions</h4>
+        <div class="tiq-form-group mb-0">
+          <label for="title" class="tiq-label">Exam Title</label>
+          <input type="text" id="title" name="title" class="tiq-input" placeholder="e.g. HIPAA Security Standards Assessment" required />
         </div>
 
-        <!-- Add / Remove Question Buttons -->
-        <button type="button" class="add-question-btn" id="addQuestionBtn">
-          <i class="fas fa-plus"></i> Add Question
-        </button>
+        <!-- Exam Duration -->
+        <div class="tiq-form-group mb-0">
+          <label for="duration" class="tiq-label">Exam Duration (in minutes)</label>
+          <input type="number" id="duration" name="duration" class="tiq-input" placeholder="e.g. 45" min="1" required />
+        </div>
+        <div class="tiq-form-group">
+          <label for="passing_score" class="tiq-label">Passing Score (%)</label>
+          <input type="number" id="passing_score" name="passing_score" class="tiq-input" value="70" min="1" max="100" step="0.1" />
+        </div>
+      </div>
 
-        <!-- Submit Exam -->
-        <button type="submit" class="btn btn-submit">
-          <i class="fas fa-upload"></i> Upload Exam
-        </button>
-      </form>
-    </div>
+      <div class="tiq-grid tiq-grid-3 tiq-gap mb-4">
+        <!-- Minimum Designation Level -->
+        <div class="tiq-form-group mb-0">
+          <label for="minimum_designation_level" class="tiq-label">Min Designation Level</label>
+          <select id="minimum_designation_level" name="minimum_designation_level" class="tiq-select" required>
+            <option value="">Select Designation...</option>
+            {% for desig in designation_levels %}
+              <option value="{{ desig.id }}">{{ desig.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-    <footer>
-      <p class="mb-0">Collective Intranet© 2024</p>
-    </footer>
+        <!-- Exam Level -->
+        <div class="tiq-form-group mb-0">
+          <label for="level_id" class="tiq-label">Exam Level</label>
+          <select id="level_id" name="level_id" class="tiq-select" required>
+            <option value="">Select Level...</option>
+            {% for lvl in levels %}
+              <option value="{{ lvl.id }}">Level {{ lvl.level_number }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-    {# We push the `categories` list into JS so the “Add Question” logic can
-    still build a dropdown of categories dynamically for each new question
-    block. #}
-    <script>
-      window.CATEGORIES = {{ categories | tojson }};
-    </script>
+        <!-- Course Link -->
+        <div class="tiq-form-group mb-0">
+          <label for="course_id" class="tiq-label">Link to Course</label>
+          <select id="course_id" name="course_id" class="tiq-select" required>
+            <option value="">Select Course...</option>
+            {% for c in courses %}
+              <option value="{{ c.id }}">{{ c.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
 
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        // References to DOM elements
-        const questionsContainer =
-          document.getElementById("questionsContainer");
-        const addQuestionBtn = document.getElementById("addQuestionBtn");
-        let questionCount = 0;
+      <div class="tiq-grid tiq-grid-2 tiq-gap mb-4">
+        <!-- Category -->
+        <div class="tiq-form-group mb-0">
+          <label for="category_id" class="tiq-label">Category</label>
+          <select id="category_id" name="category_id" class="tiq-select" required>
+            <option value="">Select Category...</option>
+            {% for cat in categories %}
+              <option value="{{ cat.id }}">{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-        addQuestionBtn.addEventListener("click", () => {
-          questionCount++;
-          const questionDiv = document.createElement("div");
-          questionDiv.classList.add("question");
-          questionDiv.setAttribute("data-question-id", questionCount);
+        <!-- Category only — area is resolved automatically from category name -->
+      </div>
 
-          // Build the inner HTML for this question block.
-          // NOTE: We use the global `window.CATEGORIES` array for the category dropdown.
-          let categoryOptionsHtml = '<option value="">Select Category</option>';
-          window.CATEGORIES.forEach((cat) => {
-            categoryOptionsHtml += `<option value="${cat.id}">${cat.name}</option>`;
-          });
+      <div class="tiq-divider"></div>
 
-          questionDiv.innerHTML = `
-            <label>Question ${questionCount}</label>
-            <input
-              type="text"
-              name="questions[${questionCount}][question_text]"
-              placeholder="Enter question text"
-              required
-            />
-            <label>Choices (comma-separated)</label>
-            <input
-              type="text"
-              name="questions[${questionCount}][choices]"
-              placeholder="Enter choices"
-              required
-            />
-            <label>Correct Answer</label>
-            <input
-              type="text"
-              name="questions[${questionCount}][correct_answer]"
-              placeholder="Enter correct answer"
-              required
-            />
-            <label>Category</label>
-            <select name="questions[${questionCount}][category_id]" required>
-              ${categoryOptionsHtml}
+      <!-- AI Question Generator -->
+      <div class="tiq-card tiq-reveal" style="margin-bottom:2rem;border-color:rgba(139,92,246,0.35);">
+        <div class="tiq-card-header">
+          <div class="tiq-card-title"><i class="fas fa-wand-magic-sparkles me-2" style="color:#8B5CF6;"></i>{{ display_org_name }} AI — Generate Questions</div>
+        </div>
+        <div class="tiq-card-body">
+          <p style="font-size:0.875rem;color:var(--tiq-text-3);margin:0 0 1rem;">Generate RAG-grounded questions from one or many documents, then review before uploading.</p>
+          <div class="tiq-grid tiq-grid-3 tiq-gap mb-3">
+            <div class="tiq-form-group mb-0">
+              <label for="ai_question_count" class="tiq-label">Number of Questions</label>
+              <input type="number" id="ai_question_count" class="tiq-input" value="5" min="1" max="20">
+            </div>
+            <div class="tiq-form-group mb-0">
+              <label for="upload_ai_filter_level" class="tiq-label">Filter by Level</label>
+              <select id="upload_ai_filter_level" class="tiq-select">
+                <option value="">All Levels</option>
+                {% for lvl in levels %}
+                  <option value="L{{ lvl.level_number }}">Level {{ lvl.level_number }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="tiq-form-group mb-0">
+              <label for="upload_ai_filter_category" class="tiq-label">Filter by Category</label>
+              <select id="upload_ai_filter_category" class="tiq-select">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                  <option value="{{ cat.id }}">{{ cat.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="tiq-form-group mb-3">
+            <label class="tiq-label">Question Types</label>
+            <div style="display:flex;gap:1rem;flex-wrap:wrap;" id="uploadAiTypes">
+              <label><input type="checkbox" value="single_choice" checked> Single Choice</label>
+              <label><input type="checkbox" value="multiple_choice"> Multiple Choice</label>
+              <label><input type="checkbox" value="structured" checked> Structured</label>
+            </div>
+          </div>
+          <div class="tiq-form-group mb-3">
+            <label class="tiq-label">Source Documents</label>
+            <select id="upload_material_ids" class="tiq-select" multiple size="6" style="min-height:140px;">
+              {% for c in courses %}
+                <option value="{{ c.id }}"
+                  data-level="L{{ c.level_number }}"
+                  data-category-id="{{ c.category_id or '' }}">
+                  [L{{ c.level_number }}] {{ c.category_name }} — {{ c.title }}
+                </option>
+              {% endfor %}
             </select>
-            <button type="button" class="remove-question-btn">
-              Remove Question
-            </button>
-          `;
+          </div>
+          <button type="button" class="tiq-btn tiq-btn-primary" id="uploadAiGenerateBtn" style="background:linear-gradient(135deg,#8B5CF6,#6366F1);border:none;">
+            <i class="fas fa-magic"></i> Generate with {{ display_org_name }} AI
+          </button>
+        </div>
+      </div>
 
-          // Hook up the “Remove Question” button for this block
-          questionDiv
-            .querySelector(".remove-question-btn")
-            .addEventListener("click", () => {
-              questionsContainer.removeChild(questionDiv);
-            });
+      <!-- Questions Section -->
+      <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 1.5rem;"><i class="fas fa-question-circle me-1"></i>Exam Questions</h3>
+      <div id="questionsContainer" style="display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2rem;">
+        <!-- Dynamic questions loaded here -->
+      </div>
 
-          questionsContainer.appendChild(questionDiv);
-        });
+      <div class="tiq-flex-between">
+        <button type="button" class="tiq-btn tiq-btn-secondary" id="addQuestionBtn">
+          <i class="fas fa-plus"></i> Add Question Card
+        </button>
+        <button type="submit" class="tiq-btn tiq-btn-primary" style="padding: 0.75rem 2rem;">
+          <i class="fas fa-upload"></i> Create & Upload Exam
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
 
-        // Intercept form submission with better error handling:
-        const form = document.getElementById("uploadExamForm");
-        form.addEventListener("submit", function (e) {
-          e.preventDefault();
-          const fd = new FormData(form);
+<script src="{{ url_for('static', filename='js/exam-ai-generator.js') }}"></script>
+<script>
+  function toggleUploadQType(sel) {
+    const body = sel.closest('.tiq-card-body');
+    const t = sel.value;
+    const choices = body.querySelector('.q-upload-choices');
+    const structured = body.querySelector('.q-upload-structured');
+    if (choices) choices.style.display = t === 'structured' ? 'none' : '';
+    if (structured) structured.style.display = t === 'structured' ? '' : 'none';
+    body.querySelectorAll('.q-choices-input, .q-correct-input').forEach(el => {
+      el.required = t !== 'structured';
+    });
+  }
 
-          // 1) Create the exam
-          fetch(form.action, {
-            method: "POST",
-            body: fd,
-          })
-            .then(async (res) => {
-              if (res.ok) {
-                return res.json();
-              }
-              const html = await res.text();
-              throw new Error("Create exam failed:\n" + html);
-            })
-            .then((createJson) => {
-              if (!createJson.add_questions_url) {
-                throw new Error(
-                  createJson.error || "Server did not return add_questions_url"
-                );
-              }
-              // 2) Post questions to the provided URL
-              return fetch(createJson.add_questions_url, {
-                method: "POST",
-                body: fd,
-              });
-            })
-            .then(async (res2) => {
-              if (res2.ok) {
-                return res2.json();
-              }
-              const html2 = await res2.text();
-              throw new Error("Add questions failed:\n" + html2);
-            })
-            .then((qJson) => {
-              if (qJson.errors && qJson.errors.length) {
-                alert(
-                  "Some questions failed to save:\n" + qJson.errors.join("\n")
-                );
-              } else {
-                window.location.href =
-                  "{{ url_for('exams_routes.list_exams') }}";
-              }
-            })
-            .catch((err) => {
-              console.error(err);
-              alert(err.message);
-            });
-        });
+  window.CATEGORIES = {{ categories | tojson }};
+</script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const questionsContainer = document.getElementById("questionsContainer");
+    const addQuestionBtn = document.getElementById("addQuestionBtn");
+    const defaultCategoryId = () => document.getElementById('category_id')?.value || '';
+    let questionCount = 0;
+
+    function addQuestionCard(prefill) {
+      questionCount++;
+      const questionDiv = document.createElement("div");
+      questionDiv.className = "tiq-card tiq-reveal tiq-revealed";
+      questionDiv.setAttribute("data-question-id", questionCount);
+
+      let resolvedCategoryId = prefill?.category_id;
+      if (!resolvedCategoryId && prefill?.category) {
+        const catObj = window.CATEGORIES.find(c => c.name.toLowerCase() === prefill.category.toLowerCase().trim());
+        if (catObj) {
+          resolvedCategoryId = String(catObj.id);
+        }
+      }
+      if (!resolvedCategoryId) {
+        resolvedCategoryId = defaultCategoryId();
+      }
+
+      let categoryOptionsHtml = '<option value="">Select Category</option>';
+      window.CATEGORIES.forEach((cat) => {
+        const sel = String(resolvedCategoryId) === String(cat.id) ? 'selected' : '';
+        categoryOptionsHtml += `<option value="${cat.id}" ${sel}>${cat.name}</option>`;
       });
-    </script>
-  </body>
-</html>
+
+      const qtype = prefill?.question_type || 'single_choice';
+      const choices = Array.isArray(prefill?.choices) ? prefill.choices.join(', ') : (prefill?.choices || '');
+      const correct = prefill?.correct_answer || '';
+      const ref = qtype === 'structured' ? correct : '';
+
+      questionDiv.innerHTML = `
+        <div class="tiq-card-header">
+          <div class="tiq-card-title">Question #${questionCount}</div>
+        </div>
+        <div class="tiq-card-body">
+          <div class="tiq-form-group">
+            <label class="tiq-label">Question Type</label>
+            <select name="questions[${questionCount}][question_type]" class="tiq-select q-type-select" onchange="toggleUploadQType(this)">
+              <option value="single_choice" ${qtype === 'single_choice' ? 'selected' : ''}>Single Choice</option>
+              <option value="multiple_choice" ${qtype === 'multiple_choice' ? 'selected' : ''}>Multiple Choice (MSQ)</option>
+              <option value="structured" ${qtype === 'structured' ? 'selected' : ''}>Structured (Short Answer)</option>
+            </select>
+          </div>
+          <div class="tiq-form-group">
+            <label class="tiq-label">Question Text</label>
+            <input type="text" name="questions[${questionCount}][question_text]" class="tiq-input" value="${(prefill?.question_text || '').replace(/"/g, '&quot;')}" required />
+          </div>
+          <div class="q-upload-choices" style="${qtype === 'structured' ? 'display:none' : ''}">
+            <div class="tiq-form-group">
+              <label class="tiq-label">Choices (Comma-Separated)</label>
+              <input type="text" name="questions[${questionCount}][choices]" class="tiq-input q-choices-input" value="${choices.replace(/"/g, '&quot;')}" />
+            </div>
+            <div class="tiq-form-group">
+              <label class="tiq-label">Correct Answer</label>
+              <input type="text" name="questions[${questionCount}][correct_answer]" class="tiq-input q-correct-input" value="${qtype !== 'structured' ? correct.replace(/"/g, '&quot;') : ''}" />
+            </div>
+          </div>
+          <div class="q-upload-structured" style="${qtype === 'structured' ? '' : 'display:none'}">
+            <div class="tiq-form-group">
+              <label class="tiq-label">Reference Answer</label>
+              <textarea name="questions[${questionCount}][reference_answer]" class="tiq-textarea" rows="2">${ref.replace(/</g, '&lt;')}</textarea>
+            </div>
+          </div>
+          <div class="tiq-grid tiq-grid-2 tiq-gap">
+            <div class="tiq-form-group">
+              <label class="tiq-label">Category</label>
+              <select name="questions[${questionCount}][category_id]" class="tiq-select" required>${categoryOptionsHtml}</select>
+            </div>
+          </div>
+          <div class="tiq-text-right mt-3">
+            <button type="button" class="tiq-btn tiq-btn-danger tiq-btn-sm remove-question-btn">
+              <i class="fas fa-trash-alt"></i> Remove Question
+            </button>
+          </div>
+        </div>
+      `;
+
+      questionDiv.querySelector(".remove-question-btn").addEventListener("click", () => {
+        questionsContainer.removeChild(questionDiv);
+      });
+      questionsContainer.appendChild(questionDiv);
+      toggleUploadQType(questionDiv.querySelector('.q-type-select'));
+    }
+
+    addQuestionBtn.addEventListener("click", () => addQuestionCard());
+
+    ExamAIGenerator.initDocFilters('upload_ai_filter_level', 'upload_ai_filter_category', 'upload_material_ids');
+
+    document.getElementById('course_id')?.addEventListener('change', (e) => {
+      const matSel = document.getElementById('upload_material_ids');
+      if (!matSel) return;
+      [...matSel.options].forEach(o => { o.selected = o.value === e.target.value; });
+    });
+
+    document.getElementById('uploadAiGenerateBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('uploadAiGenerateBtn');
+      const materialIds = ExamAIGenerator.selectedMaterialIds('upload_material_ids');
+      if (!materialIds.length) {
+        alert('Select at least one source document.');
+        return;
+      }
+      const types = [...document.querySelectorAll('#uploadAiTypes input:checked')].map(i => i.value);
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating…';
+      try {
+        const res = await fetch('{{ url_for("admin_routes.ai_preview_exam_questions") }}', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+          body: JSON.stringify({
+            material_ids: materialIds,
+            count: parseInt(document.getElementById('ai_question_count').value, 10) || 5,
+            question_types: types,
+            exam_title: document.getElementById('title')?.value || 'New Exam'
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Generation failed');
+        questionsContainer.innerHTML = '';
+        questionCount = 0;
+        (data.questions || []).forEach(q => addQuestionCard(q));
+        if (!data.questions?.length) alert('AI returned no questions.');
+      } catch (err) {
+        alert(err.message || 'Could not generate questions.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-magic"></i> Generate with {{ display_org_name }} AI';
+      }
+    });
+
+    const form = document.getElementById("uploadExamForm");
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      const fd = new FormData(form);
+
+      fetch(form.action, { method: "POST", body: fd })
+        .then(async (res) => {
+          if (res.ok) return res.json();
+          throw new Error("Create exam failed:\n" + await res.text());
+        })
+        .then((createJson) => {
+          if (!createJson.add_questions_url) {
+            throw new Error(createJson.error || "Server did not return add_questions_url");
+          }
+          return fetch(createJson.add_questions_url, { method: "POST", body: fd });
+        })
+        .then(async (res2) => {
+          if (res2.ok) return res2.json();
+          throw new Error("Add questions failed:\n" + await res2.text());
+        })
+        .then((qJson) => {
+          if (qJson.errors && qJson.errors.length) {
+            alert("Some questions failed to save:\n" + qJson.errors.join("\n"));
+          } else {
+            window.location.href = "{{ url_for('exams_routes.list_exams') }}";
+          }
+        })
+        .catch((err) => { console.error(err); alert(err.message); });
+    });
+  });
+</script>
+{% endblock %}

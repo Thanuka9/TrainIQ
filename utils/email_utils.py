@@ -24,7 +24,69 @@ def init_scheduler(scheduler):
         minutes=60,
         replace_existing=True
     )
-    # Note: avoid using current_app here, since there's no application context yet
+    scheduler.add_job(
+        id='expire_saas_trials',
+        func=expire_saas_trials_job,
+        trigger='interval',
+        hours=6,
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        id='trial_reminder_emails',
+        func=trial_reminder_emails_job,
+        trigger='interval',
+        hours=12,
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        id='onboarding_drip_emails',
+        func=onboarding_drip_emails_job,
+        trigger='interval',
+        hours=6,
+        replace_existing=True,
+    )
+
+
+def expire_saas_trials_job():
+    """Background job: mark overdue free trials as expired."""
+    from extensions import scheduler
+    from utils.billing_plans import backfill_missing_trial_dates
+    from utils.tenant_limits import expire_overdue_trials
+
+    app = scheduler.app
+    with app.app_context():
+        backfill_missing_trial_dates()
+        count = expire_overdue_trials()
+        if count:
+            app.logger.info("[billing] Expired %s trial tenant(s)", count)
+
+
+def trial_reminder_emails_job():
+    """Background job: 7-day and 1-day trial reminder emails."""
+    from extensions import scheduler
+    from utils.trial_reminders import process_trial_reminder_emails
+
+    app = scheduler.app
+    with app.app_context():
+        stats = process_trial_reminder_emails()
+        if stats.get("seven_day") or stats.get("one_day"):
+            app.logger.info(
+                "[billing] Trial reminders sent: 7d=%s, 1d=%s",
+                stats.get("seven_day", 0),
+                stats.get("one_day", 0),
+            )
+
+
+def onboarding_drip_emails_job():
+    """Background job: day 1 / 3 / 7 onboarding drip emails."""
+    from extensions import scheduler
+    from utils.onboarding_emails import process_onboarding_drip_emails
+
+    app = scheduler.app
+    with app.app_context():
+        stats = process_onboarding_drip_emails()
+        if any(stats.values()):
+            app.logger.info("[onboarding] Drip emails sent: %s", stats)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helper for attaching files safely
@@ -141,26 +203,30 @@ def check_and_send_deadline_notifications():
     """
     Every hour, find tasks due ≤ 24 h from *now* but still incomplete.
     """
-    now  = datetime.utcnow()
-    soon = now + timedelta(hours=24)
+    from extensions import scheduler
 
-    tasks = Task.query.filter(
-        Task.due_date <= soon,
-        Task.due_date >  now,
-        Task.status  != 'Complete! Ready to Go!'
-    ).all()
+    app = scheduler.app
+    with app.app_context():
+        now = datetime.utcnow()
+        soon = now + timedelta(hours=24)
 
-    current_app.logger.info(
-        f"[email_utils] check_and_send_deadline_notifications → now={now}, soon={soon}, matched={len(tasks)} tasks"
-    )
-    for task in tasks:
+        tasks = Task.query.filter(
+            Task.due_date <= soon,
+            Task.due_date > now,
+            Task.status != 'Complete! Ready to Go!'
+        ).all()
+
         current_app.logger.info(
-            f"[email_utils] → queueing reminder for Task #{task.id} (due={task.due_date}, status='{task.status}')"
+            f"[email_utils] check_and_send_deadline_notifications → now={now}, soon={soon}, matched={len(tasks)} tasks"
         )
-        try:
-            send_deadline_reminder(task)
-        except Exception as e:
-            current_app.logger.error(
-                f"[email_utils] Exception in send_deadline_reminder for Task #{task.id}: {e}",
-                exc_info=True
+        for task in tasks:
+            current_app.logger.info(
+                f"[email_utils] → queueing reminder for Task #{task.id} (due={task.due_date}, status='{task.status}')"
             )
+            try:
+                send_deadline_reminder(task)
+            except Exception as e:
+                current_app.logger.error(
+                    f"[email_utils] Exception in send_deadline_reminder for Task #{task.id}: {e}",
+                    exc_info=True
+                )
