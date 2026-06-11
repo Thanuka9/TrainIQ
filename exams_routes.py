@@ -1369,6 +1369,16 @@ def request_exam_access(exam_id):
         )
         db.session.add(new_request)
         db.session.commit()
+        from utils.notifications import notify_tenant_super_admins
+        if current_user.tenant_id:
+            notify_tenant_super_admins(
+                current_user.tenant_id,
+                "New exam access request",
+                f"{current_user.first_name} requested a retry for {exam.title}.",
+                category="exam",
+                link_url=url_for("admin_routes.manage_exam_requests"),
+                icon="file-alt",
+            )
 
         flash("You must re-request access to retry this exam.", "warning")
         return redirect(url_for('exams_routes.list_exams'))
@@ -1386,6 +1396,17 @@ def request_exam_access(exam_id):
     )
     db.session.add(new_request)
     db.session.commit()
+
+    from utils.notifications import notify_tenant_super_admins
+    if current_user.tenant_id:
+        notify_tenant_super_admins(
+            current_user.tenant_id,
+            "New exam access request",
+            f"{current_user.first_name} {current_user.last_name} requested access to {exam.title}.",
+            category="exam",
+            link_url=url_for("admin_routes.manage_exam_requests"),
+            icon="file-alt",
+        )
 
     flash("Access request sent to admin.", "success")
     print(f"[ACCESS] New access request submitted — user_id={current_user.id}, exam_id={exam_id}")

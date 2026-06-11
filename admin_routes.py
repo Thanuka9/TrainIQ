@@ -97,6 +97,18 @@ def delete_files_from_gridfs(file_refs, tenant_id=None):
                 logging.error(f"Failed deleting file {file_id}")
     return deleted
 
+def _users_page_redirect():
+    """Return to Users Management preserving filter status and search."""
+    status = request.form.get("status") or request.args.get("status")
+    q = request.form.get("q") or request.args.get("q")
+    params = {}
+    if status:
+        params["status"] = status
+    if q:
+        params["q"] = q
+    return redirect(url_for("admin_routes.view_users", **params))
+
+
 # --- Admin Authentication Middleware ---
 def _effective_super_admin():
     from flask import session
@@ -1093,7 +1105,7 @@ def change_designation(user_id):
         flash(f"{user.first_name} {user.last_name} is now {desig.title}.", "success")
     else:
         flash("Invalid designation selected.", "error")
-    return redirect(url_for('admin_routes.view_users', status=request.args.get('status', None)))
+    return _users_page_redirect()
 
 
 @admin_routes.route('/admin/user/departments/<int:user_id>', methods=['POST'])
@@ -1117,7 +1129,7 @@ def change_user_departments(user_id):
     else:
         flash(f"{user.first_name} {user.last_name} has no departments assigned.", "warning")
 
-    return redirect(url_for('admin_routes.view_users', status=request.args.get('status', None)))
+    return _users_page_redirect()
 
 
 # --- Manage Courses page ---
@@ -2270,7 +2282,7 @@ def deactivate_user(user_id):
     except Exception:
         db.session.rollback()
         flash("Failed to deactivate user.", "error")
-    return redirect(url_for('admin_routes.view_users'))
+    return _users_page_redirect()
 
 # Activate User
 @admin_routes.route('/admin/user/activate/<int:user_id>', methods=['POST'])
@@ -2285,7 +2297,7 @@ def activate_user(user_id):
     except Exception:
         db.session.rollback()
         flash("Failed to activate user.", "error")
-    return redirect(url_for('admin_routes.view_users'))
+    return _users_page_redirect()
 
 @admin_routes.route('/admin/user/delete/<int:user_id>', methods=['POST'])
 @login_required
@@ -2300,7 +2312,7 @@ def delete_user(user_id):
         db.session.rollback()
         current_app.logger.error(f"Cascade-delete failed for user {user.id}: {e}")
         flash("Failed to delete user. Please try again.", "error")
-    return redirect(url_for('admin_routes.view_analytics'))
+    return _users_page_redirect()
 
 # --- Admin Reports Dashboard ---
 @admin_routes.route('/admin/reports/overview', methods=['GET'])
@@ -2906,6 +2918,15 @@ def manage_exam_requests():
             req.status = 'approved' if action == 'approve' else 'rejected'
             req.reviewed_at = datetime.utcnow()
             db.session.commit()
+            from utils.notifications import create_notification
+            create_notification(
+                req.user_id,
+                "Exam access approved" if action == "approve" else "Exam access declined",
+                "You can now take the exam." if action == "approve" else "Contact your administrator for details.",
+                category="exam",
+                link_url=url_for("exams_routes.list_exams"),
+                icon="file-alt",
+            )
             flash(f"Request {action}ed successfully.", "success")
         return redirect(url_for('admin_routes.manage_exam_requests'))
 
@@ -3987,6 +4008,16 @@ def admin_view_ticket(ticket_id):
         try:
             db.session.commit()
             flash("Ticket updated successfully.", "success")
+            if ticket.user_id and (admin_resp or new_status == "Resolved"):
+                from utils.notifications import create_notification
+                create_notification(
+                    ticket.user_id,
+                    "Support ticket updated" if new_status != "Resolved" else "Support ticket resolved",
+                    admin_resp[:200] if admin_resp else f"Your ticket #{ticket.id} status is now {new_status}.",
+                    category="support",
+                    link_url=url_for("general_routes.support"),
+                    icon="headset",
+                )
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Error updating ticket #{ticket.id}: {e}")

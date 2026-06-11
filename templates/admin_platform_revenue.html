@@ -1,0 +1,89 @@
+{% extends 'admin_base.html' %}
+{% block title %}Platform Revenue{% endblock %}
+{% block breadcrumb %}Platform / Revenue{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header" style="margin-bottom:1rem;">
+  <h1>Revenue &amp; Billing Overview</h1>
+  <p class="tiq-lead">Estimated MRR/ARR and paying customer breakdown across all plans.</p>
+</div>
+{% include 'partials/platform_subnav.html' %}
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0.75rem;margin-bottom:1.5rem;">
+  <div class="tiq-stat-card"><div class="stat-label">Est. MRR</div><div class="stat-value">${{ revenue.estimated_mrr }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label">Est. ARR</div><div class="stat-value">${{ revenue.estimated_arr }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label">Paying tenants</div><div class="stat-value">{{ revenue.paid_tenants }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label">Trial tenants</div><div class="stat-value">{{ revenue.trial_tenants }}</div></div>
+</div>
+
+<div class="tiq-grid tiq-grid-2 tiq-gap" style="margin-bottom:1.5rem;">
+  <div class="tiq-card">
+    <div class="tiq-card-header"><h3 class="tiq-card-title">Revenue by plan</h3></div>
+    <div class="tiq-card-body" style="padding:0;">
+      <table class="tiq-table">
+        <thead><tr><th>Plan</th><th>Tenants</th><th>MRR</th></tr></thead>
+        <tbody>
+          {% for p in revenue.plan_totals %}
+          <tr><td>{{ p.name }}</td><td>{{ p.tenants }}</td><td>${{ p.mrr }}</td></tr>
+          {% else %}
+          <tr><td colspan="3" style="text-align:center;padding:1.5rem;color:var(--tiq-text-3);">No paid revenue yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="tiq-card">
+    <div class="tiq-card-header"><h3 class="tiq-card-title">Tenant count by plan</h3></div>
+    <div class="tiq-card-body">
+      <canvas id="planChart" height="200"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="tiq-card">
+  <div class="tiq-card-header"><h3 class="tiq-card-title">Paying organizations</h3></div>
+  <div class="tiq-card-body" style="padding:0;">
+    <table class="tiq-table">
+      <thead><tr><th>Organization</th><th>Plan</th><th>Cycle</th><th>Users</th><th>MRR</th><th>ARR</th><th></th></tr></thead>
+      <tbody>
+        {% for row in revenue.paying_rows %}
+        {% set t = row.tenant %}
+        <tr>
+          <td><strong>{{ t.name }}</strong><br><code>{{ t.office_key }}</code></td>
+          <td>{{ row.plan }}</td>
+          <td>{{ row.cycle }}</td>
+          <td>{{ row.users }} / {{ row.max_users }}</td>
+          <td>${{ row.mrr }}</td>
+          <td>${{ row.arr }}</td>
+          <td>
+            <form action="{{ url_for('platform_routes.enter_tenant', tenant_id=t.id) }}" method="POST" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="target" value="billing">
+              <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">Billing</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--tiq-text-3);">No paying tenants yet — all orgs on trial or enterprise.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var ctx = document.getElementById('planChart');
+  if (ctx && typeof Chart !== 'undefined') {
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: {{ revenue.by_plan.keys() | list | tojson }},
+        datasets: [{ data: {{ revenue.by_plan.values() | list | tojson }}, backgroundColor: ['#F59E0B','#6366F1','#10B981','#EF4444','#8B5CF6','#06B6D4'] }]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+  }
+});
+</script>
+{% endblock %}

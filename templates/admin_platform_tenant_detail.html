@@ -1,0 +1,184 @@
+{% extends 'admin_base.html' %}
+{% block title %}{{ detail.tenant.name }} — Platform{% endblock %}
+{% block breadcrumb %}
+  <a href="{{ url_for('platform_routes.platform_dashboard') }}">Platform</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <a href="{{ url_for('platform_routes.list_tenants') }}">Tenants</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <span>{{ detail.tenant.name }}</span>
+{% endblock %}
+
+{% block content %}
+{% set t = detail.tenant %}
+{% set s = detail.stats %}
+
+<div class="tiq-page-header" style="margin-bottom:1rem;">
+  <div class="tiq-flex-between" style="flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1>{{ t.name }}</h1>
+      <p class="tiq-lead">
+        Office Key <code>{{ t.office_key or '—' }}</code> ·
+        Plan <strong>{{ t.plan }}</strong> / <strong>{{ t.status }}</strong>
+        {% if detail.mrr %} · MRR ≈ ${{ detail.mrr }}{% endif %}
+      </p>
+    </div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      {% for label, target in [
+        ('Admin', 'admin'), ('Users', 'users'), ('Support', 'support'),
+        ('Billing', 'billing'), ('Settings', 'settings')
+      ] %}
+      <form action="{{ url_for('platform_routes.enter_tenant', tenant_id=t.id) }}" method="POST" style="margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="target" value="{{ target }}">
+        <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">Enter → {{ label }}</button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% include 'partials/platform_subnav.html' %}
+
+<!-- Stats grid — all areas -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:0.65rem;margin-bottom:1.25rem;">
+  <div class="tiq-stat-card"><div class="stat-label">Users</div><div class="stat-value">{{ s.users }}</div><div style="font-size:0.7rem;color:var(--tiq-muted);">{{ s.verified }} verified</div></div>
+  <div class="tiq-stat-card"><div class="stat-label">Courses</div><div class="stat-value">{{ s.courses }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label">Exams</div><div class="stat-value">{{ s.exams }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label">Exam attempts</div><div class="stat-value">{{ s.exam_attempts }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label">Tasks</div><div class="stat-value">{{ s.tasks }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label">Clients</div><div class="stat-value">{{ s.clients }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label">Departments</div><div class="stat-value">{{ s.departments }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label">Open support</div><div class="stat-value">{{ s.open_support }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label">Locked users</div><div class="stat-value">{{ s.locked }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label">Super admins</div><div class="stat-value">{{ s.super_admins }}</div></div>
+</div>
+
+<div class="tiq-grid tiq-grid-2 tiq-gap" style="margin-bottom:1.25rem;">
+  <!-- Plan management -->
+  <div class="tiq-card">
+    <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-sliders-h me-2"></i>Plan &amp; limits</h3></div>
+    <div class="tiq-card-body">
+      <form action="{{ url_for('platform_routes.update_tenant_plan', tenant_id=t.id) }}" method="POST" style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div><label class="tiq-label">Plan</label>
+          <select class="tiq-input" name="plan">
+            {% for pid, p in plan_catalog.items() %}
+            <option value="{{ pid }}" {% if t.plan == pid %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div><label class="tiq-label">Status</label>
+          <select class="tiq-input" name="status">
+            {% for st in ['trial','active','expired','suspended'] %}
+            <option value="{{ st }}" {% if t.status==st %}selected{% endif %}>{{ st }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div><label class="tiq-label">Max users</label><input class="tiq-input" name="max_users" type="number" value="{{ t.max_users or 10 }}"></div>
+        <div><label class="tiq-label">Storage MB</label><input class="tiq-input" name="max_storage_mb" type="number" value="{{ t.max_storage_mb or 2048 }}"></div>
+        <div><label class="tiq-label">Billing email</label><input class="tiq-input" name="billing_email" value="{{ t.billing_email or '' }}"></div>
+        <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">Save</button>
+      </form>
+      {% if t.trial_ends_at %}<p style="font-size:0.8rem;color:var(--tiq-text-3);margin:0.75rem 0 0;">Trial ends: {{ t.trial_ends_at.strftime('%Y-%m-%d %H:%M UTC') }}</p>{% endif %}
+      <div style="margin-top:0.75rem;display:flex;gap:0.5rem;">
+        {% if t.status == 'suspended' %}
+        <form action="{{ url_for('platform_routes.activate_tenant', tenant_id=t.id) }}" method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="tiq-btn tiq-btn-success tiq-btn-sm">Reactivate</button></form>
+        {% else %}
+        <form action="{{ url_for('platform_routes.suspend_tenant', tenant_id=t.id) }}" method="POST" onsubmit="return confirm('Suspend this tenant?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="reason" value="Suspended from tenant detail"><button class="tiq-btn tiq-btn-warning tiq-btn-sm">Suspend</button></form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Org config snapshot -->
+  <div class="tiq-card">
+    <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-cog me-2"></i>Configuration</h3></div>
+    <div class="tiq-card-body" style="font-size:0.85rem;">
+      <dl style="margin:0;display:grid;grid-template-columns:auto 1fr;gap:0.35rem 1rem;">
+        <dt style="color:var(--tiq-text-3);">Domain</dt><dd>{{ t.allowed_domain or '—' }}</dd>
+        <dt style="color:var(--tiq-text-3);">2FA</dt><dd>{{ 'Enabled' if t.enable_2fa else 'Off' }}</dd>
+        <dt style="color:var(--tiq-text-3);">Proctoring</dt><dd>{{ 'Enabled' if t.enable_proctoring else 'Off' }}</dd>
+        <dt style="color:var(--tiq-text-3);">Invite-only</dt><dd>{{ 'Yes' if t.enable_invite_only else 'No' }}</dd>
+        <dt style="color:var(--tiq-text-3);">SSO</dt><dd>{% if t.sso_enabled %}{{ t.sso_provider or 'OIDC' }}{% else %}Off{% endif %}</dd>
+        <dt style="color:var(--tiq-text-3);">Billing cycle</dt><dd>{{ t.billing_cycle or 'monthly' }}</dd>
+        <dt style="color:var(--tiq-text-3);">Created</dt><dd>{{ t.created_at.strftime('%Y-%m-%d') if t.created_at else '—' }}</dd>
+        <dt style="color:var(--tiq-text-3);">Pending exam requests</dt><dd>{{ s.pending_exam_requests }}</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+
+<div class="tiq-grid tiq-grid-2 tiq-gap">
+  <!-- Users -->
+  <div class="tiq-card">
+    <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-users me-2"></i>Recent users</h3></div>
+    <div class="tiq-card-body" style="padding:0;max-height:320px;overflow-y:auto;">
+      <table class="tiq-table" style="font-size:0.85rem;">
+        <tbody>
+          {% for u in detail.users %}
+          <tr>
+            <td>{{ u.first_name }} {{ u.last_name }}<br><small>{{ u.employee_email }}</small></td>
+            <td>{% if u.is_super_admin %}<span class="tiq-badge">Admin</span>{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td style="padding:1rem;color:var(--tiq-text-3);">No users</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Support + audit -->
+  <div>
+    <div class="tiq-card" style="margin-bottom:1rem;">
+      <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-headset me-2"></i>Open support</h3></div>
+      <div class="tiq-card-body" style="padding:0;">
+        {% for tk in detail.open_tickets %}
+        <div style="padding:0.65rem 1rem;border-bottom:1px solid var(--tiq-border);font-size:0.85rem;">
+          <strong>#{{ tk.id }} {{ tk.title }}</strong> — {{ tk.status }}
+        </div>
+        {% else %}
+        <div style="padding:1rem;color:var(--tiq-text-3);font-size:0.85rem;">No open tickets</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="tiq-card">
+      <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-scroll me-2"></i>Recent audit</h3></div>
+      <div class="tiq-card-body" style="padding:0;max-height:200px;overflow-y:auto;">
+        <table class="tiq-table" style="font-size:0.8rem;">
+          <tbody>
+            {% for ev in detail.recent_audit %}
+            <tr>
+              <td style="white-space:nowrap;">{{ ev.created_at.strftime('%m/%d %H:%M') if ev.created_at else '' }}</td>
+              <td><code>{{ ev.event_type }}</code></td>
+            </tr>
+            {% else %}
+            <tr><td style="padding:1rem;color:var(--tiq-text-3);">No events</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if detail.pending_invites %}
+<div class="tiq-card" style="margin-top:1.25rem;">
+  <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-envelope me-2"></i>Pending invites</h3></div>
+  <div class="tiq-card-body" style="padding:0;">
+    <table class="tiq-table">
+      <thead><tr><th>Email</th><th>Sent</th><th>Expires</th></tr></thead>
+      <tbody>
+        {% for inv in detail.pending_invites %}
+        <tr>
+          <td>{{ inv.email }}</td>
+          <td>{{ inv.created_at.strftime('%Y-%m-%d') if inv.created_at else '—' }}</td>
+          <td>{{ inv.expires_at.strftime('%Y-%m-%d') if inv.expires_at else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

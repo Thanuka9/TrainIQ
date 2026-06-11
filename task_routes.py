@@ -242,6 +242,15 @@ def assign_task():
         # 7) Send assignment emails (attachments now exist in DB!)
         for user in task.assignees:
             send_task_assignment_email(user, task)
+            from utils.notifications import create_notification
+            create_notification(
+                user.id,
+                f"New task: {task.title}",
+                f"Assigned by {current_user.first_name} {current_user.last_name}. Due {task.due_date}.",
+                category="task",
+                link_url=url_for("task_routes.view_task", task_id=task.id),
+                icon="list-check",
+            )
 
         flash("Task assigned and notifications sent.", "success")
         return redirect(url_for('task_routes.view_tasks'))

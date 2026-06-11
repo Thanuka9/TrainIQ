@@ -332,6 +332,18 @@ def request_support():
         db.session.add(ticket)
         db.session.commit()
 
+        from utils.notifications import notify_tenant_super_admins
+        tid = current_user.tenant_id
+        if tid:
+            notify_tenant_super_admins(
+                tid,
+                f"New support ticket #{ticket.id}",
+                f"{current_user.first_name}: {title[:80]}",
+                category="support",
+                link_url=url_for("admin_routes.admin_view_ticket", ticket_id=ticket.id),
+                icon="headset",
+            )
+
         flash(f"Support ticket #{ticket.id} created successfully.", "success")
         return redirect(url_for('general_routes.support'))
 

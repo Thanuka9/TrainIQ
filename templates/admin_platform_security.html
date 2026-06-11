@@ -1,0 +1,80 @@
+{% extends 'admin_base.html' %}
+{% block title %}Platform Security{% endblock %}
+{% block breadcrumb %}Platform / Security & Audit{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header" style="margin-bottom:1rem;">
+  <h1>Security &amp; Audit Console</h1>
+  <p class="tiq-lead">Platform-wide login activity, failed attempts, and locked accounts.</p>
+</div>
+{% include 'partials/platform_subnav.html' %}
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.75rem;margin-bottom:1.25rem;">
+  <div class="tiq-stat-card"><div class="stat-label">Failed logins (7d)</div><div class="stat-value">{{ feed.failed_logins_7d }}</div></div>
+  {% for et, cnt in feed.counts_7d.items() %}
+  <div class="tiq-stat-card"><div class="stat-label">{{ et }}</div><div class="stat-value">{{ cnt }}</div></div>
+  {% endfor %}
+</div>
+
+{% if feed.locked_users %}
+<div class="tiq-card" style="margin-bottom:1.25rem;border-left:4px solid #EF4444;">
+  <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-lock me-2"></i>Locked accounts</h3></div>
+  <div class="tiq-card-body" style="padding:0;">
+    <table class="tiq-table">
+      <thead><tr><th>User</th><th>Email</th><th>Organization</th></tr></thead>
+      <tbody>
+        {% for u in feed.locked_users %}
+        <tr>
+          <td>{{ u.first_name }} {{ u.last_name }}</td>
+          <td>{{ u.employee_email }}</td>
+          <td>{% if u.tenant %}{{ u.tenant.name }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="tiq-card" style="margin-bottom:1rem;">
+  <div class="tiq-card-body">
+    <form method="get" style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end;">
+      <div style="min-width:200px;">
+        <label class="tiq-label">Event type</label>
+        <select name="event_type" class="tiq-input">
+          <option value="">All events</option>
+          {% for et in ['FAILED_LOGIN','USER_LOGIN','USER_LOGOUT','PASSWORD_RESET','ACCOUNT_LOCKED','STUDY_UPLOAD','EXAM_SUBMIT'] %}
+          <option value="{{ et }}" {% if event_type==et %}selected{% endif %}>{{ et }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">Filter</button>
+    </form>
+  </div>
+</div>
+
+<div class="tiq-card">
+  <div class="tiq-card-body" style="padding:0;">
+    <div class="tiq-table-wrapper">
+      <table class="tiq-table" style="font-size:0.85rem;">
+        <thead>
+          <tr><th>Time</th><th>Event</th><th>Actor</th><th>IP</th><th>Details</th></tr>
+        </thead>
+        <tbody>
+          {% for ev in feed.events %}
+          <tr>
+            <td style="white-space:nowrap;">{{ ev.created_at.strftime('%Y-%m-%d %H:%M') if ev.created_at else '—' }}</td>
+            <td><code>{{ ev.event_type }}</code></td>
+            <td>{% if ev.actor_user %}{{ ev.actor_user.employee_email }}{% else %}—{% endif %}</td>
+            <td>{{ ev.ip_address or '—' }}</td>
+            <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;">{% if ev.description %}{{ ev.description }}{% else %}—{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--tiq-text-3);">No audit events found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

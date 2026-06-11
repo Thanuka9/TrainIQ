@@ -462,5 +462,17 @@ def request_special_exam_access(exam_id):
     db.session.add(req)
     db.session.commit()
 
+    from flask import url_for
+    from utils.notifications import notify_tenant_super_admins
+    if current_user.tenant_id:
+        notify_tenant_super_admins(
+            current_user.tenant_id,
+            "New exam access request",
+            f"{current_user.first_name} {current_user.last_name} requested special exam access.",
+            category="exam",
+            link_url=url_for("admin_routes.manage_exam_requests"),
+            icon="file-alt",
+        )
+
     flash("Access request sent to admin.", "success")
     return redirect(url_for("exams_routes.list_exams"))

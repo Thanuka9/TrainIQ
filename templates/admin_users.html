@@ -155,12 +155,11 @@
                 <button
                   class="tiq-btn tiq-btn-secondary tiq-btn-sm"
                   type="button"
-                  onclick="this.nextElementSibling.classList.toggle('open')"
-                  id="deptDropdown-{{ u.id }}"
+                  data-tiq-dropdown="deptMenu-{{ u.id }}"
                 >
                   <i class="fas fa-edit"></i> Edit Dept
                 </button>
-                <div class="tiq-dropdown" id="deptMenu-{{ u.id }}" style="min-width:220px;top:100%;left:0;">
+                <div class="tiq-dropdown" id="deptMenu-{{ u.id }}" onclick="event.stopPropagation()" style="min-width:220px;top:100%;left:0;right:auto;">
                   <form
                     action="{{ url_for('admin_routes.change_user_departments', user_id=u.id) }}"
                     method="POST"
@@ -168,6 +167,7 @@
                     style="padding:0.75rem;"
                   >
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="status" value="{{ status or '' }}">
                     <div style="max-height:150px;overflow-y:auto;margin-bottom:0.75rem;">
                       {% for d in all_departments %}
                         <div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
@@ -207,6 +207,7 @@
                 class="d-inline"
               >
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="status" value="{{ status or '' }}">
                 <select
                   name="designation_id"
                   class="tiq-input"
@@ -234,6 +235,7 @@
               {% if not u.is_super_admin %}
                 <form action="{{ url_for('admin_routes.set_user_super_admin', user_id=u.id) }}?status={{ status or '' }}" method="POST" style="display:inline-block;">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="status" value="{{ status or '' }}">
                   <input type="hidden" name="action" value="grant">
                   <button class="tiq-btn tiq-btn-secondary tiq-btn-sm" title="Make Super Admin" type="submit">
                     <i class="fas fa-user-shield"></i>
@@ -242,6 +244,7 @@
               {% elif u.is_super_admin %}
                 <form action="{{ url_for('admin_routes.set_user_super_admin', user_id=u.id) }}?status={{ status or '' }}" method="POST" style="display:inline-block;" onsubmit="return confirm('Remove Super Admin access for this user?');">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="status" value="{{ status or '' }}">
                   <input type="hidden" name="action" value="revoke">
                   <button class="tiq-btn tiq-btn-warning tiq-btn-sm" title="Remove Super Admin" type="submit">
                     <i class="fas fa-user-minus"></i>
@@ -256,6 +259,7 @@
                   onsubmit="return confirm('Deactivate this user?');"
                 >
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="status" value="{{ status or '' }}">
                   <button class="tiq-btn tiq-btn-warning tiq-btn-sm" title="Deactivate">
                     <i class="fas fa-user-slash"></i>
                   </button>
@@ -268,6 +272,7 @@
                   onsubmit="return confirm('Activate this user?');"
                 >
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="status" value="{{ status or '' }}">
                   <button class="tiq-btn tiq-btn-success tiq-btn-sm" title="Activate">
                     <i class="fas fa-user-check"></i>
                   </button>
@@ -280,6 +285,7 @@
                 onsubmit="return confirm('Delete this user permanently?');"
               >
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="status" value="{{ status or '' }}">
                 <button class="tiq-btn tiq-btn-danger tiq-btn-sm" title="Delete">
                   <i class="fas fa-trash-alt"></i>
                 </button>

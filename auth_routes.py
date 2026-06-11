@@ -53,8 +53,11 @@ def _send_2fa_email(user):
 
 
 def _redirect_after_login(user):
-    """Post-login destination — expired-trial Super Admins go to Billing."""
+    """Post-login destination — trial billing, platform CEO, or user dashboard."""
+    from flask import session
     from utils.billing_plans import is_trial_expired
+    from utils.platform_ceo import TRAINIQ_PLATFORM_OFFICE_KEY
+    from utils.tenant_utils import is_trainiq_staff
 
     org = user.tenant
     trial_ended = bool(
@@ -64,12 +67,25 @@ def _redirect_after_login(user):
             or (getattr(org, "status", "") or "").lower() == "expired"
         )
     )
-    if trial_ended and user.is_super_admin:
+    if trial_ended and user.is_super_admin and not is_trainiq_staff(user):
         flash(
             "Your free trial has ended. Upgrade your plan in Billing to restore team access.",
             "warning",
         )
         return redirect(url_for("billing_routes.billing_home"))
+
+    if session.get("platform_support") and is_trainiq_staff(user):
+        flash(
+            f"Support mode: viewing {session.get('tenant_name', 'customer organization')}.",
+            "info",
+        )
+        return redirect(url_for("admin_routes.admin_dashboard"))
+
+    if is_trainiq_staff(user):
+        home_key = (getattr(org, "office_key", "") or "").upper()
+        if home_key == TRAINIQ_PLATFORM_OFFICE_KEY.upper():
+            return redirect(url_for("platform_routes.platform_dashboard"))
+
     return redirect(url_for("general_routes.dashboard"))
 
 # Serializer for email-based tokens

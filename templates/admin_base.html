@@ -175,6 +175,45 @@
       </a>
       {% endif %}
 
+      {% if is_trainiq_staff() %}
+      <div class="tiq-nav-section-label" style="margin-top:1rem">TrainIQ Platform</div>
+      <a href="{{ url_for('platform_routes.platform_dashboard') }}"
+         class="tiq-nav-item {% if request.endpoint == 'platform_routes.platform_dashboard' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-globe"></i></span>
+        <span class="nav-label">Command Center</span>
+      </a>
+      <a href="{{ url_for('platform_routes.list_tenants') }}"
+         class="tiq-nav-item {% if request.endpoint in ('platform_routes.list_tenants', 'platform_routes.tenant_detail') %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-building"></i></span>
+        <span class="nav-label">Tenants</span>
+      </a>
+      <a href="{{ url_for('platform_routes.platform_users') }}"
+         class="tiq-nav-item {% if request.endpoint == 'platform_routes.platform_users' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-users"></i></span>
+        <span class="nav-label">All Users</span>
+      </a>
+      <a href="{{ url_for('platform_routes.platform_support') }}"
+         class="tiq-nav-item {% if request.endpoint == 'platform_routes.platform_support' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-headset"></i></span>
+        <span class="nav-label">Support Queue</span>
+      </a>
+      <a href="{{ url_for('platform_routes.platform_security') }}"
+         class="tiq-nav-item {% if request.endpoint == 'platform_routes.platform_security' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-shield-halved"></i></span>
+        <span class="nav-label">Security</span>
+      </a>
+      <a href="{{ url_for('platform_routes.platform_activity') }}"
+         class="tiq-nav-item {% if request.endpoint == 'platform_routes.platform_activity' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-stream"></i></span>
+        <span class="nav-label">Activity</span>
+      </a>
+      <a href="{{ url_for('platform_routes.platform_revenue') }}"
+         class="tiq-nav-item {% if request.endpoint == 'platform_routes.platform_revenue' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-dollar-sign"></i></span>
+        <span class="nav-label">Revenue</span>
+      </a>
+      {% endif %}
+
       <div class="tiq-nav-section-label" style="margin-top:1rem">Navigation</div>
       <a href="{{ url_for('general_routes.dashboard') }}" class="tiq-nav-item">
         <span class="nav-icon"><i class="fas fa-arrow-left"></i></span>
@@ -217,6 +256,7 @@
         <button class="tiq-theme-toggle" onclick="TrainIQ.Theme.toggle()" aria-label="Toggle theme">
           <i class="fas fa-moon tiq-theme-icon"></i>
         </button>
+        {% include 'partials/notifications_bell.html' %}
         <div class="tiq-user-menu">
           <button class="tiq-user-trigger" data-tiq-dropdown="adminTopMenu">
             <div class="tiq-avatar tiq-avatar-md" title="{{ current_user.first_name }} {{ current_user.last_name }}">
@@ -240,6 +280,38 @@
 
     <div class="tiq-page-content">
       {% include 'partials/billing_usage_banner.html' %}
+      {% if session.get('platform_support') and is_trainiq_staff() %}
+      <div class="tiq-alert tiq-alert-warning" style="margin-bottom:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.5rem;">
+          <span>
+            <i class="fas fa-headset"></i>
+            <strong>Support mode</strong> — viewing <strong>{{ session.get('tenant_name', 'customer org') }}</strong>
+          </span>
+          <span style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <a href="{{ url_for('platform_routes.platform_dashboard') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">Platform home</a>
+            <form action="{{ url_for('platform_routes.exit_tenant') }}" method="POST" style="margin:0;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="tiq-btn tiq-btn-warning tiq-btn-sm">Exit support mode</button>
+            </form>
+          </span>
+        </div>
+        <div style="display:flex;gap:0.35rem;flex-wrap:wrap;font-size:0.8rem;">
+          {% for label, endpoint in [
+            ('Dashboard', 'admin_routes.admin_dashboard'),
+            ('Users', 'admin_routes.view_users'),
+            ('Courses', 'admin_routes.view_courses'),
+            ('Exams', 'admin_routes.view_exams'),
+            ('Analytics', 'admin_routes.view_analytics'),
+            ('Support', 'admin_routes.admin_list_tickets'),
+            ('Audit Logs', 'admin_routes.view_audit_logs'),
+            ('Billing', 'billing_routes.billing_home'),
+            ('Settings', 'admin_routes.tenant_settings'),
+          ] %}
+          <a href="{{ url_for(endpoint) }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm" style="padding:0.2rem 0.5rem;">{{ label }}</a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
       {% include 'partials/trial_checklist.html' %}
       {% block content %}{% endblock %}
     </div>

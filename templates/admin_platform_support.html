@@ -1,0 +1,62 @@
+{% extends 'admin_base.html' %}
+{% block title %}Platform Support{% endblock %}
+{% block breadcrumb %}Platform / Support Queue{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header" style="margin-bottom:1rem;">
+  <h1>Global Support Queue</h1>
+  <p class="tiq-lead">All support tickets across every customer organization.</p>
+</div>
+{% include 'partials/platform_subnav.html' %}
+
+<div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+  <a href="{{ url_for('platform_routes.platform_support', status='open') }}" class="tiq-btn tiq-btn-sm {% if status=='open' %}tiq-btn-primary{% else %}tiq-btn-secondary{% endif %}">Open / In Progress</a>
+  <a href="{{ url_for('platform_routes.platform_support', status='Resolved') }}" class="tiq-btn tiq-btn-sm {% if status=='Resolved' %}tiq-btn-primary{% else %}tiq-btn-secondary{% endif %}">Resolved</a>
+  <a href="{{ url_for('platform_routes.platform_support', status='all') }}" class="tiq-btn tiq-btn-sm {% if status=='all' %}tiq-btn-primary{% else %}tiq-btn-secondary{% endif %}">All</a>
+</div>
+
+<div class="tiq-card">
+  <div class="tiq-card-body" style="padding:0;">
+    <div class="tiq-table-wrapper">
+      <table class="tiq-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>User</th>
+            <th>Organization</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          {% set tk = row.ticket %}
+          {% set t = row.tenant %}
+          <tr>
+            <td>#{{ tk.id }}</td>
+            <td><strong>{{ tk.title }}</strong><br><small style="color:var(--tiq-text-3);">{{ tk.description[:80] }}{% if tk.description|length > 80 %}…{% endif %}</small></td>
+            <td>{% if row.user %}{{ row.user.first_name }} {{ row.user.last_name }}<br><small>{{ row.user.employee_email }}</small>{% else %}—{% endif %}</td>
+            <td>{% if t %}{{ t.name }}<br><code>{{ t.office_key }}</code>{% else %}—{% endif %}</td>
+            <td><span class="tiq-badge {% if tk.status=='Resolved' %}tiq-badge-success{% elif tk.status=='Open' %}tiq-badge-warning{% else %}tiq-badge-secondary{% endif %}">{{ tk.status }}</span></td>
+            <td>{{ tk.created_at.strftime('%Y-%m-%d %H:%M') if tk.created_at else '—' }}</td>
+            <td>
+              {% if t %}
+              <form action="{{ url_for('platform_routes.enter_tenant', tenant_id=t.id) }}" method="POST" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="target" value="support">
+                <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">Handle</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--tiq-text-3);">No tickets in this queue.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% if current_user.is_authenticated %}
+<div class="tiq-notif-menu">
+  <button
+    type="button"
+    class="tiq-btn-icon tiq-btn tiq-btn-ghost tiq-notif-trigger"
+    id="tiqNotifBell"
+    data-tiq-dropdown="tiqNotifDropdown"
+    aria-label="Notifications"
+    title="Notifications"
+  >
+    <i class="fas fa-bell"></i>
+    <span class="tiq-notif-badge" id="tiqNotifBadge" hidden aria-live="polite">0</span>
+  </button>
+  <div class="tiq-dropdown tiq-notif-dropdown" id="tiqNotifDropdown" onclick="event.stopPropagation()">
+    <div class="tiq-notif-header">
+      <span class="tiq-notif-title">Notifications</span>
+      <button type="button" class="tiq-notif-mark-all" id="tiqNotifMarkAll">Mark all read</button>
+    </div>
+    <div class="tiq-notif-list" id="tiqNotifList">
+      <div class="tiq-notif-empty">Loading…</div>
+    </div>
+    <div class="tiq-notif-footer">
+      <span class="tiq-notif-hint">Updates for tasks, support, exams &amp; alerts</span>
+    </div>
+  </div>
+</div>
+{% endif %}

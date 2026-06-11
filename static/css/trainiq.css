@@ -785,6 +785,71 @@ h6 { font-size: 0.875rem; }
 .tiq-dropdown-item.danger:hover { background: rgba(239,68,68,0.08); color: var(--tiq-danger); }
 .tiq-dropdown-divider { height: 1px; background: var(--tiq-border); margin: 0.375rem 0; }
 
+/* ─── Notification Bell ─────────────────────────────────────── */
+.tiq-notif-menu { position: relative; }
+.tiq-notif-trigger { position: relative; }
+.tiq-notif-badge {
+  position: absolute; top: 2px; right: 2px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  background: var(--tiq-danger); color: #fff;
+  font-size: 0.625rem; font-weight: 700;
+  border-radius: var(--tiq-radius-full);
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1; pointer-events: none;
+}
+.tiq-notif-dropdown {
+  min-width: 320px; max-width: min(380px, 92vw);
+  padding: 0; overflow: hidden;
+}
+.tiq-notif-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.75rem 1rem; border-bottom: 1px solid var(--tiq-border);
+}
+.tiq-notif-title { font-weight: 700; font-size: 0.875rem; }
+.tiq-notif-mark-all {
+  border: none; background: none; cursor: pointer;
+  font-size: 0.75rem; font-weight: 600; color: var(--tiq-primary);
+  padding: 0;
+}
+.tiq-notif-mark-all:hover { text-decoration: underline; }
+.tiq-notif-list {
+  max-height: 360px; overflow-y: auto;
+}
+.tiq-notif-item {
+  display: flex; gap: 0.75rem; padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--tiq-border);
+  cursor: pointer; text-decoration: none; color: inherit;
+  transition: background var(--tiq-transition);
+}
+.tiq-notif-item:hover { background: var(--tiq-surface-2); }
+.tiq-notif-item.unread { background: rgba(99, 102, 241, 0.06); }
+.tiq-notif-item-icon {
+  width: 32px; height: 32px; border-radius: var(--tiq-radius);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 0.85rem;
+}
+.tiq-notif-item-icon.info { background: rgba(99,102,241,0.12); color: #6366F1; }
+.tiq-notif-item-icon.success { background: rgba(16,185,129,0.12); color: #10B981; }
+.tiq-notif-item-icon.warning { background: rgba(245,158,11,0.12); color: #F59E0B; }
+.tiq-notif-item-icon.danger { background: rgba(239,68,68,0.12); color: #EF4444; }
+.tiq-notif-item-body { flex: 1; min-width: 0; }
+.tiq-notif-item-title { font-size: 0.8125rem; font-weight: 600; margin-bottom: 2px; }
+.tiq-notif-item-text {
+  font-size: 0.75rem; color: var(--tiq-text-3);
+  overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.tiq-notif-item-time { font-size: 0.6875rem; color: var(--tiq-text-3); margin-top: 4px; }
+.tiq-notif-empty {
+  padding: 2rem 1rem; text-align: center;
+  color: var(--tiq-text-3); font-size: 0.875rem;
+}
+.tiq-notif-footer {
+  padding: 0.5rem 1rem; border-top: 1px solid var(--tiq-border);
+  background: var(--tiq-surface-2);
+}
+.tiq-notif-hint { font-size: 0.6875rem; color: var(--tiq-text-3); }
+
 /* ─── Theme Toggle ───────────────────────────────────────────── */
 .tiq-theme-toggle {
   width: 36px; height: 36px;

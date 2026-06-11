@@ -148,6 +148,9 @@ app.config.update({
     'ALLOWED_EMAIL_DOMAINS':      os.getenv('ALLOWED_EMAIL_DOMAINS', ''),
 })
 
+from utils.security import validate_production_config
+validate_production_config(app)
+
 # ─── Session Cookie & Lifetime ────────────────────────────────────────
 # Keep the cookie alive for 3 hours and set sane defaults for cross-site
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=3)
@@ -328,10 +331,21 @@ app.register_blueprint(ai_routes, url_prefix='/ai')
 app.register_blueprint(management_routes, url_prefix='/management')
 app.register_blueprint(special_exams_routes)
 app.register_blueprint(__import__('platform_routes', fromlist=['platform_routes']).platform_routes, url_prefix='')
+app.register_blueprint(__import__('notification_routes', fromlist=['notification_routes']).notification_routes, url_prefix='')
 
 # Rate-limit sensitive auth endpoints
 if rate_limiting_available:
-    for _ep in ('auth_routes.login', 'auth_routes.forgot_password', 'auth_routes.verify_2fa', 'auth_routes.register', 'auth_routes.accept_invite'):
+    for _ep in (
+        'auth_routes.login',
+        'auth_routes.forgot_password',
+        'auth_routes.verify_2fa',
+        'auth_routes.register',
+        'auth_routes.accept_invite',
+        'auth_routes.sso_start',
+        'auth_routes.sso_callback',
+        'platform_routes.enter_by_office_key',
+        'platform_routes.enter_tenant',
+    ):
         if _ep in app.view_functions:
             limiter.limit("10 per minute")(app.view_functions[_ep])
 elif not rate_limiting_available:
@@ -396,18 +410,15 @@ if not IS_PRODUCTION:
 # ----------------------------------------------------------------------
 # Security headers
 # ----------------------------------------------------------------------
+from utils.security import apply_security_headers
+
 @app.after_request
 def add_security_headers(response):
-    response.headers['X-Frame-Options'] = 'DENY'
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-    
     if request.path.endswith('.js'):
         response.headers['Content-Type'] = 'application/javascript'
     elif request.path.endswith('.css'):
         response.headers['Content-Type'] = 'text/css'
-        
-    return response
+    return apply_security_headers(response, is_production=IS_PRODUCTION)
 
 # ----------------------------------------------------------------------
 # User session timeout

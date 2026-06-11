@@ -347,6 +347,125 @@
     }
   };
 
+  /* ─── In-app Notifications Bell ─────────────────────────── */
+  const Notifications = {
+    listEl: null,
+    badgeEl: null,
+    pollMs: 90000,
+    _timer: null,
+
+    csrf() {
+      return document.querySelector('meta[name="csrf-token"]')?.content || '';
+    },
+
+    init() {
+      const bell = document.getElementById('tiqNotifBell');
+      this.listEl = document.getElementById('tiqNotifList');
+      this.badgeEl = document.getElementById('tiqNotifBadge');
+      if (!bell || !this.listEl) return;
+
+      document.getElementById('tiqNotifMarkAll')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.markAllRead();
+      });
+
+      bell.addEventListener('click', () => {
+        setTimeout(() => this.load(), 50);
+      });
+
+      this.load();
+      this._timer = setInterval(() => this.load(true), this.pollMs);
+    },
+
+    async load(quiet) {
+      try {
+        const res = await fetch('/notifications/api', { credentials: 'same-origin' });
+        if (!res.ok) return;
+        const data = await res.json();
+        this.render(data);
+      } catch (_) {
+        if (!quiet && this.listEl) {
+          this.listEl.innerHTML = '<div class="tiq-notif-empty">Could not load notifications</div>';
+        }
+      }
+    },
+
+    render(data) {
+      const count = data.unread_count || 0;
+      if (this.badgeEl) {
+        if (count > 0) {
+          this.badgeEl.hidden = false;
+          this.badgeEl.textContent = count > 99 ? '99+' : String(count);
+        } else {
+          this.badgeEl.hidden = true;
+        }
+      }
+
+      const items = data.items || [];
+      if (!items.length) {
+        this.listEl.innerHTML = '<div class="tiq-notif-empty"><i class="fas fa-bell-slash" style="opacity:0.3;display:block;font-size:1.5rem;margin-bottom:0.5rem;"></i>All caught up — no notifications</div>';
+        return;
+      }
+
+      this.listEl.innerHTML = items.map((n) => {
+        const cat = n.category || 'info';
+        const unread = n.is_read ? '' : ' unread';
+        const body = this.escape(n.body || '');
+        const title = this.escape(n.title || '');
+        const time = this.escape(n.time_ago || '');
+        const icon = n.icon || 'bell';
+        return `<a href="${n.link_url || '#'}" class="tiq-notif-item${unread}" data-id="${n.id}" data-link="${n.link_url || ''}">
+          <div class="tiq-notif-item-icon ${cat}"><i class="fas fa-${icon}"></i></div>
+          <div class="tiq-notif-item-body">
+            <div class="tiq-notif-item-title">${title}</div>
+            ${body ? `<div class="tiq-notif-item-text">${body}</div>` : ''}
+            <div class="tiq-notif-item-time">${time}</div>
+          </div>
+        </a>`;
+      }).join('');
+
+      this.listEl.querySelectorAll('.tiq-notif-item').forEach((el) => {
+        el.addEventListener('click', (e) => this.onItemClick(e, el));
+      });
+    },
+
+    async onItemClick(e, el) {
+      const id = el.dataset.id;
+      const link = el.dataset.link;
+      if (id) {
+        e.preventDefault();
+        await this.markRead(id);
+        if (link) window.location.href = link;
+        else this.load(true);
+      }
+    },
+
+    async markRead(id) {
+      await fetch(`/notifications/${id}/read`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-CSRFToken': this.csrf() },
+      });
+      this.load(true);
+    },
+
+    async markAllRead() {
+      await fetch('/notifications/read-all', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-CSRFToken': this.csrf() },
+      });
+      this.load(true);
+    },
+
+    escape(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    },
+  };
+
   /* ─── Confirm Dialogs ──────────────────────────────────── */
   window.tiqConfirm = function(message, onConfirm) {
     const backdrop = document.createElement('div');
@@ -371,7 +490,7 @@
   };
 
   /* ─── Global Expose ────────────────────────────────────── */
-  window.TrainIQ = { Theme, Sidebar, Toast, Modal, Session };
+  window.TrainIQ = { Theme, Sidebar, Toast, Modal, Session, Notifications };
 
   /* ─── Init ─────────────────────────────────────────────── */
   document.addEventListener('DOMContentLoaded', () => {
@@ -381,6 +500,7 @@
     Toast.init();
     Modal.init();
     Session.init();
+    Notifications.init();
     Animations.init();
     TableSearch.init();
     ScrollTop.init();

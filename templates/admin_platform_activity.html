@@ -1,0 +1,41 @@
+{% extends 'admin_base.html' %}
+{% block title %}Platform Activity{% endblock %}
+{% block breadcrumb %}Platform / Activity{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header" style="margin-bottom:1rem;">
+  <h1>Platform Activity Log</h1>
+  <p class="tiq-lead">CEO support sessions, signups, plan changes, and security events across the platform.</p>
+</div>
+{% include 'partials/platform_subnav.html' %}
+
+<div class="tiq-card">
+  <div class="tiq-card-body" style="padding:0;">
+    <div class="tiq-table-wrapper">
+      <table class="tiq-table" style="font-size:0.85rem;">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Event</th>
+            <th>Summary</th>
+            <th>IP</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in feed %}
+          {% set ev = row.event %}
+          <tr>
+            <td style="white-space:nowrap;">{{ ev.created_at.strftime('%Y-%m-%d %H:%M') if ev.created_at else '—' }}</td>
+            <td><code>{{ ev.event_type }}</code></td>
+            <td>{{ row.summary }}</td>
+            <td>{{ ev.ip_address or '—' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--tiq-text-3);">No platform activity recorded yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

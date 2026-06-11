@@ -1284,3 +1284,52 @@ class AuditLog(db.Model):
         Index('ix_audit_event_user', 'event_type', 'actor_user_id'),
         Index('ix_audit_target', 'target_table', 'target_id'),
     )
+
+
+# -------------------------------------
+# In-app Notification Model
+# -------------------------------------
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    body = Column(Text, nullable=True)
+    category = Column(String(30), nullable=False, default='info')
+    icon = Column(String(40), nullable=True)
+    link_url = Column(String(500), nullable=True)
+    is_read = Column(Boolean, nullable=False, default=False, index=True)
+    dedupe_key = Column(String(120), nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    user = relationship('User', backref=db.backref('notifications', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'body': self.body or '',
+            'category': self.category,
+            'icon': self.icon or 'bell',
+            'link_url': self.link_url,
+            'is_read': self.is_read,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'time_ago': _notification_time_ago(self.created_at),
+        }
+
+
+def _notification_time_ago(dt):
+    if not dt:
+        return ''
+    delta = datetime.utcnow() - (dt.replace(tzinfo=None) if getattr(dt, 'tzinfo', None) else dt)
+    mins = int(delta.total_seconds() // 60)
+    if mins < 1:
+        return 'Just now'
+    if mins < 60:
+        return f'{mins}m ago'
+    hrs = mins // 60
+    if hrs < 24:
+        return f'{hrs}h ago'
+    days = hrs // 24
+    return f'{days}d ago'
