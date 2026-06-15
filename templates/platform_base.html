@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}Platform{% endblock %} — TrainIQ Command Center</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+  <style>
+    :root {
+      --platform-accent: #6366F1;
+      --platform-accent-2: #06B6D4;
+    }
+    .tiq-sidebar.platform-sidebar {
+      --tiq-sidebar-active: var(--platform-accent);
+      --tiq-sidebar-hover: rgba(99, 102, 241, 0.12);
+    }
+    .platform-sidebar .brand-logo {
+      background: linear-gradient(135deg, #6366F1, #06B6D4);
+      animation: logoSpin 9s linear infinite;
+      transform-style: preserve-3d;
+    }
+    @keyframes logoSpin {
+      0%, 86% { transform: rotateY(0deg); }
+      93% { transform: rotateY(180deg); }
+      100% { transform: rotateY(360deg); }
+    }
+    .platform-sidebar .tiq-nav-item.active {
+      background: rgba(99, 102, 241, 0.18);
+      color: #C7D2FE;
+    }
+    .platform-sidebar .tiq-nav-item.active::before { background: #6366F1; }
+    .platform-hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.35);
+      color: #A5B4FC; font-size: 0.68rem; font-weight: 700;
+      padding: 4px 10px; border-radius: 999px; letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .platform-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+      gap: 0.75rem;
+      perspective: 900px;
+    }
+    .platform-chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1rem;
+    }
+    .platform-filter-bar {
+      display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: flex-end;
+      padding: 1rem; background: var(--tiq-surface-2); border-radius: var(--tiq-radius-lg);
+      border: 1px solid var(--tiq-border); margin-bottom: 1rem;
+    }
+
+    /* ── 3D tilt stat cards ───────────────────────────── */
+    .platform-kpi-grid .tiq-stat-card {
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.18s ease-out, box-shadow 0.25s ease;
+      will-change: transform;
+      overflow: hidden;
+    }
+    .platform-kpi-grid .tiq-stat-card::before {
+      content: '';
+      position: absolute; inset: 0 0 auto 0; height: 3px;
+      background: linear-gradient(90deg, var(--platform-accent), var(--platform-accent-2));
+      opacity: 0; transition: opacity 0.25s ease;
+    }
+    .platform-kpi-grid .tiq-stat-card:hover {
+      box-shadow: 0 18px 40px -18px rgba(99, 102, 241, 0.45);
+    }
+    .platform-kpi-grid .tiq-stat-card:hover::before { opacity: 1; }
+    .platform-kpi-grid .tiq-stat-card .stat-value {
+      transform: translateZ(24px);
+      display: inline-block;
+    }
+    .platform-kpi-grid .tiq-stat-card .stat-label {
+      transform: translateZ(12px);
+      display: inline-block;
+    }
+    /* Glare highlight that follows the cursor */
+    .platform-kpi-grid .tiq-stat-card .tilt-glare {
+      position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(220px circle at var(--glare-x, 50%) var(--glare-y, 50%),
+        rgba(255, 255, 255, 0.22), transparent 60%);
+      opacity: 0; transition: opacity 0.25s ease;
+    }
+    .platform-kpi-grid .tiq-stat-card:hover .tilt-glare { opacity: 1; }
+
+    /* ── Floating depth orbs behind page header ───────── */
+    .platform-orbs {
+      position: absolute; inset: 0; overflow: hidden;
+      pointer-events: none; z-index: 0; border-radius: inherit;
+    }
+    .platform-orbs span {
+      position: absolute; border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.35), rgba(6, 182, 212, 0.12) 70%, transparent);
+      filter: blur(18px);
+      animation: orbFloat 14s ease-in-out infinite;
+    }
+    .platform-orbs span:nth-child(1) { width: 220px; height: 220px; top: -80px; right: 8%; animation-delay: 0s; }
+    .platform-orbs span:nth-child(2) { width: 140px; height: 140px; bottom: -50px; right: 28%; animation-delay: -5s; }
+    .platform-orbs span:nth-child(3) { width: 90px; height: 90px; top: 10%; right: 45%; animation-delay: -9s; }
+    @keyframes orbFloat {
+      0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+      33% { transform: translate3d(-18px, 14px, 0) scale(1.06); }
+      66% { transform: translate3d(14px, -10px, 0) scale(0.96); }
+    }
+    .tiq-page-header { position: relative; }
+    .tiq-page-header > * { position: relative; z-index: 1; }
+
+    /* ── Staggered reveal for cards ────────────────────── */
+    .platform-reveal {
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 0.45s ease, transform 0.45s ease;
+    }
+    .platform-reveal.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .platform-kpi-grid .tiq-stat-card,
+      .platform-orbs span,
+      .platform-reveal { animation: none !important; transition: none !important; transform: none !important; opacity: 1 !important; }
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+{% with messages = get_flashed_messages(with_categories=True) %}
+  {% for category, message in messages %}
+    <div class="tiq-flash-data" data-category="{{ category }}" style="display:none">{{ message }}</div>
+  {% endfor %}
+{% endwith %}
+
+<div class="tiq-app-layout">
+  <div class="tiq-sidebar-overlay" id="sidebarOverlay"></div>
+
+  <aside class="tiq-sidebar platform-sidebar" id="tiqSidebar">
+    <div class="tiq-sidebar-brand">
+      <div class="brand-logo"><i class="fas fa-globe" style="font-size:1rem;color:#fff;"></i></div>
+      <div class="brand-text">Train<span style="color:#818CF8">IQ</span></div>
+      <button class="tiq-sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+    </div>
+
+    <div style="padding:0.5rem 1.25rem 0.75rem;">
+      {% if is_platform_ceo() %}
+      <span class="platform-hero-badge"><i class="fas fa-crown"></i> Platform CEO</span>
+      {% else %}
+      <span class="platform-hero-badge"><i class="fas fa-globe"></i> Platform Operator</span>
+      {% endif %}
+    </div>
+
+    <nav class="tiq-sidebar-nav">
+      {% set nav = [
+        ('platform_routes.platform_dashboard', 'globe', 'Command Center', ('platform_routes.platform_dashboard',)),
+        ('platform_routes.list_tenants', 'building', 'Organizations', ('platform_routes.list_tenants', 'platform_routes.tenant_detail')),
+        ('platform_routes.platform_users', 'users', 'All Users', ('platform_routes.platform_users',)),
+        ('platform_routes.platform_support', 'headset', 'Support', ('platform_routes.platform_support',)),
+        ('platform_routes.platform_security', 'shield-halved', 'Security', ('platform_routes.platform_security',)),
+        ('platform_routes.platform_activity', 'stream', 'Activity', ('platform_routes.platform_activity',)),
+        ('platform_routes.platform_revenue', 'dollar-sign', 'Revenue', ('platform_routes.platform_revenue',)),
+      ] %}
+      {% for endpoint, icon, label, active_eps in nav %}
+      <a href="{{ url_for(endpoint) }}" class="tiq-nav-item {% if request.endpoint in active_eps %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-{{ icon }}"></i></span>
+        <span class="nav-label">{{ label }}</span>
+      </a>
+      {% endfor %}
+
+      {% if is_platform_ceo() or has_platform_perm('staff.view') %}
+      <div class="tiq-nav-section-label" style="margin-top:1rem;">Team</div>
+      <a href="{{ url_for('platform_routes.platform_staff') }}" class="tiq-nav-item {% if request.endpoint == 'platform_routes.platform_staff' %}active{% endif %}">
+        <span class="nav-icon"><i class="fas fa-user-shield"></i></span>
+        <span class="nav-label">{% if is_platform_ceo() %}Staff &amp; Invites{% else %}Staff Hub{% endif %}</span>
+      </a>
+      {% endif %}
+
+      {% if session.get('platform_support') %}
+      <div class="tiq-nav-section-label" style="margin-top:1rem;">Support mode</div>
+      <a href="{{ url_for('admin_routes.admin_dashboard') }}" class="tiq-nav-item">
+        <span class="nav-icon"><i class="fas fa-building"></i></span>
+        <span class="nav-label">{{ session.get('tenant_name', 'Customer org') }}</span>
+      </a>
+      <form action="{{ url_for('platform_routes.exit_tenant') }}" method="POST" style="padding:0 1rem;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="tiq-btn tiq-btn-warning tiq-btn-sm tiq-w-full" style="justify-content:center;">
+          <i class="fas fa-sign-out-alt"></i> Exit org view
+        </button>
+      </form>
+      {% endif %}
+    </nav>
+
+    <div class="tiq-sidebar-footer">
+      <div class="tiq-sidebar-user" data-tiq-dropdown="platformUserMenu">
+        <div class="user-avatar tiq-avatar tiq-avatar-md">{{ user_initials(current_user) }}</div>
+        <div class="user-info">
+          <div class="user-name">{{ current_user.first_name }} {{ current_user.last_name }}</div>
+          <div class="user-role">{% if is_platform_ceo() %}Platform CEO{% else %}Platform Operator{% endif %}</div>
+        </div>
+        <i class="fas fa-ellipsis-vertical" style="color:rgba(148,163,184,0.5);margin-left:auto;font-size:0.8rem"></i>
+      </div>
+      <div class="tiq-dropdown" id="platformUserMenu" style="bottom:100%;top:auto;margin-bottom:8px;">
+        <a href="{{ url_for('platform_routes.platform_dashboard') }}" class="tiq-dropdown-item"><i class="fas fa-globe"></i> Command Center</a>
+        {% if is_platform_ceo() %}
+        <a href="{{ url_for('platform_routes.platform_staff') }}" class="tiq-dropdown-item"><i class="fas fa-user-plus"></i> Invite Staff</a>
+        {% endif %}
+        <div class="tiq-dropdown-divider"></div>
+        <a href="{{ url_for('auth_routes.logout') }}" class="tiq-dropdown-item danger"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+      </div>
+    </div>
+  </aside>
+
+  <main class="tiq-main" id="tiqMain">
+    <header class="tiq-topbar">
+      <button class="tiq-mobile-menu-btn" id="mobileSidebarBtn"><i class="fas fa-bars"></i></button>
+      <div style="flex:1">
+        <div class="tiq-breadcrumb">
+          <a href="{{ url_for('platform_routes.platform_dashboard') }}">Platform</a>
+          <span class="tiq-breadcrumb-sep"><i class="fas fa-chevron-right" style="font-size:0.6rem"></i></span>
+          <span>{% block breadcrumb %}Command Center{% endblock %}</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        {% include 'partials/topbar_right_controls.html' %}
+        <div class="tiq-user-menu">
+          <button class="tiq-user-trigger" data-tiq-dropdown="platformTopMenu">
+            <div class="tiq-avatar tiq-avatar-md" title="{{ current_user.first_name }} {{ current_user.last_name }}">
+              {{ user_initials(current_user) }}
+            </div>
+            <i class="fas fa-chevron-down chevron"></i>
+          </button>
+          <div class="tiq-dropdown" id="platformTopMenu">
+            <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--tiq-border)">
+              <div style="font-weight:700;font-size:0.875rem">{{ current_user.first_name }} {{ current_user.last_name }}</div>
+              <div style="font-size:0.75rem;color:var(--tiq-text-3)">{% if is_platform_ceo() %}Platform CEO{% else %}Platform Operator{% endif %}</div>
+            </div>
+            <a href="{{ url_for('platform_routes.platform_dashboard') }}" class="tiq-dropdown-item"><i class="fas fa-globe"></i> Command Center</a>
+            {% if is_platform_ceo() %}
+            <a href="{{ url_for('platform_routes.platform_staff') }}#invite-staff" class="tiq-dropdown-item"><i class="fas fa-user-plus"></i> Invite Staff</a>
+            {% endif %}
+            <div class="tiq-dropdown-divider"></div>
+            <a href="{{ url_for('auth_routes.logout') }}" class="tiq-dropdown-item danger"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="tiq-page-content">
+      {% if session.get('platform_support') %}
+      <div class="tiq-alert tiq-alert-warning" style="margin-bottom:1rem;">
+        <i class="fas fa-headset"></i>
+        <strong>Support mode</strong> — viewing <strong>{{ session.get('tenant_name', 'customer org') }}</strong>.
+        <a href="{{ url_for('admin_routes.admin_dashboard') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm" style="margin-left:0.5rem;">Open org admin</a>
+        <form action="{{ url_for('platform_routes.exit_tenant') }}" method="POST" style="display:inline;margin-left:0.35rem;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="tiq-btn tiq-btn-warning tiq-btn-sm">Back to Platform</button>
+        </form>
+      </div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </div>
+
+    {% block app_footer %}
+    <footer class="tiq-app-footer tiq-app-footer--compact" style="margin-top:2rem;padding:1rem 0;border-top:1px solid var(--tiq-border);">
+      <p class="tiq-app-footer__inner" style="font-size:0.75rem;color:var(--tiq-text-3);text-align:center;line-height:1.6;">
+        TrainIQ Platform · Operated by <strong>{{ owner_organization }}</strong> ({{ owner_name }}) ·
+        <a href="{{ url_for('general_routes.user_agreement_view') }}">User Agreement</a> ·
+        <a href="{{ url_for('general_routes.user_agreement_view') }}#legal-section-9">Billing &amp; Refunds</a> ·
+        <a href="{{ url_for('general_routes.privacy_policy') }}">Privacy</a>
+        · © {{ current_year }}
+      </p>
+    </footer>
+    {% endblock %}
+  </main>
+</div>
+
+<div class="tiq-toast-container"></div>
+<button class="tiq-scroll-top"><i class="fas fa-chevron-up"></i></button>
+<script src="{{ url_for('static', filename='js/trainiq.js') }}?v=1.4"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reducedMotion) return;
+
+  // 3D tilt + glare on KPI stat cards
+  const MAX_TILT = 8;
+  document.querySelectorAll('.platform-kpi-grid .tiq-stat-card').forEach(card => {
+    const glare = document.createElement('div');
+    glare.className = 'tilt-glare';
+    card.appendChild(glare);
+
+    card.addEventListener('mousemove', e => {
+      const rect = card.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width;
+      const py = (e.clientY - rect.top) / rect.height;
+      const rx = (0.5 - py) * MAX_TILT;
+      const ry = (px - 0.5) * MAX_TILT;
+      card.style.transform = `rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) translateZ(6px)`;
+      card.style.setProperty('--glare-x', (px * 100).toFixed(1) + '%');
+      card.style.setProperty('--glare-y', (py * 100).toFixed(1) + '%');
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = '';
+    });
+  });
+
+  // Floating depth orbs behind the page header
+  const header = document.querySelector('.tiq-page-header');
+  if (header && !header.querySelector('.platform-orbs')) {
+    const orbs = document.createElement('div');
+    orbs.className = 'platform-orbs';
+    orbs.innerHTML = '<span></span><span></span><span></span>';
+    header.prepend(orbs);
+  }
+
+  // Staggered scroll reveal for cards
+  const cards = document.querySelectorAll('.tiq-page-content .tiq-card, .platform-kpi-grid');
+  cards.forEach(el => el.classList.add('platform-reveal'));
+  const io = new IntersectionObserver(entries => {
+    entries.forEach((entry, i) => {
+      if (!entry.isIntersecting) return;
+      const el = entry.target;
+      setTimeout(() => el.classList.add('is-visible'), Math.min(i * 70, 350));
+      io.unobserve(el);
+    });
+  }, { threshold: 0.08 });
+  cards.forEach(el => io.observe(el));
+  // Safety net: never leave content hidden
+  setTimeout(() => cards.forEach(el => el.classList.add('is-visible')), 1800);
+});
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

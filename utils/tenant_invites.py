@@ -12,18 +12,22 @@ logger = logging.getLogger(__name__)
 
 INVITE_TTL_DAYS = int(__import__("os").getenv("INVITE_TOKEN_TTL_DAYS", "7"))
 
+INVITE_ROLES = ("learner", "admin", "super_admin")
 
-def create_tenant_invite(tenant_id: int, email: str, invited_by_user_id: int):
+
+def create_tenant_invite(tenant_id: int, email: str, invited_by_user_id: int, role: str = "learner"):
     from extensions import db
     from models import TenantInvite
 
     email = (email or "").strip().lower()
+    role = role if role in INVITE_ROLES else "learner"
     token = secrets.token_urlsafe(32)
     invite = TenantInvite(
         tenant_id=tenant_id,
         email=email,
         token=token,
         invited_by_user_id=invited_by_user_id,
+        role=role,
         expires_at=datetime.utcnow() + timedelta(days=INVITE_TTL_DAYS),
     )
     db.session.add(invite)
@@ -46,6 +50,23 @@ def mark_invite_used(invite, user_id: int):
     invite.used_at = datetime.utcnow()
     invite.used_by_user_id = user_id
     db.session.commit()
+
+
+def revoke_tenant_invite(invite_id: int, tenant_id: int) -> bool:
+    """Delete a pending invite for the given tenant."""
+    from extensions import db
+    from models import TenantInvite
+
+    invite = TenantInvite.query.filter_by(id=invite_id, tenant_id=tenant_id).first()
+    if not invite or invite.used_at:
+        return False
+    db.session.delete(invite)
+    db.session.commit()
+    return True
+
+
+def invite_accept_url(invite, *, external=True):
+    return url_for("auth_routes.accept_invite", token=invite.token, _external=external)
 
 
 def send_invite_email(invite, tenant, mail, *, external=True):

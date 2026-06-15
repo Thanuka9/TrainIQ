@@ -318,6 +318,85 @@
         </div>
       </div>
 
+      <!-- Level Journey -->
+      {% if level_journey %}
+      <div class="tiq-card tiq-reveal" style="margin-bottom:1.5rem;">
+        <div class="tiq-card-header">
+          <h3 class="tiq-card-title"><i class="fas fa-route" style="color:var(--tiq-primary);margin-right:8px"></i>Level Journey</h3>
+        </div>
+        <div class="tiq-card-body">
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+            {% for step in level_journey %}
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+              <span class="tiq-badge {% if step.status == 'completed' %}tiq-badge-success{% elif step.status == 'current' %}tiq-badge-info{% elif step.status == 'next' %}tiq-badge-warning{% else %}tiq-badge-secondary{% endif %}" style="min-width:72px;text-align:center;">
+                {% if step.status == 'completed' %}<i class="fas fa-check"></i>{% elif step.status == 'locked' %}<i class="fas fa-lock"></i>{% endif %}
+                L{{ step.level_number }}
+              </span>
+              {% if not loop.last %}<i class="fas fa-chevron-right" style="color:var(--tiq-text-3);font-size:0.7rem;"></i>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          <p style="font-size:0.8rem;color:var(--tiq-text-3);margin:0.75rem 0 0;">Complete courses and exams to unlock the next level.</p>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if area_progress %}
+      <div class="tiq-card tiq-reveal" style="margin-bottom:1.5rem;">
+        <div class="tiq-card-header">
+          <h3 class="tiq-card-title"><i class="fas fa-map" style="color:var(--tiq-secondary);margin-right:8px"></i>Area Progress — Level {{ current_user.get_current_level() }}</h3>
+        </div>
+        <div class="tiq-card-body">
+          <div style="display:flex;flex-direction:column;gap:0.75rem;">
+            {% for area in area_progress %}
+            <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+              <div style="min-width:120px;font-weight:600;font-size:0.875rem;">{{ area.area_name }}</div>
+              <div style="flex:1;min-width:160px;">
+                <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--tiq-text-3);margin-bottom:4px;">
+                  <span>Study</span><span>{{ area.study_percent }}%</span>
+                </div>
+                <div class="tiq-progress">
+                  <div class="tiq-progress-bar" style="width:{{ area.study_percent }}%"></div>
+                </div>
+              </div>
+              <div style="min-width:110px;text-align:right;">
+                {% if area.exam_required %}
+                  {% if area.exam_passed == true %}
+                  <span class="tiq-badge tiq-badge-success"><i class="fas fa-check"></i> Exam passed</span>
+                  {% elif area.exam_passed == 'skipped' %}
+                  <span class="tiq-badge tiq-badge-secondary">Exam skipped</span>
+                  {% else %}
+                  <span class="tiq-badge tiq-badge-warning">Exam pending</span>
+                  {% endif %}
+                {% else %}
+                <span class="tiq-badge tiq-badge-secondary">Study only</span>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if recommended_course %}
+      <div class="tiq-card tiq-reveal" style="margin-bottom:1.5rem;border-color:rgba(99,102,241,0.25);background:linear-gradient(135deg,rgba(99,102,241,0.06),transparent);">
+        <div class="tiq-card-body" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:1rem;">
+            <div class="course-icon" style="width:52px;height:52px;font-size:1.25rem;"><i class="fas fa-lightbulb"></i></div>
+            <div>
+              <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--tiq-primary);margin-bottom:0.25rem;">Recommended for you</div>
+              <div style="font-weight:700;font-size:1rem;color:var(--tiq-text);">{{ recommended_course.title }}</div>
+              <div style="font-size:0.8rem;color:var(--tiq-text-3);margin-top:0.15rem;">Next course at your current level</div>
+            </div>
+          </div>
+          <a href="{{ url_for('study_material_routes.view_course', course_id=recommended_course.id) }}" class="tiq-btn tiq-btn-primary">
+            <i class="fas fa-arrow-right"></i> Start Course
+          </a>
+        </div>
+      </div>
+      {% endif %}
+
       <!-- Main Content Grid -->
       <div class="dash-grid">
 
@@ -347,6 +426,13 @@
                 </div>
                 <div class="course-progress-text">{{ course_progress }}%</div>
               </div>
+              {% if course_progress >= 100 and current_course_id %}
+              <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--tiq-border);">
+                <a href="{{ url_for('general_routes.download_course_certificate', course_id=current_course_id) }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">
+                  <i class="fas fa-certificate"></i> Download Certificate
+                </a>
+              </div>
+              {% endif %}
               {% else %}
               <div class="tiq-empty" style="padding:2rem">
                 <div class="tiq-empty-icon"><i class="fas fa-book"></i></div>
@@ -502,6 +588,10 @@
       </div><!-- end dash-grid -->
 
     </div><!-- end page-content -->
+
+    {% with footer_variant='compact' %}
+    {% include 'partials/trainiq_footer.html' %}
+    {% endwith %}
   </main>
 </div>
 

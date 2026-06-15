@@ -6,7 +6,7 @@
     <title>{{ study_material.title }} — {{ display_org_name }}</title>
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}?v=1.3"/>
     <style>
       :root {
         --tiq-primary: {{ primary_color }} !important;
@@ -39,45 +39,6 @@
         overflow-x: hidden;
         transition: background var(--tiq-transition);
       }
-      .top-bar {
-        height: var(--bar-h);
-        background: var(--nav-bg);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border-bottom: 1px solid var(--nav-border);
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        align-items: center;
-        padding: 0 1.5rem;
-        gap: 1rem;
-        position: sticky;
-        top: 0;
-        z-index: 1020;
-        box-shadow: var(--tiq-shadow-xs);
-      }
-      .center-slot {
-        justify-self: center;
-      }
-      #counter {
-        font-weight: 700;
-        font-size: 0.9375rem;
-        text-align: right;
-        color: var(--tiq-text-2);
-      }
-      #progress-bar {
-        width: 100%;
-        height: 8px;
-        background: var(--progress-bg);
-        border-radius: var(--tiq-radius-full);
-        margin: 10px 0 25px 0;
-        overflow: hidden;
-      }
-      #progress-inner {
-        height: 100%;
-        background: var(--tiq-gradient);
-        width: 0;
-        transition: width var(--tiq-transition);
-      }
       .content-wrap,
       .viewer-shell {
         display: flex;
@@ -86,10 +47,6 @@
         min-height: 0;
         width: 100%;
       }
-      .viewer-meta {
-        padding: 0 1rem;
-        flex-shrink: 0;
-      }
       .viewer-body {
         display: flex;
         flex: 1;
@@ -97,7 +54,6 @@
         overflow: hidden;
         padding: 0 0 0 1rem;
         gap: 0;
-        height: calc(100vh - var(--bar-h) - 118px);
       }
       .viewer-main {
         flex: 1;
@@ -105,6 +61,9 @@
         display: flex;
         flex-direction: column;
         padding: 0 1rem 1rem 0;
+        min-height: 0;
+        overflow: hidden;
+        gap: 0.75rem;
       }
       .viewer-main:fullscreen {
         width: 100vw;
@@ -130,6 +89,13 @@
         justify-content: center;
         padding: 24px;
       }
+      .viewer-main:fullscreen .course-notes {
+        display: none;
+      }
+      .viewer-main:fullscreen.is-media-mode #embedFrame {
+        max-height: calc(100vh - 48px);
+        width: min(960px, calc((100vh - 48px) * 16 / 9));
+      }
       .viewer-main:fullscreen canvas {
         max-width: none;
         max-height: none;
@@ -150,8 +116,8 @@
       }
       .doc-toolbar .tiq-btn { min-width: 36px; }
       .doc-stage {
-        flex: 1;
-        min-height: 0;
+        flex: 1 1 0;
+        min-height: 180px;
         overflow: auto;
         background: var(--tiq-surface-2);
         border: 1px solid var(--tiq-border);
@@ -159,14 +125,37 @@
         display: flex;
         align-items: flex-start;
         justify-content: center;
-        padding: 20px;
+        padding: 16px;
+      }
+      .viewer-main.is-media-mode .doc-stage {
+        overflow: hidden;
+        align-items: center;
+        justify-content: center;
+        padding: 12px;
+      }
+      .viewer-main.is-pdf-mode {
+        overflow-y: auto;
       }
       #slideCard {
         width: 100%;
+        max-height: 100%;
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: flex-start;
+        justify-content: center;
+      }
+      .viewer-main.is-media-mode #slideCard {
+        height: 100%;
+        max-width: 960px;
+      }
+      .viewer-main.is-media-mode .media-shell {
+        width: 100%;
+        max-width: 960px;
+        max-height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
       }
       canvas {
         display: block;
@@ -206,6 +195,75 @@
         text-align: center;
         font-weight: 600;
       }
+      .asset-sidebar {
+        width: 240px;
+        flex-shrink: 0;
+        overflow-y: auto;
+        border-right: 1px solid var(--tiq-border);
+        padding: 0.75rem 0.5rem 1rem 0;
+        background: var(--tiq-surface);
+      }
+      .asset-sidebar h4 {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--tiq-text-3);
+        margin: 0 0.5rem 0.75rem;
+        font-weight: 700;
+      }
+      .asset-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        width: 100%;
+        text-align: left;
+        padding: 0.55rem 0.65rem;
+        margin-bottom: 0.35rem;
+        border: 1px solid transparent;
+        border-radius: var(--tiq-radius-md);
+        background: transparent;
+        color: var(--tiq-text);
+        cursor: pointer;
+        font-size: 0.8125rem;
+        line-height: 1.35;
+      }
+      .asset-item:hover { background: var(--tiq-surface-2); border-color: var(--tiq-border); }
+      .asset-item.active {
+        background: rgba(79, 70, 229, 0.1);
+        border-color: rgba(79, 70, 229, 0.35);
+        font-weight: 600;
+      }
+      .asset-item i { margin-top: 2px; color: var(--tiq-primary); flex-shrink: 0; }
+      #videoPlayer {
+        width: 100%;
+        max-width: 960px;
+        max-height: 72vh;
+        border-radius: var(--tiq-radius-lg);
+        background: #000;
+        box-shadow: var(--tiq-shadow-md);
+      }
+      .viewer-main.is-media-mode #videoPlayer {
+        max-height: 100%;
+        height: auto;
+        width: 100%;
+        object-fit: contain;
+      }
+      .asset-sidebar.video-mode h4::before { content: none; }
+      #embedFrame {
+        width: 100%;
+        max-width: 960px;
+        height: min(72vh, 540px);
+        border: none;
+        border-radius: var(--tiq-radius-lg);
+        background: #000;
+        box-shadow: var(--tiq-shadow-md);
+      }
+      .viewer-main.is-media-mode #embedFrame {
+        height: auto;
+        max-height: 100%;
+        aspect-ratio: 16 / 9;
+        flex: 0 1 auto;
+      }
       .afk-modal-bg {
         position: fixed;
         inset: 0;
@@ -238,32 +296,6 @@
         -moz-user-select: none;
         -ms-user-select: none;
         user-select: none;
-      }
-      .logo-brand {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        text-decoration: none;
-      }
-      .logo-brand .logo-icon {
-        width: 32px; height: 32px;
-        background: var(--tiq-gradient);
-        border-radius: 8px;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 0.95rem; font-weight: 800; color: white;
-        box-shadow: 0 4px 10px rgba(79,70,229,0.3);
-      }
-      .logo-brand .logo-text {
-        font-weight: 800;
-        font-size: 1.15rem;
-        letter-spacing: -0.02em;
-        color: var(--tiq-text);
-      }
-      .logo-brand .logo-text span {
-        color: var(--tiq-secondary);
-      }
-      .logo-brand .logo-icon img {
-        width: 100%; height: 100%; object-fit: cover; border-radius: 8px;
       }
       /* LearnIQ AI Sidebar */
       .learniq-toggle {
@@ -321,6 +353,19 @@
       }
       .learniq-status.online .learniq-status-dot { background: var(--tiq-success); box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
       .learniq-status.offline .learniq-status-dot { background: var(--tiq-danger); }
+      .learniq-offline-help {
+        display: none;
+        margin: 0 0.75rem 0.5rem;
+        padding: 0.65rem 0.75rem;
+        font-size: 0.78rem;
+        line-height: 1.45;
+        color: var(--tiq-text-2);
+        background: rgba(239, 68, 68, 0.08);
+        border: 1px solid rgba(239, 68, 68, 0.25);
+        border-radius: var(--tiq-radius-md);
+      }
+      .learniq-offline-help.visible { display: block; }
+      .learniq-offline-help code { font-size: 0.72rem; }
       .learniq-actions {
         padding: 0.75rem 1.15rem; display: grid;
         grid-template-columns: repeat(3, 1fr); gap: 6px;
@@ -361,62 +406,189 @@
       .learniq-msg-formatted .liq-ul li { margin-bottom: 0.25rem; }
       .learniq-msg.typing::after { content: '▋'; animation: liq-blink 1s step-end infinite; margin-left: 2px; }
       @keyframes liq-blink { 50% { opacity: 0; } }
+      /* Learner notes */
+      .course-notes {
+        margin: 0;
+        background: var(--tiq-surface);
+        border: 1px solid var(--tiq-border);
+        border-radius: var(--tiq-radius-lg);
+        box-shadow: var(--tiq-shadow-xs);
+        flex: 0 0 auto;
+        max-height: min(240px, 32vh);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .course-notes.collapsed {
+        max-height: none;
+      }
+      .course-notes__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.65rem 0.85rem;
+        border-bottom: 1px solid var(--tiq-border);
+        background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(6,182,212,0.04));
+      }
+      .course-notes__toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        background: transparent;
+        color: var(--tiq-text);
+        font-weight: 800;
+        font-size: 0.875rem;
+        cursor: pointer;
+        padding: 0;
+      }
+      .course-notes__toggle i { color: var(--tiq-primary); }
+      .course-notes__scope {
+        font-size: 0.68rem;
+        font-weight: 700;
+        color: var(--tiq-primary);
+        background: rgba(99,102,241,0.12);
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+      }
+      .course-notes__actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-shrink: 0;
+      }
+      .course-notes__status {
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: var(--tiq-text-3);
+        min-width: 4.5rem;
+        text-align: right;
+      }
+      .course-notes__status.saving { color: var(--tiq-warning); }
+      .course-notes__status.saved { color: var(--tiq-success); }
+      .course-notes__body {
+        padding: 0.75rem 0.85rem 0.85rem;
+        overflow-y: auto;
+        min-height: 0;
+      }
+      .course-notes.collapsed .course-notes__body { display: none; }
+      .course-notes__textarea {
+        width: 100%;
+        min-height: 72px;
+        max-height: 100px;
+        resize: vertical;
+        border: 1px solid var(--tiq-border);
+        border-radius: var(--tiq-radius-md);
+        padding: 0.65rem 0.75rem;
+        font-family: var(--tiq-font-sans);
+        font-size: 0.875rem;
+        line-height: 1.55;
+        color: var(--tiq-text);
+        background: var(--tiq-surface-2);
+        box-sizing: border-box;
+      }
+      .course-notes__textarea:focus {
+        outline: none;
+        border-color: var(--tiq-primary);
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+      }
+      .course-notes__hint {
+        margin: 0.45rem 0 0;
+        font-size: 0.68rem;
+        color: var(--tiq-text-3);
+      }
+      .course-notes__search-hit {
+        display: block;
+        padding: 0.5rem 0.65rem;
+        margin-bottom: 0.35rem;
+        border-radius: var(--tiq-radius);
+        border: 1px solid var(--tiq-border);
+        background: var(--tiq-surface-2);
+        text-decoration: none;
+        color: inherit;
+        font-size: 0.75rem;
+      }
+      .course-notes__search-hit:hover {
+        border-color: var(--tiq-primary);
+        background: var(--tiq-gradient-soft);
+      }
+      .course-notes__search-hit strong {
+        display: block;
+        font-size: 0.78rem;
+        color: var(--tiq-text);
+        margin-bottom: 0.15rem;
+      }
+      .course-notes__search-hit span {
+        display: block;
+        color: var(--tiq-text-3);
+        line-height: 1.4;
+      }
       body { display: flex; flex-direction: column; min-height: 100vh; }
       .viewer-shell { flex: 1; display: flex; flex-direction: column; min-height: 0; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
   </head>
   <body>
-    <!-- Top navigation bar -->
-    <header class="top-bar">
-      <div>
-        <a href="{{ url_for('study_material_routes.view_course', course_id=study_material.id) }}" class="tiq-btn tiq-btn-sm tiq-btn-secondary">
+    <!-- Unified viewer header: back · title/progress · controls -->
+    <header class="viewer-header" id="viewerMeta">
+      <div class="viewer-header__zone viewer-header__zone--left">
+        <a href="{{ url_for('study_material_routes.view_course', course_id=study_material.id) }}" class="tiq-btn-back">
           <i class="fas fa-arrow-left"></i> Course Details
         </a>
       </div>
-      <div class="center-slot d-flex gap-2">
-        <button id="prev" class="tiq-btn tiq-btn-sm tiq-btn-secondary"><i class="fas fa-chevron-left"></i> Prev</button>
-        <button id="next" class="tiq-btn tiq-btn-sm tiq-btn-secondary">Next <i class="fas fa-chevron-right"></i></button>
-        <button id="fullscreen-btn" class="tiq-btn tiq-btn-sm tiq-btn-primary" style="margin-left: 1rem;"><i class="fas fa-expand"></i> Full Screen</button>
-        <button id="theme-toggle" class="tiq-theme-toggle" style="margin-left: 0.5rem;" title="Toggle theme">
-          <i class="fas fa-moon"></i>
-        </button>
-      </div>
-      <div>
-        <div class="logo-brand">
-          <div class="logo-icon">
-            {% if global_logo_url %}
-              <img src="{{ global_logo_url }}" alt="{{ display_org_name }}">
-            {% elif is_platform_brand %}
-              T
-            {% else %}
-              {{ org_initial }}
-            {% endif %}
+
+      <div class="viewer-header__zone viewer-header__zone--center">
+        <h1 class="viewer-header__title">{{ study_material.title }}</h1>
+        <div class="viewer-header__meta">
+          <div class="viewer-header__asset-badge" id="counter">
+            <span id="counterLabel">Page</span>
+            <span id="pageNum">1</span>
+            <span aria-hidden="true">/</span>
+            <span id="totalPages">?</span>
           </div>
-          <div class="logo-text">
-            {% if is_platform_brand %}
-              Train<span>IQ</span>
-            {% else %}
-              {{ display_org_name }}
-            {% endif %}
+          <span class="viewer-header__watch-pct" id="percent"></span>
+          <div class="viewer-header__course-pct" id="courseProgressLabel">
+            Course progress: <span id="courseProgressPct">{{ user_progress.progress_percentage if user_progress else 0 }}</span>%
           </div>
         </div>
+        <div class="tiq-progress viewer-header__progress" id="progress-bar">
+          <div class="tiq-progress-bar" id="progress-inner"></div>
+        </div>
+      </div>
+
+      <div class="viewer-header__zone viewer-header__zone--right">
+        <nav class="viewer-header__controls" aria-label="Viewer controls">
+          <button id="prev" class="tiq-btn tiq-btn-sm tiq-btn-secondary" title="Previous">
+            <i class="fas fa-chevron-left"></i><span class="viewer-btn-label"> Prev</span>
+          </button>
+          <button id="next" class="tiq-btn tiq-btn-sm tiq-btn-secondary" title="Next">
+            <span class="viewer-btn-label">Next </span><i class="fas fa-chevron-right"></i>
+          </button>
+          <span class="viewer-header__controls-divider" aria-hidden="true"></span>
+          <button id="fullscreen-btn" class="tiq-btn tiq-btn-sm tiq-btn-primary" title="Full screen">
+            <i class="fas fa-expand"></i><span class="viewer-btn-label"> Full Screen</span>
+          </button>
+          <button id="theme-toggle" class="tiq-theme-toggle" title="Toggle theme">
+            <i class="fas fa-moon"></i>
+          </button>
+        </nav>
+        {% if current_user.is_authenticated %}
+        <div class="viewer-header__user tiq-avatar tiq-avatar-sm" title="{{ current_user.first_name }} {{ current_user.last_name }}">
+          {{ user_initials(current_user) }}
+        </div>
+        {% endif %}
       </div>
     </header>
 
     <div class="viewer-shell">
-      <div class="viewer-meta tiq-container mt-2">
-        <div class="tiq-flex-between align-items-center mb-2">
-          <h2 style="font-size: 1.15rem; font-weight: 700; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%;">{{ study_material.title }}</h2>
-          <div id="counter">
-            Page <span id="pageNum">1</span> / <span id="totalPages">?</span>
-            <span id="percent" style="margin-left: 0.25rem;"></span>
-          </div>
-        </div>
-        <div id="progress-bar"><div id="progress-inner"></div></div>
-      </div>
-
       <div class="viewer-body" id="viewerBody">
+        {% if documents|length > 0 %}
+        <aside class="asset-sidebar" id="assetSidebar" aria-label="Course content">
+          <h4 id="assetSidebarTitle">Content</h4>
+          <div id="assetList"></div>
+        </aside>
+        {% endif %}
         <div class="viewer-main" id="viewerMain">
           <div class="doc-toolbar" id="docToolbar">
             <button type="button" class="tiq-btn tiq-btn-sm tiq-btn-secondary" id="zoomOut" title="Zoom out"><i class="fas fa-minus"></i></button>
@@ -429,8 +601,48 @@
             <div id="slideCard">
               <canvas id="pdfCanvas"></canvas>
               <div id="textViewer" style="display:none"></div>
+              <video id="videoPlayer" controls playsinline style="display:none"></video>
+              <iframe id="embedFrame" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="display:none"></iframe>
+              <div id="embedToolbar" style="display:none;margin-top:0.75rem;text-align:center;">
+                <a id="embedOpenExternal" class="tiq-btn tiq-btn-secondary tiq-btn-sm" href="#" target="_blank" rel="noopener noreferrer">
+                  <i class="fas fa-external-link-alt"></i> Open in new tab
+                </a>
+              </div>
+              <div id="downloadViewer" style="display:none;text-align:center;padding:2rem;max-width:520px;"></div>
             </div>
           </div>
+
+          <section class="course-notes" id="courseNotes">
+            <div class="course-notes__header">
+              <button type="button" class="course-notes__toggle" id="notesToggle" aria-expanded="true">
+                <i class="fas fa-pen-to-square"></i>
+                My Notes
+                <span class="course-notes__scope" id="notesScopeLabel">Page 1</span>
+              </button>
+              <div class="course-notes__actions">
+                <button type="button" id="notesCopyAll" class="tiq-btn tiq-btn-sm tiq-btn-secondary" title="Copy all notes">
+                  <i class="fas fa-copy"></i>
+                </button>
+                <a id="notesExportAll" class="tiq-btn tiq-btn-sm tiq-btn-secondary" title="Download all notes"
+                   href="{{ url_for('study_material_routes.export_course_notes', course_id=study_material.id) }}">
+                  <i class="fas fa-download"></i>
+                </a>
+                <button type="button" id="notesInsertTime" class="tiq-btn tiq-btn-sm tiq-btn-secondary" title="Insert video timestamp" style="display:none;">
+                  <i class="fas fa-clock"></i> Timestamp
+                </button>
+                <span class="course-notes__status" id="notesSaveStatus"></span>
+              </div>
+            </div>
+            <div class="course-notes__body" id="notesBody">
+              <div class="tiq-search" style="margin-bottom:0.65rem;">
+                <span class="search-icon"><i class="fas fa-search"></i></span>
+                <input type="search" id="notesGlobalSearch" class="tiq-input" placeholder="Search notes across all your courses…" autocomplete="off" aria-label="Search notes across courses" />
+              </div>
+              <div id="notesSearchResults" class="course-notes__search-results" style="display:none;margin-bottom:0.65rem;"></div>
+              <textarea id="courseNotesInput" class="course-notes__textarea" placeholder="Jot down key points, definitions, or questions…" rows="4"></textarea>
+              <p class="course-notes__hint">Auto-saves per page or video. Use <strong>Timestamp</strong> while watching to mark moments like <code>[2:34]</code>.</p>
+            </div>
+          </section>
         </div>
 
         <div class="learniq-panel" id="learniqPanel">
@@ -451,6 +663,15 @@
             <span class="learniq-status-dot"></span>
             <span id="learniqStatusText">Checking local AI engine…</span>
           </div>
+          <div class="learniq-offline-help" id="learniqOfflineHelp">
+            <strong>LearnIQ needs Ollama running locally.</strong>
+            <ol style="margin:0.35rem 0 0 1rem;padding:0;">
+              <li>Install from <a href="https://ollama.com" target="_blank" rel="noopener">ollama.com</a></li>
+              <li>Run <code>ollama serve</code> (or open the Ollama app)</li>
+              <li>Pull the model: <code id="learniqPullCmd">ollama pull gemma4:e4b</code></li>
+              <li>Refresh this page — the status pill should turn green</li>
+            </ol>
+          </div>
           <div class="learniq-actions">
             <button class="tiq-btn tiq-btn-sm tiq-btn-secondary" id="learniqSummarize"><i class="fas fa-file-lines"></i> Summarize</button>
             <button class="tiq-btn tiq-btn-sm tiq-btn-secondary" id="learniqFlashcards"><i class="fas fa-clone"></i> Cards</button>
@@ -470,9 +691,7 @@
       </div>
     </div>
     
-    <footer style="background: var(--footer-bg); color: var(--footer-text); border-top: 1px solid var(--tiq-border); text-align: center; padding: 1rem; font-size: 0.8125rem; font-weight: 500; flex-shrink: 0;">
-      {{ display_org_name }}© 2026
-    </footer>
+    {% include 'partials/trainiq_footer.html' %}
 
     <div id="afk-modal" style="display: none"></div>
 
@@ -484,7 +703,42 @@
     <script src="{{ url_for('static', filename='js/learniq-ui.js') }}?v=1.0"></script>
     <script>
       const DOC_META = {{ documents | tojson | safe }};
-      const PRIMARY_DOC = DOC_META[0] || null;
+      const ASSETS = DOC_META;
+      let PRIMARY_DOC = ASSETS[0] || null;
+      const VIEWER_MODE = {{ viewer_mode | tojson }};
+      const ASSET_PROGRESS = {{ asset_progress | tojson | safe }};
+      const NOTES_MAP = {{ course_notes | tojson | safe }};
+      const VIDEO_TYPES = new Set(["video", "youtube", "vimeo", "loom", "gdrive", "external"]);
+
+      function isVideoAssetType(t) {
+        return VIDEO_TYPES.has(t);
+      }
+      function isVideoLikeCourse() {
+        return VIEWER_MODE === "video" || VIEWER_MODE === "mixed";
+      }
+      function currentAssetIndex() {
+        if (!PRIMARY_DOC) return -1;
+        return ASSETS.findIndex((a) => String(a.id) === String(PRIMARY_DOC.id));
+      }
+      function formatVideoTime(sec) {
+        sec = Math.max(0, Math.floor(sec || 0));
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return m + ":" + String(s).padStart(2, "0");
+      }
+
+      function assetIcon(type) {
+        if (type === "video") return "fa-video";
+        if (["youtube", "vimeo", "loom"].includes(type)) return "fa-play-circle";
+        if (type === "gdrive") return "fa-cloud";
+        if (type === "external") return "fa-link";
+        if (type === "txt") return "fa-align-left";
+        return "fa-file-pdf";
+      }
+
+      function isEmbedType(t) {
+        return ["youtube", "vimeo", "gdrive", "loom", "external"].includes(t);
+      }
       // Theme toggle integration with TrainIQ
       const htmlEl = document.documentElement;
       const themeToggleBtn = document.getElementById("theme-toggle");
@@ -512,11 +766,14 @@
       pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js";
 
-      const url = PRIMARY_DOC
-          ? "{{ url_for('study_material_routes.stream_file', file_id='__FID__') }}".replace("__FID__", PRIMARY_DOC.id)
-          : "",
+      const url = PRIMARY_DOC && PRIMARY_DOC.stream_url ? PRIMARY_DOC.stream_url : "",
         cvs = document.getElementById("pdfCanvas"),
         textViewer = document.getElementById("textViewer"),
+        videoPlayer = document.getElementById("videoPlayer"),
+        embedFrame = document.getElementById("embedFrame"),
+        embedToolbar = document.getElementById("embedToolbar"),
+        embedOpenExternal = document.getElementById("embedOpenExternal"),
+        downloadViewer = document.getElementById("downloadViewer"),
         ctx = cvs.getContext("2d"),
         numEl = document.getElementById("pageNum"),
         totEl = document.getElementById("totalPages"),
@@ -531,6 +788,17 @@
         afkModal = document.getElementById("afk-modal"),
         zoomLabel = document.getElementById("zoomLabel"),
         docToolbar = document.getElementById("docToolbar");
+
+      function hideAllViewers() {
+        cvs.style.display = "none";
+        textViewer.style.display = "none";
+        videoPlayer.style.display = "none";
+        embedFrame.style.display = "none";
+        if (embedToolbar) embedToolbar.style.display = "none";
+        if (downloadViewer) downloadViewer.style.display = "none";
+        if (docToolbar) docToolbar.style.display = "none";
+        pdfDoc = null;
+      }
 
       let pdfDoc,
         current = 1,
@@ -561,7 +829,304 @@
       function updatePageBadge(pg) {
         const badge = document.getElementById("learniqPageBadge");
         if (!badge) return;
+        if (PRIMARY_DOC && isVideoAssetType(PRIMARY_DOC.type)) {
+          const idx = currentAssetIndex();
+          const pos = idx >= 0 ? idx + 1 : 1;
+          const total = ASSETS.length;
+          let timeLabel = "";
+          if (PRIMARY_DOC.type === "video" && videoPlayer && videoPlayer.duration) {
+            timeLabel = " · " + formatVideoTime(videoPlayer.currentTime);
+          }
+          badge.textContent = "Video " + pos + " of " + total + timeLabel;
+          return;
+        }
         badge.textContent = pdfDoc ? `Page ${pg} of ${pdfDoc.numPages}` : `Page ${pg}`;
+      }
+
+      function updateViewerChrome() {
+        const meta = document.getElementById("viewerMeta");
+        const sidebar = document.getElementById("assetSidebar");
+        const counterLabel = document.getElementById("counterLabel");
+        const sidebarTitle = document.getElementById("assetSidebarTitle");
+        const videoCtx = PRIMARY_DOC && isVideoAssetType(PRIMARY_DOC.type);
+        if (meta) meta.classList.toggle("video-mode", !!videoCtx);
+        if (sidebar) sidebar.classList.toggle("video-mode", VIEWER_MODE === "video");
+        if (sidebarTitle) sidebarTitle.textContent = VIEWER_MODE === "video" ? "Videos" : "Content";
+        if (counterLabel) counterLabel.textContent = videoCtx ? "Video" : "Page";
+        if (viewerMain) {
+          viewerMain.classList.toggle("is-media-mode", !!videoCtx);
+          viewerMain.classList.toggle("is-pdf-mode", !videoCtx && PRIMARY_DOC && PRIMARY_DOC.type === "pdf");
+        }
+        const sumBtn = document.getElementById("learniqSummarize");
+        const quizBtn = document.getElementById("learniqQuestions");
+        const cardBtn = document.getElementById("learniqFlashcards");
+        const chatInput = document.getElementById("learniqInput");
+        if (videoCtx) {
+          if (sumBtn) sumBtn.innerHTML = '<i class="fas fa-file-lines"></i> Summarize video';
+          if (quizBtn) quizBtn.innerHTML = '<i class="fas fa-circle-question"></i> Quiz me';
+          if (cardBtn) cardBtn.innerHTML = '<i class="fas fa-clone"></i> Flashcards';
+          if (chatInput) chatInput.placeholder = "Ask about this video…";
+        } else {
+          if (sumBtn) sumBtn.innerHTML = '<i class="fas fa-file-lines"></i> Summarize';
+          if (quizBtn) quizBtn.innerHTML = '<i class="fas fa-circle-question"></i> Quiz';
+          if (cardBtn) cardBtn.innerHTML = '<i class="fas fa-clone"></i> Cards';
+          if (chatInput) chatInput.placeholder = "Ask about this page…";
+        }
+        updateNavButtons();
+      }
+
+      function updateNavButtons() {
+        const idx = currentAssetIndex();
+        const videoNav = PRIMARY_DOC && isVideoAssetType(PRIMARY_DOC.type) && ASSETS.length > 1;
+        if (videoNav) {
+          btnP.disabled = idx <= 0;
+          btnN.disabled = idx < 0 || idx >= ASSETS.length - 1;
+          return;
+        }
+        btnP.disabled = !pdfDoc || current <= 1 || isRendering;
+        btnN.disabled = !pdfDoc || current >= pdfDoc.numPages || isRendering;
+      }
+
+      function updateCourseProgressUI(pct) {
+        const el = document.getElementById("courseProgressPct");
+        if (el && pct != null) el.textContent = Math.min(100, Math.max(0, Math.round(pct)));
+      }
+
+      /* ---- Learner notes (auto-save per page / video) ---- */
+      const notesInput = document.getElementById("courseNotesInput");
+      const notesStatusEl = document.getElementById("notesSaveStatus");
+      const notesSection = document.getElementById("courseNotes");
+      const notesToggleBtn = document.getElementById("notesToggle");
+      const notesInsertTimeBtn = document.getElementById("notesInsertTime");
+      let notesDirty = false;
+      let notesCurrentKey = null;
+      let notesSaveTimer = null;
+      let notesSaving = false;
+
+      function notesPageNum() {
+        if (!PRIMARY_DOC) return 0;
+        if (isVideoAssetType(PRIMARY_DOC.type) || PRIMARY_DOC.type === "txt") return 0;
+        if (PRIMARY_DOC.type === "pptx" || PRIMARY_DOC.type === "docx") return 0;
+        return current || 1;
+      }
+
+      function notesScopeKey() {
+        if (!PRIMARY_DOC) return null;
+        return String(PRIMARY_DOC.id) + ":" + notesPageNum();
+      }
+
+      function setNotesStatus(text, state) {
+        if (!notesStatusEl) return;
+        notesStatusEl.textContent = text || "";
+        notesStatusEl.classList.remove("saving", "saved");
+        if (state) notesStatusEl.classList.add(state);
+      }
+
+      function notesUpdateScopeLabel() {
+        const el = document.getElementById("notesScopeLabel");
+        if (!el || !PRIMARY_DOC) return;
+        if (isVideoAssetType(PRIMARY_DOC.type)) {
+          const idx = currentAssetIndex();
+          el.textContent = "Video " + (idx >= 0 ? idx + 1 : 1);
+        } else if (PRIMARY_DOC.type === "txt") {
+          el.textContent = PRIMARY_DOC.title || "Text";
+        } else {
+          el.textContent = "Page " + (current || 1);
+        }
+        if (notesInsertTimeBtn) {
+          notesInsertTimeBtn.style.display = isVideoAssetType(PRIMARY_DOC.type) ? "" : "none";
+        }
+      }
+
+      async function notesSavePending() {
+        if (!notesDirty || !notesCurrentKey || !notesInput || notesSaving) return;
+        const parts = notesCurrentKey.split(":");
+        const assetId = parts[0];
+        const pageNum = parseInt(parts[1] || "0", 10);
+        notesSaving = true;
+        setNotesStatus("Saving…", "saving");
+        try {
+          const res = await fetch("{{ url_for('study_material_routes.save_course_note') }}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": "{{ csrf_token() }}",
+            },
+            body: JSON.stringify({
+              study_material_id: {{ study_material.id }},
+              asset_id: assetId,
+              page_num: pageNum,
+              content: notesInput.value,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || "Save failed");
+          if (data.deleted) {
+            delete NOTES_MAP[notesCurrentKey];
+          } else {
+            NOTES_MAP[notesCurrentKey] = notesInput.value;
+          }
+          notesDirty = false;
+          setNotesStatus("Saved", "saved");
+        } catch (e) {
+          setNotesStatus("Save failed", "");
+        } finally {
+          notesSaving = false;
+        }
+      }
+
+      async function notesOnScopeChange() {
+        await notesSavePending();
+        notesCurrentKey = notesScopeKey();
+        if (notesInput) {
+          notesInput.value = notesCurrentKey ? (NOTES_MAP[notesCurrentKey] || "") : "";
+          notesDirty = false;
+        }
+        notesUpdateScopeLabel();
+        setNotesStatus(
+          notesCurrentKey && NOTES_MAP[notesCurrentKey] ? "Saved" : "",
+          notesCurrentKey && NOTES_MAP[notesCurrentKey] ? "saved" : ""
+        );
+      }
+
+      function scheduleNotesSave() {
+        if (!notesCurrentKey) notesCurrentKey = notesScopeKey();
+        notesDirty = true;
+        setNotesStatus("Editing…", "");
+        if (notesSaveTimer) clearTimeout(notesSaveTimer);
+        notesSaveTimer = setTimeout(() => notesSavePending(), 900);
+      }
+
+      function insertNoteTimestamp() {
+        if (!notesInput || !PRIMARY_DOC || !isVideoAssetType(PRIMARY_DOC.type)) return;
+        let sec = 0;
+        if (PRIMARY_DOC.type === "video" && videoPlayer && !isNaN(videoPlayer.currentTime)) {
+          sec = videoPlayer.currentTime;
+        } else {
+          sec = embedWatchSeconds || 0;
+        }
+        const stamp = "[" + formatVideoTime(sec) + "] ";
+        const start = notesInput.selectionStart ?? notesInput.value.length;
+        const end = notesInput.selectionEnd ?? start;
+        notesInput.value = notesInput.value.slice(0, start) + stamp + notesInput.value.slice(end);
+        notesInput.focus();
+        notesInput.selectionStart = notesInput.selectionEnd = start + stamp.length;
+        scheduleNotesSave();
+      }
+
+      if (notesInput) {
+        notesInput.addEventListener("input", scheduleNotesSave);
+        notesInput.addEventListener("blur", () => notesSavePending());
+      }
+      if (notesInsertTimeBtn) notesInsertTimeBtn.onclick = insertNoteTimestamp;
+      const notesCopyBtn = document.getElementById("notesCopyAll");
+      if (notesCopyBtn) {
+        notesCopyBtn.onclick = async () => {
+          try {
+            const res = await fetch("{{ url_for('study_material_routes.copy_course_notes', course_id=study_material.id) }}");
+            const data = await res.json();
+            if (!res.ok || !data.text) throw new Error(data.error || "Copy failed");
+            await navigator.clipboard.writeText(data.text);
+            setNotesStatus("Copied all notes", "saved");
+          } catch (e) {
+            setNotesStatus("Copy failed", "");
+          }
+        };
+      }
+
+      const notesGlobalSearch = document.getElementById("notesGlobalSearch");
+      const notesSearchResults = document.getElementById("notesSearchResults");
+      let notesSearchTimer = null;
+
+      function renderNotesSearchResults(items) {
+        if (!notesSearchResults) return;
+        if (!items || !items.length) {
+          notesSearchResults.style.display = "none";
+          notesSearchResults.innerHTML = "";
+          return;
+        }
+        notesSearchResults.style.display = "";
+        notesSearchResults.innerHTML = items.map((item) => {
+          const pageLabel = item.page_num ? " · Page " + item.page_num : "";
+          return (
+            '<a href="/study_materials/course_content/' + item.course_id +
+            '?file_id=' + encodeURIComponent(item.asset_id) + '" class="course-notes__search-hit">' +
+            '<strong>' + (item.course_title || "Course") + '</strong>' + pageLabel +
+            '<span>' + (item.snippet || "") + '</span></a>'
+          );
+        }).join("");
+      }
+
+      if (notesGlobalSearch) {
+        notesGlobalSearch.addEventListener("input", () => {
+          const q = notesGlobalSearch.value.trim();
+          if (notesSearchTimer) clearTimeout(notesSearchTimer);
+          if (q.length < 2) {
+            renderNotesSearchResults([]);
+            return;
+          }
+          notesSearchTimer = setTimeout(async () => {
+            try {
+              const res = await fetch("{{ url_for('study_material_routes.search_course_notes') }}?q=" + encodeURIComponent(q));
+              const data = await res.json();
+              renderNotesSearchResults(data.notes || []);
+            } catch (e) {
+              renderNotesSearchResults([]);
+            }
+          }, 350);
+        });
+      }
+
+      if (notesToggleBtn && notesSection) {
+        const storedOpen = localStorage.getItem("tiq-notes-open");
+        const open = storedOpen === "1" || (storedOpen === null && VIEWER_MODE !== "video");
+        notesSection.classList.toggle("collapsed", !open);
+        notesToggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
+        notesToggleBtn.onclick = () => {
+          const willOpen = notesSection.classList.contains("collapsed");
+          notesSection.classList.toggle("collapsed", !willOpen);
+          notesToggleBtn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+          localStorage.setItem("tiq-notes-open", willOpen ? "1" : "0");
+        };
+      }
+
+      let embedWatchTimer = null;
+      let embedWatchSeconds = 0;
+      let embedProgressPushed = 0;
+      const EMBED_EST_DURATION = 240;
+
+      function stopEmbedWatchProgress() {
+        if (embedWatchTimer) clearInterval(embedWatchTimer);
+        embedWatchTimer = null;
+      }
+
+      function startEmbedWatchProgress() {
+        stopEmbedWatchProgress();
+        const saved = ASSET_PROGRESS[String(PRIMARY_DOC.id)] || 0;
+        embedWatchSeconds = Math.round((saved / 100) * EMBED_EST_DURATION);
+        embedProgressPushed = saved >= 90 ? 90 : saved >= 50 ? 50 : 0;
+        if (saved >= 100) {
+          progressBar.style.width = "100%";
+          percentEl.textContent = "(100%)";
+          return;
+        }
+        progressBar.style.width = saved + "%";
+        percentEl.textContent = "(" + saved + "%)";
+        embedWatchTimer = setInterval(() => {
+          if (document.hidden) return;
+          embedWatchSeconds += 4;
+          const pct = Math.min(100, Math.round((embedWatchSeconds / EMBED_EST_DURATION) * 100));
+          const displayPct = Math.max(saved, pct);
+          progressBar.style.width = displayPct + "%";
+          percentEl.textContent = "(" + displayPct + "%)";
+          if (pct >= 50 && embedProgressPushed < 50) {
+            embedProgressPushed = 50;
+            pushAssetProgress(50);
+          } else if (pct >= 90 && embedProgressPushed < 90) {
+            embedProgressPushed = 90;
+            pushAssetProgress(100);
+          }
+        }, 4000);
       }
 
       function computeFitScale(base, availW, availH) {
@@ -617,6 +1182,7 @@
             pushProgress(n);
             btnP.disabled = current === 1;
             btnN.disabled = current === pdfDoc.numPages;
+            notesOnScopeChange();
           })
           .catch(() => {
             isRendering = false;
@@ -656,6 +1222,63 @@
         progressBar.style.width = percent + "%";
       }
 
+      function pushAssetProgress(watchPercent) {
+        if (!PRIMARY_DOC) return;
+        fetch("{{ url_for('study_material_routes.update_progress') }}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token() }}",
+          },
+          body: JSON.stringify({
+            study_material_id: "{{ study_material.id }}",
+            asset_id: PRIMARY_DOC.id,
+            watch_percent: watchPercent,
+          }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data && data.progress_percentage != null) {
+              updateCourseProgressUI(data.progress_percentage);
+              ASSET_PROGRESS[String(PRIMARY_DOC.id)] = watchPercent;
+            }
+          })
+          .catch(() => {});
+      }
+
+      function showDownloadOnly(asset) {
+        if (!downloadViewer) return;
+        downloadViewer.style.display = "block";
+        const dlUrl = asset.stream_url || "";
+        downloadViewer.innerHTML = "";
+        const icon = document.createElement("div");
+        icon.style.fontSize = "2.5rem";
+        icon.style.opacity = "0.35";
+        icon.innerHTML = '<i class="fas fa-file-download"></i>';
+        const title = document.createElement("h3");
+        title.style.margin = "1rem 0 0.5rem";
+        title.textContent = asset.title || "Document";
+        const hint = document.createElement("p");
+        hint.style.color = "var(--tiq-text-3)";
+        hint.style.fontSize = "0.875rem";
+        hint.textContent = "In-browser preview is available for PDF and TXT. Download this file to open in Word or PowerPoint.";
+        const link = document.createElement("a");
+        link.href = dlUrl;
+        link.className = "tiq-btn tiq-btn-primary";
+        link.style.marginTop = "1rem";
+        link.innerHTML = '<i class="fas fa-download me-1"></i> Download file';
+        link.target = "_blank";
+        link.rel = "noopener";
+        downloadViewer.appendChild(icon);
+        downloadViewer.appendChild(title);
+        downloadViewer.appendChild(hint);
+        downloadViewer.appendChild(link);
+        progressBar.style.width = "100%";
+        percentEl.textContent = "Download";
+        pushAssetProgress(100);
+        startTimer();
+      }
+
       function pushProgress(pg) {
         fetch("{{ url_for('study_material_routes.update_progress') }}", {
           method: "POST",
@@ -667,6 +1290,7 @@
             study_material_id: "{{ study_material.id }}",
             current_page: pg,
             total_pages: pdfDoc.numPages,
+            asset_id: PRIMARY_DOC ? PRIMARY_DOC.id : null,
           }),
         });
       }
@@ -725,7 +1349,7 @@
         }
         isFullscreen = true;
         setTimeout(() => render(current), 80);
-        fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i> Exit Full Screen';
+        fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i><span class="viewer-btn-label"> Exit Full Screen</span>';
       }
       function exitFullscreen() {
         if (document.exitFullscreen) {
@@ -738,7 +1362,7 @@
         document.body.classList.remove("viewer-fullscreen");
         isFullscreen = false;
         setTimeout(() => render(current), 80);
-        fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i> Full Screen';
+        fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i><span class="viewer-btn-label"> Full Screen</span>';
       }
       fullscreenBtn.onclick = () => {
         if (!isFullscreen) enterFullscreen();
@@ -750,13 +1374,22 @@
         document.body.classList.toggle("viewer-fullscreen", fs);
         if (pdfDoc) setTimeout(() => render(current), 80);
         fullscreenBtn.innerHTML = fs
-          ? '<i class="fas fa-compress"></i> Exit Full Screen'
-          : '<i class="fas fa-expand"></i> Full Screen';
+          ? '<i class="fas fa-compress"></i><span class="viewer-btn-label"> Exit Full Screen</span>'
+          : '<i class="fas fa-expand"></i><span class="viewer-btn-label"> Full Screen</span>';
       });
       document.addEventListener("keydown", (e) => {
         if (e.key === "F" || e.key === "f") {
           fullscreenBtn.click();
           e.preventDefault();
+        } else if (PRIMARY_DOC && isVideoAssetType(PRIMARY_DOC.type) && ASSETS.length > 1) {
+          const idx = currentAssetIndex();
+          if ((e.key === "ArrowLeft" || e.key === "a") && idx > 0) {
+            switchAsset(ASSETS[idx - 1].id);
+            e.preventDefault();
+          } else if ((e.key === "ArrowRight" || e.key === "d") && idx >= 0 && idx < ASSETS.length - 1) {
+            switchAsset(ASSETS[idx + 1].id);
+            e.preventDefault();
+          }
         } else if (
           (e.key === "ArrowLeft" || e.key === "a") &&
           current > 1 &&
@@ -780,17 +1413,98 @@
       });
 
       function loadDocAndRender(pageToShow = 1, retry = 0) {
+        PRIMARY_DOC = ASSETS.find((a) => a.id === (PRIMARY_DOC && PRIMARY_DOC.id)) || ASSETS[0] || null;
         if (!PRIMARY_DOC) {
-          showError("No document attached to this course.");
+          showError("No content attached to this course.");
           return;
         }
+        hideAllViewers();
+        clearError();
+        stopEmbedWatchProgress();
+
+        const label = PRIMARY_DOC.title || "Content";
+        const idx = currentAssetIndex();
+        if (isVideoAssetType(PRIMARY_DOC.type)) {
+          totEl.textContent = ASSETS.length;
+          numEl.textContent = idx >= 0 ? idx + 1 : 1;
+          const savedPct = ASSET_PROGRESS[String(PRIMARY_DOC.id)] || 0;
+          progressBar.style.width = savedPct + "%";
+          percentEl.textContent = "(" + savedPct + "%)";
+        } else {
+          const cl = document.getElementById("counterLabel");
+          if (cl) cl.textContent = "Page";
+          if (numEl) numEl.textContent = "1";
+          if (totEl) totEl.textContent = "?";
+          if (percentEl) percentEl.textContent = "";
+        }
+        updateViewerChrome();
+
+        if (PRIMARY_DOC.type === "video") {
+          let lastPushed = ASSET_PROGRESS[String(PRIMARY_DOC.id)] || 0;
+          videoPlayer.src = PRIMARY_DOC.stream_url || "";
+          videoPlayer.style.display = "block";
+          videoPlayer.onloadedmetadata = () => {
+            const saved = ASSET_PROGRESS[String(PRIMARY_DOC.id)] || 0;
+            if (saved > 0 && videoPlayer.duration) {
+              videoPlayer.currentTime = Math.min(
+                videoPlayer.duration * 0.99,
+                (saved / 100) * videoPlayer.duration
+              );
+            }
+            startTimer();
+            updatePageBadge(current);
+          };
+          videoPlayer.ontimeupdate = () => {
+            if (!videoPlayer.duration) return;
+            const pct = Math.round((videoPlayer.currentTime / videoPlayer.duration) * 100);
+            progressBar.style.width = pct + "%";
+            percentEl.textContent = "(" + pct + "%)";
+            updatePageBadge(current);
+            if (pct >= 90 && lastPushed < 90) {
+              lastPushed = 90;
+              pushAssetProgress(100);
+            } else if (pct >= 50 && lastPushed < 50) {
+              lastPushed = 50;
+              pushAssetProgress(pct);
+            }
+          };
+          notesOnScopeChange();
+          return;
+        }
+
+        if (isEmbedType(PRIMARY_DOC.type)) {
+          embedFrame.src = PRIMARY_DOC.embed_url || "";
+          embedFrame.style.display = "block";
+          if (embedToolbar && embedOpenExternal) {
+            const externalUrl = PRIMARY_DOC.url || PRIMARY_DOC.embed_url || "#";
+            embedOpenExternal.href = externalUrl;
+            embedToolbar.style.display = externalUrl !== "#" ? "block" : "none";
+          }
+          const savedPct = ASSET_PROGRESS[String(PRIMARY_DOC.id)] || 0;
+          progressBar.style.width = savedPct + "%";
+          percentEl.textContent = "(" + savedPct + "%)";
+          if (savedPct < 100) startEmbedWatchProgress();
+          else pushAssetProgress(100);
+          startTimer();
+          updatePageBadge(current);
+          notesOnScopeChange();
+          return;
+        }
+
         if (PRIMARY_DOC.type === "txt" && PRIMARY_DOC.content) {
           showTextDocument(PRIMARY_DOC.content);
           startTimer();
+          notesOnScopeChange();
+          return;
+        }
+
+        const url = PRIMARY_DOC.stream_url || "";
+        if (PRIMARY_DOC.type === "pptx" || PRIMARY_DOC.type === "docx") {
+          showDownloadOnly(PRIMARY_DOC);
           return;
         }
         if (PRIMARY_DOC.type !== "pdf") {
-          showError("This file type opens best as PDF. Re-upload as PDF for the full viewer, or use LearnIQ for text-based study aids.");
+          showError("Unsupported format. Switch to another item in the sidebar or download the file.");
           startTimer();
           return;
         }
@@ -799,18 +1513,75 @@
           .promise.then((pdf) => {
             pdfDoc = pdf;
             totEl.textContent = pdf.numPages;
+            numEl.textContent = "1";
+            const cl = document.getElementById("counterLabel");
+            if (cl) cl.textContent = "Page";
             pdfPageWidth = null;
             pdfPageHeight = null;
             cvs.style.display = "block";
-            textViewer.style.display = "none";
             if (docToolbar) docToolbar.style.display = "flex";
             render(pageToShow, retry);
             startTimer();
           })
           .catch(() => {
-            showError("Failed to load PDF document. Please reload or re-upload as PDF.");
+            showError("Failed to load PDF document. Please reload or pick another file.");
           });
       }
+
+      function switchAsset(assetId) {
+        const next = ASSETS.find((a) => String(a.id) === String(assetId));
+        if (!next) return;
+        notesSavePending().then(() => {
+        PRIMARY_DOC = next;
+        chatHistory = [];
+        if (videoPlayer) {
+          videoPlayer.pause();
+          videoPlayer.removeAttribute("src");
+          videoPlayer.load();
+        }
+        stopEmbedWatchProgress();
+        if (embedFrame) embedFrame.src = "about:blank";
+        current = 1;
+        progressBar.style.width = "0%";
+        percentEl.textContent = "";
+        document.querySelectorAll(".asset-item").forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.assetId === String(assetId));
+        });
+        loadDocAndRender(1);
+        });
+      }
+
+      function escapeHtml(str) {
+        return String(str || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      (function buildAssetList() {
+        const list = document.getElementById("assetList");
+        if (!list || !ASSETS.length) return;
+        if (ASSETS.length === 1) {
+          const sidebar = document.getElementById("assetSidebar");
+          if (sidebar) sidebar.style.display = "none";
+        }
+        ASSETS.forEach((a, i) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "asset-item" + (PRIMARY_DOC && a.id === PRIMARY_DOC.id ? " active" : "");
+          btn.dataset.assetId = a.id;
+          const icon = document.createElement("i");
+          icon.className = "fas " + assetIcon(a.type);
+          const span = document.createElement("span");
+          const prefix = VIEWER_MODE === "video" && isVideoAssetType(a.type) ? "Video " + (i + 1) + ": " : "";
+          span.textContent = prefix + (a.title || "Untitled");
+          btn.appendChild(icon);
+          btn.appendChild(span);
+          btn.onclick = () => switchAsset(a.id);
+          list.appendChild(btn);
+        });
+      })();
 
       document.getElementById("zoomIn").onclick = () => {
         zoomFactor = Math.min(zoomFactor + 0.15, 3);
@@ -862,9 +1633,19 @@
       loadDocAndRender(1);
 
       btnP.onclick = () => {
+        if (PRIMARY_DOC && isVideoAssetType(PRIMARY_DOC.type) && ASSETS.length > 1) {
+          const idx = currentAssetIndex();
+          if (idx > 0) switchAsset(ASSETS[idx - 1].id);
+          return;
+        }
         if (current > 1 && !isRendering) render(current - 1);
       };
       btnN.onclick = () => {
+        if (PRIMARY_DOC && isVideoAssetType(PRIMARY_DOC.type) && ASSETS.length > 1) {
+          const idx = currentAssetIndex();
+          if (idx >= 0 && idx < ASSETS.length - 1) switchAsset(ASSETS[idx + 1].id);
+          return;
+        }
         if (pdfDoc && current < pdfDoc.numPages && !isRendering)
           render(current + 1);
       };
@@ -877,19 +1658,22 @@
       const SUMMARIZE_URL = "{{ url_for('study_material_routes.learniq_stream_summarize_route', course_id=study_material.id) }}";
       const FLASHCARDS_URL = "{{ url_for('study_material_routes.learniq_flashcards_route', course_id=study_material.id) }}";
       const CHAT_STREAM_URL = "{{ url_for('study_material_routes.learniq_stream_chat_route', course_id=study_material.id) }}";
-      const fileId = PRIMARY_DOC ? PRIMARY_DOC.id : "";
+      const getFileId = () => (PRIMARY_DOC ? PRIMARY_DOC.id : "");
       const csrfToken = "{{ csrf_token() }}";
       const learniqPanel = document.getElementById("learniqPanel");
       const learniqToggle = document.getElementById("learniqToggle");
       const learniqChat = document.getElementById("learniqChat");
       const learniqStatus = document.getElementById("learniqStatus");
       const learniqStatusText = document.getElementById("learniqStatusText");
+      const learniqOfflineHelp = document.getElementById("learniqOfflineHelp");
+      const learniqPullCmd = document.getElementById("learniqPullCmd");
       let chatHistory = [];
 
       function setAiStatus(online, message) {
         learniqStatus.classList.toggle("online", online);
         learniqStatus.classList.toggle("offline", !online);
         if (learniqStatusText) learniqStatusText.textContent = message;
+        if (learniqOfflineHelp) learniqOfflineHelp.classList.toggle("visible", !online);
       }
 
       function setPanelOpen(open) {
@@ -929,10 +1713,21 @@
 
       function learniqPayload(extra) {
         extra = extra || {};
-        const payload = { file_id: fileId, current_page: current, ...extra };
-        if (extra.use_vision) {
-          const img = window.TrainIQAI?.captureCanvas(cvs, 0.72, 960);
-          if (img) payload.page_image = img;
+        const payload = {
+          file_id: getFileId(),
+          asset_type: PRIMARY_DOC ? PRIMARY_DOC.type : "",
+          ...extra,
+        };
+        if (PRIMARY_DOC && isVideoAssetType(PRIMARY_DOC.type)) {
+          if (PRIMARY_DOC.type === "video" && videoPlayer && videoPlayer.currentTime) {
+            payload.video_time_seconds = Math.floor(videoPlayer.currentTime);
+          }
+        } else {
+          payload.current_page = current;
+          if (extra.use_vision && pdfDoc && cvs.style.display !== "none") {
+            const img = window.TrainIQAI?.captureCanvas(cvs, 0.72, 960);
+            if (img) payload.page_image = img;
+          }
         }
         return payload;
       }
@@ -947,6 +1742,8 @@
       function setLearniqEnabled(on) {
         learniqBtns.forEach(el => { if (el) el.disabled = !on; });
       }
+
+      const learniqVisionRetry = () => !(PRIMARY_DOC && isVideoAssetType(PRIMARY_DOC.type));
 
       async function runStreamAction(userLabel, streamUrl, extra) {
         addMsg(userLabel, "user", false);
@@ -964,7 +1761,7 @@
               learniqChat.scrollTop = learniqChat.scrollHeight;
             }
           );
-          const meta = await LearnIQUI.aiCall(doStream, (o) => learniqPayload({ ...extra, ...o }));
+          const meta = await LearnIQUI.aiCall(doStream, (o) => learniqPayload({ ...extra, ...o }), { allowVisionRetry: learniqVisionRetry() });
           bubble.classList.remove("typing");
           if (meta.cached) LearnIQUI.setBubbleContent(bubble, text + "\n\n⚡ From cache", true);
           else if (meta.vision) LearnIQUI.setBubbleContent(bubble, text + "\n\n👁 Slide vision used", true);
@@ -980,24 +1777,38 @@
         .then(r => r.json())
         .then(d => {
           const model = d.resolved_model || d.model || "gemma4:e4b";
+          if (learniqPullCmd) learniqPullCmd.textContent = "ollama pull " + model;
           if (d.available && d.model_ready) {
             setAiStatus(true, `Online · ${model} · streaming enabled`);
             setLearniqEnabled(true);
+          } else if (d.available && !d.model_ready) {
+            setAiStatus(false, d.message || `Model not installed — run: ollama pull ${model}`);
+            setLearniqEnabled(false);
           } else {
-            setAiStatus(false, d.message || "Ollama offline — start the Ollama app");
+            setAiStatus(false, d.message || "Ollama offline — start Ollama, then refresh this page");
             setLearniqEnabled(false);
           }
         })
         .catch(() => {
-          setAiStatus(false, "Cannot reach AI status endpoint");
+          setAiStatus(false, "Cannot reach AI status — is the app server running?");
           setLearniqEnabled(false);
         });
 
       document.getElementById("learniqSummarize").onclick = () =>
-        runStreamAction("Summarize this page", SUMMARIZE_URL, {});
+        runStreamAction(
+          PRIMARY_DOC && isVideoAssetType(PRIMARY_DOC.type) ? "Summarize this video" : "Summarize this page",
+          SUMMARIZE_URL,
+          {}
+        );
 
       async function runQuizAction() {
-        addMsg("Create practice questions from this page", "user", false);
+        addMsg(
+          PRIMARY_DOC && isVideoAssetType(PRIMARY_DOC.type)
+            ? "Create practice questions from this video"
+            : "Create practice questions from this page",
+          "user",
+          false
+        );
         const bubble = addMsg("", "ai", true);
         bubble.classList.add("typing");
         setLearniqEnabled(false);
@@ -1013,7 +1824,7 @@
                 learniqChat.scrollTop = learniqChat.scrollHeight;
               }
             );
-            const meta = await LearnIQUI.aiCall(doStream, (o) => learniqPayload({ ...o }));
+            const meta = await LearnIQUI.aiCall(doStream, (o) => learniqPayload({ ...o }), { allowVisionRetry: learniqVisionRetry() });
             bubble.classList.remove("typing");
             if (meta.cached) LearnIQUI.setBubbleContent(bubble, text + "\n\n⚡ From cache", true);
             else if (meta.vision) LearnIQUI.setBubbleContent(bubble, text + "\n\n👁 Slide vision used", true);
@@ -1022,7 +1833,8 @@
               (payload) => window.TrainIQAI.postJson(
                 QUIZ_JSON_URL, payload, { "X-CSRFToken": csrfToken }
               ),
-              (o) => learniqPayload(o)
+              (o) => learniqPayload(o),
+              { allowVisionRetry: learniqVisionRetry() }
             );
             text = data.questions || data.text || "No questions generated.";
             bubble.classList.remove("typing");
@@ -1041,7 +1853,13 @@
       document.getElementById("learniqQuestions").onclick = () => runQuizAction();
 
       document.getElementById("learniqFlashcards").onclick = async () => {
-        addMsg("Create flashcards for this page", "user", false);
+        addMsg(
+          PRIMARY_DOC && isVideoAssetType(PRIMARY_DOC.type)
+            ? "Create flashcards for this video"
+            : "Create flashcards for this page",
+          "user",
+          false
+        );
         const bubble = addMsg("Generating flashcards…", "ai", false);
         setLearniqEnabled(false);
         try {
@@ -1049,7 +1867,8 @@
             (payload) => window.TrainIQAI.postJson(
               FLASHCARDS_URL, payload, { "X-CSRFToken": csrfToken }
             ),
-            (o) => learniqPayload(o)
+            (o) => learniqPayload(o),
+            { allowVisionRetry: learniqVisionRetry() }
           );
           const cards = (data.flashcards || []).map((c, i) =>
             `${i + 1}. **${c.front}** → ${c.back}`
@@ -1087,7 +1906,8 @@
           );
           const meta = await LearnIQUI.aiCall(
             doStream,
-            (o) => learniqPayload({ message: msg, history: chatHistory, ...o })
+            (o) => learniqPayload({ message: msg, history: chatHistory, ...o }),
+            { allowVisionRetry: learniqVisionRetry() }
           );
           bubble.classList.remove("typing");
           if (meta.vision) LearnIQUI.setBubbleContent(bubble, reply + "\n\n👁 Vision used", true);

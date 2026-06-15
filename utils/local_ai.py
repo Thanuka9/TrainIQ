@@ -85,7 +85,7 @@ def resolve_model(preferred=None):
 
 
 def get_ai_status():
-    """Full engine status for UI and health checks."""
+    """Full engine status for UI and health checks (local Ollama only — no paid API fallback)."""
     installed = list_installed_models(refresh=True)
     reachable = bool(installed) or any(_ping_base(b) for b in _bases())
 
@@ -473,31 +473,44 @@ def _learniq_messages(course_title, document_text, task_prompt, page_images=None
     return messages
 
 
-def learniq_summarize(course_title, document_text, page_images=None):
-    task = (
-        "Create a focused study summary of this page/module.\n"
+def _learniq_scope_label(document_text: str) -> str:
+    upper = (document_text or "").upper()
+    if (
+        "[YOUTUBE" in upper
+        or "[VIMEO" in upper
+        or "[LOOM" in upper
+        or "[GDRIVE" in upper
+        or "[EXTERNAL" in upper
+        or "[VIDEO:" in upper
+    ):
+        return "video"
+    return "page/module"
+
+
+def _learniq_summarize_task(document_text: str) -> str:
+    scope = _learniq_scope_label(document_text)
+    return (
+        f"Create a focused study summary of this {scope}.\n"
         "Include: (1) Main topic in one sentence, (2) 4-6 bullet key points, "
         "(3) Important rules, standards, or constraints mentioned, (4) Key takeaway line.\n"
         "Max 350 words."
     )
-    messages = _learniq_messages(course_title, document_text, task, page_images)
+
+
+def learniq_summarize(course_title, document_text, page_images=None):
+    messages = _learniq_messages(course_title, document_text, _learniq_summarize_task(document_text), page_images)
     return query_chat(messages, temperature=0.2, think=False)
 
 
 def learniq_summarize_stream(course_title, document_text, page_images=None):
-    task = (
-        "Create a focused study summary of this page/module.\n"
-        "Include: (1) Main topic in one sentence, (2) 4-6 bullet key points, "
-        "(3) Important rules, standards, or constraints mentioned, (4) Key takeaway line.\n"
-        "Max 350 words."
-    )
-    messages = _learniq_messages(course_title, document_text, task, page_images)
+    messages = _learniq_messages(course_title, document_text, _learniq_summarize_task(document_text), page_images)
     yield from stream_chat(messages, temperature=0.2, think=False)
 
 
 def learniq_flashcards(course_title, document_text, page_images=None):
+    scope = _learniq_scope_label(document_text)
     task = (
-        "Create 6 study flashcards from this material.\n"
+        f"Create 6 study flashcards from this {scope} content.\n"
         'Return ONLY a JSON array: [{"front": "term", "back": "definition"}]'
     )
     messages = _learniq_messages(course_title, document_text, task, page_images)
@@ -507,8 +520,9 @@ def learniq_flashcards(course_title, document_text, page_images=None):
 
 
 def learniq_sample_questions(course_title, document_text, page_images=None):
+    scope = _learniq_scope_label(document_text)
     task = (
-        "Create 5 practice questions from this material for self-study.\n"
+        f"Create 5 practice questions from this {scope} for self-study.\n"
         "Mix multiple-choice and short-answer. Format exactly:\n\n"
         "**Question 1** (Multiple Choice)\n"
         "[question text]\n"
@@ -524,8 +538,9 @@ def learniq_sample_questions(course_title, document_text, page_images=None):
 
 
 def learniq_sample_questions_stream(course_title, document_text, page_images=None):
+    scope = _learniq_scope_label(document_text)
     task = (
-        "Create 5 practice questions from this material for self-study.\n"
+        f"Create 5 practice questions from this {scope} for self-study.\n"
         "Mix multiple-choice and short-answer. Use clear numbering and **Answer:** lines."
     )
     messages = _learniq_messages(course_title, document_text, task, page_images)
@@ -535,11 +550,15 @@ def learniq_sample_questions_stream(course_title, document_text, page_images=Non
 def learniq_chat(course_title, document_text, user_message, history=None, page_images=None):
     use_vision = needs_vision_fallback(document_text, page_images)
     ctx = truncate_context(document_text, max_chars=10000) if not use_vision else truncate_context(document_text, 2000)
+    video_note = ""
+    if _learniq_scope_label(document_text) == "video":
+        video_note = "\nNote: Material is from video or embedded media — use transcript and description only.\n"
     system = (
         f"You are LearnIQ, an AI tutor for TrainIQ's '{course_title}' module.\n"
         f"Answer ONLY from the course material{' and slide image' if use_vision else ''}. "
         f"If unsure, say so briefly.\n"
         + _learniq_format_rules()
+        + video_note
         + f"\n\nCOURSE MATERIAL:\n{ctx}"
     )
     messages = [{"role": "system", "content": system}]
@@ -560,11 +579,15 @@ def learniq_chat(course_title, document_text, user_message, history=None, page_i
 def learniq_chat_stream(course_title, document_text, user_message, history=None, page_images=None):
     use_vision = needs_vision_fallback(document_text, page_images)
     ctx = truncate_context(document_text, max_chars=10000) if not use_vision else truncate_context(document_text, 2000)
+    video_note = ""
+    if _learniq_scope_label(document_text) == "video":
+        video_note = "\nNote: Material is from video or embedded media — use transcript and description only.\n"
     system = (
         f"You are LearnIQ, an AI tutor for TrainIQ's '{course_title}' module.\n"
         f"Answer ONLY from the course material{' and slide image' if use_vision else ''}. "
         f"If unsure, say so briefly.\n"
         + _learniq_format_rules()
+        + video_note
         + f"\n\nCOURSE MATERIAL:\n{ctx}"
     )
     messages = [{"role": "system", "content": system}]

@@ -283,6 +283,33 @@ with app.app_context():
             "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS suspended_reason TEXT",
         ):
             db.session.execute(db.text(col_sql))
+        # Invite role + platform performance indexes (mirrors p0q1r2s3t4u5 / q1r2s3t4u5v6)
+        db.session.execute(db.text(
+            "ALTER TABLE tenant_invites ADD COLUMN IF NOT EXISTS role VARCHAR(32) DEFAULT 'learner'"
+        ))
+        for idx_sql in (
+            "CREATE INDEX IF NOT EXISTS ix_users_join_date ON users (join_date)",
+            "CREATE INDEX IF NOT EXISTS ix_users_tenant_verified ON users (tenant_id, is_verified)",
+            "CREATE INDEX IF NOT EXISTS ix_users_is_locked ON users (is_locked)",
+            "CREATE INDEX IF NOT EXISTS ix_support_tickets_status ON support_tickets (status)",
+            "CREATE INDEX IF NOT EXISTS ix_support_tickets_user_id ON support_tickets (user_id)",
+            "CREATE INDEX IF NOT EXISTS ix_support_tickets_created_at ON support_tickets (created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_tenants_plan ON tenants (plan)",
+            "CREATE INDEX IF NOT EXISTS ix_tenants_status ON tenants (status)",
+            "CREATE INDEX IF NOT EXISTS ix_tenants_trial_ends_at ON tenants (trial_ends_at)",
+            "CREATE INDEX IF NOT EXISTS ix_tenants_created_at ON tenants (created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_tenant_invites_tenant_id ON tenant_invites (tenant_id)",
+            "CREATE INDEX IF NOT EXISTS ix_tenant_invites_used_at ON tenant_invites (used_at)",
+            "CREATE INDEX IF NOT EXISTS ix_audit_logs_event_created ON audit_logs (event_type, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_user_scores_created_at ON user_scores (created_at)",
+            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(120)",
+            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_period_start TIMESTAMP",
+            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_period_end TIMESTAMP",
+        ):
+            try:
+                db.session.execute(db.text(idx_sql))
+            except Exception as idx_err:
+                logging.warning("Skipped index DDL (%s): %s", idx_sql[:55], idx_err)
         db.session.commit()
         from utils.billing_plans import backfill_missing_trial_dates
         backfill_missing_trial_dates()
@@ -303,11 +330,16 @@ mail.init_app(app)
 # ----------------------------------------------------------------------
 try:
     mongo_client, mongo_db = initialize_mongodb()
-    setup_collections(mongo_db)
-    logging.info("MongoDB initialized successfully.")
+    if mongo_db is not None:
+        setup_collections(mongo_db)
+        logging.info("MongoDB initialized successfully.")
+    else:
+        logging.warning(
+            "MongoDB unavailable — course file uploads and GridFS storage are disabled until MongoDB is running."
+        )
 except Exception as e:
-    logging.critical(f"MongoDB init failed: {e}")
-    raise SystemExit(e)
+    mongo_client, mongo_db = None, None
+    logging.warning(f"MongoDB setup skipped: {e}")
 
 # ----------------------------------------------------------------------
 # APScheduler Setup
@@ -327,6 +359,8 @@ app.register_blueprint(exams_routes, url_prefix='/exams')
 app.register_blueprint(study_material_routes, url_prefix='/study_materials')
 app.register_blueprint(admin_routes, url_prefix='/admin')
 app.register_blueprint(__import__('billing_routes', fromlist=['billing_routes']).billing_routes, url_prefix='')
+from billing_routes import stripe_webhook as _stripe_webhook_handler
+csrf.exempt(_stripe_webhook_handler)
 app.register_blueprint(ai_routes, url_prefix='/ai')
 app.register_blueprint(management_routes, url_prefix='/management')
 app.register_blueprint(special_exams_routes)
@@ -456,6 +490,25 @@ def check_afk_timeout():
 
 app.before_request(check_afk_timeout)
 
+
+def enforce_user_agreement():
+    """Block platform use until the current User Agreement version is accepted."""
+    from flask_login import current_user
+    from utils.user_agreement import is_agreement_exempt_endpoint, user_needs_agreement
+
+    if not current_user.is_authenticated:
+        return
+    if is_agreement_exempt_endpoint(request.endpoint, request.path):
+        return
+    if user_needs_agreement(current_user):
+        if request.endpoint != 'general_routes.user_agreement_accept':
+            session['post_agreement_next'] = request.url
+        return redirect(url_for('general_routes.user_agreement_accept'))
+
+
+app.before_request(enforce_user_agreement)
+
+
 def resolve_tenant():
     from models import Tenant
     # 1. Resolve from request host domain
@@ -475,7 +528,7 @@ def resolve_tenant():
                 break
 
     # Identify public marketing/product landing and auth pages
-    public_paths = ('/', '/home', '/pricing', '/privacy-policy', '/help')
+    public_paths = ('/', '/home', '/pricing', '/privacy-policy', '/help', '/user-agreement')
     is_public = (request.path in public_paths) or (request.path.startswith('/auth/') and request.path != '/auth/logout')
 
     # Determine resolved values
@@ -536,6 +589,8 @@ app.before_request(resolve_tenant)
 @app.context_processor
 def inject_platform_helpers():
     from utils.tenant_utils import is_trainiq_staff
+    from utils.platform_ceo import is_platform_ceo
+    from utils.platform_staff_permissions import staff_has_permission, effective_staff_role
     from utils.admin_permissions import user_has_permission, user_can_access_admin, permission_summary, user_can_manage_permissions
     from flask_login import current_user
 
@@ -544,9 +599,17 @@ def inject_platform_helpers():
             return False
         return user_has_permission(current_user, code)
 
+    def has_platform_perm(code):
+        if not current_user.is_authenticated:
+            return False
+        return staff_has_permission(current_user, code)
+
     return dict(
         is_trainiq_staff=is_trainiq_staff,
+        is_platform_ceo=is_platform_ceo,
         has_admin_perm=has_admin_perm,
+        has_platform_perm=has_platform_perm,
+        platform_staff_role=effective_staff_role(current_user) if current_user.is_authenticated else None,
         has_admin_perm_any=lambda *codes: any(has_admin_perm(c) for c in codes),
         user_can_access_admin=user_can_access_admin,
         user_can_manage_permissions=user_can_manage_permissions,
@@ -577,7 +640,21 @@ def inject_global_branding():
         'secondary_color': secondary_color,
         'primary_color_rgb': hex_to_rgb(primary_color),
         'secondary_color_rgb': hex_to_rgb(secondary_color),
+        'trainiq_website_url': os.getenv('TRAINIQ_WEBSITE_URL', 'https://trainiq.com'),
+        'current_year': datetime.utcnow().year,
     }
+
+
+@app.context_processor
+def inject_legal_context():
+    from utils.user_agreement import agreement_context, user_has_accepted_agreement
+    from flask_login import current_user
+
+    ctx = agreement_context()
+    ctx["user_has_accepted_agreement"] = (
+        current_user.is_authenticated and user_has_accepted_agreement(current_user)
+    )
+    return ctx
 
 
 # ----------------------------------------------------------------------

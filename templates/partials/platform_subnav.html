@@ -1,19 +1,22 @@
 {# Platform CEO sub-navigation — include on all /platform/* pages #}
-<nav class="platform-subnav" style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-bottom:1.5rem;padding:0.35rem;background:var(--tiq-surface-2);border-radius:var(--tiq-radius-lg);border:1px solid var(--tiq-border);">
+<nav class="platform-subnav" aria-label="Platform sections">
   {% set tabs = [
-    ('dashboard', 'platform_routes.platform_dashboard', 'globe', 'Command Center'),
-    ('tenants', 'platform_routes.list_tenants', 'building', 'Tenants'),
-    ('users', 'platform_routes.platform_users', 'users', 'All Users'),
-    ('support', 'platform_routes.platform_support', 'headset', 'Support'),
-    ('security', 'platform_routes.platform_security', 'shield-halved', 'Security'),
-    ('activity', 'platform_routes.platform_activity', 'stream', 'Activity'),
-    ('revenue', 'platform_routes.platform_revenue', 'dollar-sign', 'Revenue'),
+    ('dashboard', 'platform_routes.platform_dashboard', 'globe', 'Command Center', 'dashboard.view'),
+    ('tenants', 'platform_routes.list_tenants', 'building', 'Tenants', 'tenants.view'),
+    ('users', 'platform_routes.platform_users', 'users', 'All Users', 'users.view'),
+    ('staff', 'platform_routes.platform_staff', 'user-shield', 'Staff', 'staff.view'),
+    ('support', 'platform_routes.platform_support', 'headset', 'Support', 'support.view'),
+    ('security', 'platform_routes.platform_security', 'shield-halved', 'Security', 'security.view'),
+    ('activity', 'platform_routes.platform_activity', 'stream', 'Activity', 'activity.view'),
+    ('revenue', 'platform_routes.platform_revenue', 'dollar-sign', 'Revenue', 'revenue.view'),
   ] %}
-  {% for key, endpoint, icon, label in tabs %}
+  {% for key, endpoint, icon, label, perm in tabs %}
+  {% if has_platform_perm(perm) %}
   <a href="{{ url_for(endpoint) }}"
      class="tiq-btn tiq-btn-sm {% if active_platform == key %}tiq-btn-primary{% else %}tiq-btn-secondary{% endif %}"
      style="border:none;">
     <i class="fas fa-{{ icon }}"></i> {{ label }}
   </a>
+  {% endif %}
   {% endfor %}
 </nav>

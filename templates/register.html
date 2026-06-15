@@ -233,7 +233,9 @@
   </div>
 
   <div class="login-left-footer">
-    &copy; {{ 2025 }} TrainIQ &mdash; All rights reserved
+    {% with footer_variant='inline' %}
+    {% include 'partials/trainiq_footer.html' %}
+    {% endwith %}
   </div>
 </div>
 
@@ -347,6 +349,20 @@
       </div>
     </div>
 
+    <div class="tiq-form-group" style="margin-top:0.5rem;">
+      <label class="legal-checkbox" style="color:var(--tiq-text-2);font-size:0.85rem;display:flex;gap:0.6rem;align-items:flex-start;cursor:pointer;">
+        <input type="checkbox" name="accept_user_agreement" id="accept_user_agreement" required style="margin-top:3px;accent-color:var(--tiq-primary);"/>
+        <span>
+          I agree to the
+          <a href="{{ url_for('general_routes.user_agreement_view') }}" target="_blank" rel="noopener" style="color:var(--tiq-primary);font-weight:600;">TrainIQ Platform User Agreement</a>
+          (operated by Veyra Labs / Thanuka Ellepola, including billing &amp; non-refund terms)
+          and
+          <a href="{{ url_for('general_routes.privacy_policy') }}" target="_blank" rel="noopener" style="color:var(--tiq-primary);font-weight:600;">Privacy Policy</a>,
+          including intellectual property, copyright, and acceptable use terms.
+        </span>
+      </label>
+    </div>
+
     <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-lg tiq-w-full" id="registerBtn"
             style="justify-content:center;margin-top:0.75rem;">
       <span id="registerBtnText"><i class="fas fa-user-plus" style="margin-right:6px;"></i>Create Account</span>
@@ -359,9 +375,7 @@
   </div>
 
   <div style="margin-top:auto;padding-top:1.5rem;text-align:center;">
-    <a href="{{ url_for('general_routes.home') }}" class="tiq-btn-back" style="display:inline-flex;">
-      <i class="fas fa-arrow-left"></i> Back to TrainIQ.com
-    </a>
+    {% include 'partials/public_back_link.html' %}
   </div>
 </div>
 

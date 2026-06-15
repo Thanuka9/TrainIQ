@@ -9,37 +9,38 @@
 {% endblock %}
 
 {% block content %}
-<div class="tiq-page-header">
-  <div class="tiq-flex-between">
-    <div>
-      <div class="tiq-breadcrumb">
-        <a href="{{ url_for('admin_routes.admin_dashboard') }}">Admin</a>
-        <span class="tiq-breadcrumb-sep">/</span>
-        <span>Exams</span>
-      </div>
-      <h1>Manage Exams</h1>
-    </div>
+<div class="admin-page-hero">
+  <div>
+    <h1>Manage Exams</h1>
+    <p class="admin-page-lead">Edit assessment metadata, manage questions, and link exams to courses (including video and external-link content for AI generation).</p>
+  </div>
+  <div class="tiq-flex" style="gap:0.5rem;flex-wrap:wrap;">
+    <a href="{{ url_for('exams_routes.create_exam') }}" class="tiq-btn tiq-btn-primary">
+      <i class="fas fa-plus"></i> Create Exam
+    </a>
   </div>
 </div>
 
 <div class="tiq-card">
-  <div class="tiq-card-header">
-    <h2 class="tiq-card-title"><i class="fas fa-file-invoice" style="margin-right:8px; color:var(--tiq-accent);"></i>Active Assessments</h2>
+  <div class="tiq-table-toolbar">
+    <span style="font-size:0.875rem;color:var(--tiq-text-3);"><strong>{{ exams|length }}</strong> active assessments</span>
+    <input type="search" class="tiq-input tiq-table-search" placeholder="Search exams…" data-table-search="examsTable" aria-label="Search exams">
   </div>
-  <div class="tiq-card-body">
-    <div class="tiq-table-wrapper">
-      <table class="tiq-table">
+  <div class="tiq-card-body" style="padding:0;">
+    <div class="tiq-table-wrapper tiq-table-sticky">
+      <table class="tiq-table tiq-table-pro" id="examsTable">
         <thead>
           <tr>
-            <th style="padding-left:1.5rem; width:80px;">ID</th>
+            <th style="padding-left:1.5rem; width:70px;">ID</th>
             <th>Title</th>
             <th>Duration</th>
+            <th>Pass %</th>
             <th>Level</th>
             <th>Area</th>
             <th>Course</th>
             <th>Category</th>
             <th>Created By</th>
-            <th class="tiq-text-center" style="width:160px;">Actions</th>
+            <th class="tiq-text-center" style="width:150px;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -48,15 +49,16 @@
               <td style="padding-left:1.5rem; font-weight:600;">{{ e.id }}</td>
               <td style="font-weight:600; color:var(--tiq-primary);">{{ e.title }}</td>
               <td><span class="tiq-badge tiq-badge-neutral"><i class="far fa-clock" style="margin-right:4px;"></i>{{ e.duration }} min</span></td>
+              <td><span class="tiq-badge tiq-badge-info">{{ e.passing_score or 70 }}%</span></td>
               <td>
                 {% if e.level %}
                   <span class="tiq-badge tiq-badge-primary">Level {{ e.level.level_number }}</span>
                 {% else %}
-                  <span style="color:var(--tiq-text-3);">&mdash;</span>
+                  <span style="color:var(--tiq-text-3);">—</span>
                 {% endif %}
               </td>
               <td>{{ e.area.name if e.area else '—' }}</td>
-              <td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ e.course.title if e.course else '—' }}</td>
+              <td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ e.course.title if e.course else '' }}">{{ e.course.title if e.course else '—' }}</td>
               <td>
                 {% if e.category %}
                   <span class="tiq-badge tiq-badge-info">{{ e.category.name }}</span>
@@ -69,21 +71,16 @@
               </td>
               <td class="tiq-text-center">
                 <div class="tiq-flex tiq-flex-center" style="gap:6px;">
-                  {# 1 – Edit exam metadata (opens modal) #}
                   <button class="tiq-btn tiq-btn-sm tiq-btn-secondary tiq-btn-icon"
                           data-tiq-modal="editExamModal{{ e.id }}"
                           title="Edit exam details">
                     <i class="fas fa-edit"></i>
                   </button>
-
-                  {# 2 – Edit questions page #}
                   <a href="{{ url_for('admin_routes.edit_exam_page', exam_id=e.id) }}"
                      class="tiq-btn tiq-btn-sm tiq-btn-success tiq-btn-icon"
-                     title="Edit questions">
+                     title="Edit questions & AI generator">
                     <i class="fas fa-question-circle"></i>
                   </a>
-
-                  {# 3 – Delete exam #}
                   <form action="{{ url_for('admin_routes.delete_exam', exam_id=e.id) }}"
                         method="POST"
                         style="display:inline;"
@@ -98,9 +95,10 @@
             </tr>
           {% else %}
             <tr>
-              <td colspan="9" class="tiq-text-center" style="padding:3rem;">
+              <td colspan="10" class="tiq-text-center" style="padding:3rem;">
                 <div style="font-size:2rem; opacity:0.2; margin-bottom:0.5rem;"><i class="fas fa-folder-open"></i></div>
-                <p style="color:var(--tiq-text-3);">No exams available.</p>
+                <p style="color:var(--tiq-text-3); margin:0 0 1rem;">No exams available.</p>
+                <a href="{{ url_for('exams_routes.create_exam') }}" class="tiq-btn tiq-btn-primary tiq-btn-sm">Create your first exam</a>
               </td>
             </tr>
           {% endfor %}
@@ -110,10 +108,9 @@
   </div>
 </div>
 
-{# ──────── Edit-Exam Modals (metadata) ──────── #}
 {% for e in exams %}
 <div class="tiq-modal-backdrop" id="editExamModal{{ e.id }}">
-  <div class="tiq-modal" style="max-width: 580px;">
+  <div class="tiq-modal tiq-modal-lg tiq-modal-scroll">
     <div class="tiq-modal-header">
       <h3 class="tiq-modal-title"><i class="fas fa-edit" style="margin-right:8px; color:var(--tiq-accent);"></i>Edit Exam #{{ e.id }}</h3>
       <button type="button" class="tiq-btn tiq-btn-ghost tiq-btn-sm tiq-btn-icon" data-tiq-modal-close>
@@ -121,39 +118,55 @@
       </button>
     </div>
 
-    <form action="{{ url_for('admin_routes.edit_exam', exam_id=e.id) }}" method="POST">
+    <form action="{{ url_for('admin_routes.edit_exam', exam_id=e.id) }}" method="POST" class="admin-form-compact">
       <div class="tiq-modal-body">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        {# Title #}
-        <div class="tiq-form-group">
-          <label for="examTitle{{ e.id }}" class="tiq-label">Title</label>
-          <input type="text" id="examTitle{{ e.id }}" name="title" class="tiq-input" value="{{ e.title }}" required>
+        <div class="tiq-grid tiq-grid-2 tiq-gap">
+          <div class="tiq-form-group tiq-mb-0">
+            <label for="examTitle{{ e.id }}" class="tiq-label">Title</label>
+            <input type="text" id="examTitle{{ e.id }}" name="title" class="tiq-input" value="{{ e.title }}" required>
+          </div>
+          <div class="tiq-form-group tiq-mb-0">
+            <label for="examDuration{{ e.id }}" class="tiq-label">Duration (minutes)</label>
+            <input type="number" id="examDuration{{ e.id }}" name="duration" class="tiq-input" value="{{ e.duration }}" min="1" required>
+          </div>
         </div>
 
-        {# Duration #}
         <div class="tiq-form-group">
-          <label for="examDuration{{ e.id }}" class="tiq-label">Duration (minutes)</label>
-          <input type="number" id="examDuration{{ e.id }}" name="duration" class="tiq-input" value="{{ e.duration }}" min="1" required>
+          <label for="examPassing{{ e.id }}" class="tiq-label">Passing Score (%)</label>
+          <input type="number" id="examPassing{{ e.id }}" name="passing_score" class="tiq-input" value="{{ e.passing_score or 70 }}" min="1" max="100" step="0.1">
         </div>
 
-        <div class="tiq-grid-2">
-          {# Level #}
-          <div class="tiq-form-group">
+        <div class="tiq-form-group">
+          <label for="examRetry{{ e.id }}" class="tiq-label">Retry Cooldown (days)</label>
+          <input type="number" id="examRetry{{ e.id }}" name="retry_cooldown_days" class="tiq-input" value="{{ e.retry_cooldown_days if e.retry_cooldown_days is not none else 30 }}" min="0" max="365">
+        </div>
+
+        <div class="tiq-form-group">
+          <label for="examMinDesig{{ e.id }}" class="tiq-label">Min Designation Level</label>
+          <select id="examMinDesig{{ e.id }}" name="minimum_designation_id" class="tiq-select" required>
+            <option value="">— Select Designation —</option>
+            {% for desig in designations %}
+              <option value="{{ desig.id }}" {% if e.minimum_designation_id == desig.id %}selected{% endif %}>{{ desig.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="tiq-grid tiq-grid-2 tiq-gap">
+          <div class="tiq-form-group tiq-mb-0">
             <label for="examLevel{{ e.id }}" class="tiq-label">Level</label>
             <select id="examLevel{{ e.id }}" name="level" class="tiq-select" required>
-              <option value="">-- Select Level --</option>
+              <option value="">— Select Level —</option>
               {% for lvl in levels %}
                 <option value="{{ lvl.id }}" {% if e.level and e.level.id == lvl.id %}selected{% endif %}>Level {{ lvl.level_number }}</option>
               {% endfor %}
             </select>
           </div>
-
-          {# Area #}
-          <div class="tiq-form-group">
+          <div class="tiq-form-group tiq-mb-0">
             <label for="examArea{{ e.id }}" class="tiq-label">Area</label>
             <select id="examArea{{ e.id }}" name="area" class="tiq-select" required>
-              <option value="">-- Select Area --</option>
+              <option value="">— Select Area —</option>
               {% for a in areas %}
                 <option value="{{ a.id }}" {% if e.area and e.area.id == a.id %}selected{% endif %}>{{ a.name }}</option>
               {% endfor %}
@@ -161,29 +174,33 @@
           </div>
         </div>
 
-        <div class="tiq-grid-2">
-          {# Course #}
-          <div class="tiq-form-group">
-            <label for="examCourse{{ e.id }}" class="tiq-label">Course</label>
+        <div class="tiq-grid tiq-grid-2 tiq-gap">
+          <div class="tiq-form-group tiq-mb-0">
+            <label for="examCourse{{ e.id }}" class="tiq-label">Linked Course</label>
             <select id="examCourse{{ e.id }}" name="course_id" class="tiq-select" required>
-              <option value="">-- Select Course --</option>
+              <option value="">— Select Course —</option>
               {% for c in courses %}
-                <option value="{{ c.id }}" {% if e.course and e.course.id == c.id %}selected{% endif %}>{{ c.title }}</option>
+                <option value="{{ c.id }}" {% if e.course and e.course.id == c.id %}selected{% endif %}>
+                  [L{{ c.level_number }}] {{ c.category_name }} — {{ c.title }} ({{ c.media_summary }})
+                </option>
               {% endfor %}
             </select>
           </div>
-
-          {# Category #}
-          <div class="tiq-form-group">
+          <div class="tiq-form-group tiq-mb-0">
             <label for="examCategory{{ e.id }}" class="tiq-label">Category</label>
             <select id="examCategory{{ e.id }}" name="category_id" class="tiq-select" required>
-              <option value="">-- Select Category --</option>
+              <option value="">— Select Category —</option>
               {% for cat in categories %}
                 <option value="{{ cat.id }}" {% if e.category and e.category.id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
               {% endfor %}
             </select>
           </div>
         </div>
+
+        <p style="font-size:0.8rem;color:var(--tiq-text-3);margin:0.75rem 0 0;">
+          To edit questions or generate AI items from course videos/docs, use
+          <a href="{{ url_for('admin_routes.edit_exam_page', exam_id=e.id) }}">Edit questions</a>.
+        </p>
       </div>
 
       <div class="tiq-modal-footer">

@@ -23,6 +23,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
       padding: 1.5rem 2.5rem;
       border-bottom: 1px solid var(--tiq-border);
       backdrop-filter: blur(10px);
@@ -388,7 +390,9 @@
 
   <!-- Top Nav -->
   <nav class="pricing-nav">
-    <a href="/" class="pricing-brand">
+    <div style="display:flex;align-items:center;gap:1rem;">
+      {% include 'partials/public_back_link.html' %}
+      <a href="{{ url_for('general_routes.home') }}" class="pricing-brand">
       <div class="pricing-brand-logo" style="overflow:hidden; display:flex; align-items:center; justify-content:center;">
         {% if global_logo_url %}
           <img src="{{ global_logo_url }}" alt="Logo" style="width:100%; height:100%; object-fit:cover;">
@@ -404,6 +408,7 @@
         {% endif %}
       </div>
     </a>
+    </div>
     <div style="display: flex; align-items: center; gap: 15px;">
       {% if current_user.is_authenticated %}
         <a href="{{ url_for('general_routes.dashboard') }}" class="tiq-btn tiq-btn-secondary">Dashboard</a>
@@ -559,5 +564,9 @@
   </script>
 
   <script src="{{ url_for('static', filename='js/trainiq.js') }}"></script>
+
+  {% with footer_variant='compact' %}
+  {% include 'partials/trainiq_footer.html' %}
+  {% endwith %}
 </body>
 </html>

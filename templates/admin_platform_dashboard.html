@@ -1,230 +1,321 @@
-{% extends 'admin_base.html' %}
-{% block title %}Platform Command Center{% endblock %}
-{% block breadcrumb %}Platform Command Center{% endblock %}
+{% extends 'platform_base.html' %}
+{% block title %}Command Center{% endblock %}
+{% block breadcrumb %}Command Center{% endblock %}
 
 {% block content %}
 <div class="tiq-page-header" style="margin-bottom:1rem;">
   <div class="tiq-flex-between" style="flex-wrap:wrap;gap:1rem;">
     <div>
       <h1>TrainIQ Platform Command Center</h1>
-      <p class="tiq-lead">Full-system visibility — revenue, users, content, support, and security across every organization.</p>
-    </div>
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-      {% if session.get('platform_support') %}
-      <form action="{{ url_for('platform_routes.exit_tenant') }}" method="POST" style="margin:0;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="tiq-btn tiq-btn-warning tiq-btn-sm">
-          <i class="fas fa-sign-out-alt"></i> Exit support mode
-        </button>
-      </form>
-      {% endif %}
+      <p class="tiq-lead">Cross-tenant visibility for {{ owner_organization }} — every organization, user, revenue signal, and security event in one place.</p>
     </div>
   </div>
 </div>
 
 {% include 'partials/platform_subnav.html' %}
 
-{% if stats.alerts %}
-<div class="tiq-card" style="margin-bottom:1.25rem;border-left:4px solid #F59E0B;">
-  <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-bell me-2"></i>Action required</h3></div>
-  <div class="tiq-card-body" style="padding:0.75rem 1rem;">
-    <div style="display:grid;gap:0.5rem;">
-      {% for a in stats.alerts[:8] %}
-      <div style="display:flex;align-items:center;gap:0.75rem;font-size:0.875rem;padding:0.5rem 0;border-bottom:1px solid var(--tiq-border);">
-        <i class="fas fa-{{ a.icon }}" style="color:{% if a.level=='danger' %}#EF4444{% elif a.level=='warning' %}#F59E0B{% else %}#6366F1{% endif %};width:18px;"></i>
-        <div style="flex:1;">
-          <strong>{{ a.title }}</strong>
-          <div style="color:var(--tiq-text-3);font-size:0.8rem;">{{ a.detail }}</div>
-        </div>
-        {% if a.tenant_id %}
-        <a href="{{ url_for('platform_routes.tenant_detail', tenant_id=a.tenant_id) }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">View</a>
-        {% elif a.ticket_id %}
-        <a href="{{ url_for('platform_routes.platform_support') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">Queue</a>
-        {% elif a.icon == 'lock' %}
-        <a href="{{ url_for('platform_routes.platform_security') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">Security</a>
-        {% endif %}
-      </div>
-      {% endfor %}
+{% if is_platform_ceo() %}
+<div class="tiq-card platform-reveal" style="margin-bottom:1.25rem;border:1px solid rgba(99,102,241,0.35);background:linear-gradient(135deg,rgba(99,102,241,0.08),transparent);">
+  <div class="tiq-card-body" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem;">
+    <div>
+      <h3 style="margin:0 0 0.35rem;font-size:1rem;"><i class="fas fa-user-plus" style="color:#6366F1;margin-right:6px;"></i>Platform staff</h3>
+      <p style="margin:0;color:var(--tiq-text-3);font-size:0.88rem;">Invite support, ops, and admin operators. Assign roles and manage who can use the TRAINIQ office key.</p>
     </div>
+    <a href="{{ url_for('platform_routes.platform_staff') }}#invite-staff" class="tiq-btn tiq-btn-primary">
+      <i class="fas fa-envelope"></i> Invite staff member
+    </a>
   </div>
 </div>
 {% endif %}
 
-<!-- Business KPIs -->
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.75rem;margin-bottom:1rem;">
-  <div class="tiq-stat-card"><div class="stat-label">Organizations</div><div class="stat-value">{{ stats.total_tenants }}</div></div>
-  <div class="tiq-stat-card"><div class="stat-label">Total users</div><div class="stat-value">{{ stats.total_users }}</div><div style="font-size:0.72rem;color:var(--tiq-muted);">+{{ stats.new_users_7d }} (7d) · +{{ stats.new_users_30d }} (30d)</div></div>
-  <div class="tiq-stat-card"><div class="stat-label">Verified users</div><div class="stat-value">{{ stats.active_users }}</div></div>
-  <div class="tiq-stat-card"><div class="stat-label">Est. MRR</div><div class="stat-value">${{ stats.estimated_mrr }}</div><div style="font-size:0.72rem;color:var(--tiq-muted);">ARR ≈ ${{ stats.estimated_arr }}</div></div>
-  <div class="tiq-stat-card"><div class="stat-label">Paid / Trial</div><div class="stat-value">{{ stats.paid_tenants }} / {{ stats.trial_tenants }}</div></div>
-  <div class="tiq-stat-card"><div class="stat-label">Trials expiring</div><div class="stat-value">{{ stats.expiring_trials_7d }}</div><div style="font-size:0.72rem;color:var(--tiq-muted);">within 7 days</div></div>
+{% if stats.alerts %}
+<div class="tiq-card" style="margin-bottom:1.25rem;border-left:4px solid #F59E0B;">
+  <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-bell me-2"></i>Action required</h3></div>
+  <div class="tiq-card-body" style="padding:0.75rem 1rem;">
+    {% for a in stats.alerts[:6] %}
+    <div style="display:flex;align-items:center;gap:0.75rem;font-size:0.875rem;padding:0.45rem 0;border-bottom:1px solid var(--tiq-border);">
+      <i class="fas fa-{{ a.icon }}" style="color:{% if a.level=='danger' %}#EF4444{% elif a.level=='warning' %}#F59E0B{% else %}#6366F1{% endif %};width:18px;"></i>
+      <div style="flex:1;"><strong>{{ a.title }}</strong><div style="color:var(--tiq-text-3);font-size:0.8rem;">{{ a.detail }}</div></div>
+      {% if a.action_endpoint %}
+      <a href="{{ url_for(a.action_endpoint) }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">{{ a.action_label|default('View') }}</a>
+      {% elif a.tenant_id %}
+      <a href="{{ url_for('platform_routes.tenant_detail', tenant_id=a.tenant_id) }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">View</a>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="platform-kpi-grid" style="margin-bottom:1rem;">
+  <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-building" style="color:#6366F1;margin-right:5px;"></i>Organizations</div><div class="stat-value">{{ stats.total_tenants }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-users" style="color:#06B6D4;margin-right:5px;"></i>Total users</div><div class="stat-value">{{ stats.total_users }}</div><div style="font-size:0.72rem;color:#10B981;">+{{ stats.new_users_7d }} this week</div></div>
+  <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-user-check" style="color:#10B981;margin-right:5px;"></i>Verified</div><div class="stat-value">{{ stats.active_users }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-dollar-sign" style="color:#10B981;margin-right:5px;"></i>Est. MRR</div><div class="stat-value">${{ stats.estimated_mrr }}</div><div style="font-size:0.72rem;color:var(--tiq-text-3);">ARR ${{ stats.estimated_arr }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-credit-card" style="color:#F59E0B;margin-right:5px;"></i>Paid / Trial</div><div class="stat-value">{{ stats.paid_tenants }} / {{ stats.trial_tenants }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-headset" style="color:#EF4444;margin-right:5px;"></i>Open support</div><div class="stat-value">{{ stats.open_support }}</div></div>
 </div>
 
-<!-- Content & operations KPIs -->
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0.75rem;margin-bottom:1.5rem;">
-  <div class="tiq-stat-card"><div class="stat-label">Courses</div><div class="stat-value">{{ stats.total_courses }}</div></div>
-  <div class="tiq-stat-card"><div class="stat-label">Exams</div><div class="stat-value">{{ stats.total_exams }}</div></div>
-  <div class="tiq-stat-card"><div class="stat-label">Questions</div><div class="stat-value">{{ stats.total_questions }}</div></div>
-  <div class="tiq-stat-card"><div class="stat-label">Exam attempts</div><div class="stat-value">{{ stats.exam_attempts }}</div></div>
-  <div class="tiq-stat-card"><div class="stat-label">Tasks</div><div class="stat-value">{{ stats.total_tasks }}</div></div>
-  <div class="tiq-stat-card"><div class="stat-label">Open support</div><div class="stat-value">{{ stats.open_support }}</div><div style="font-size:0.72rem;color:var(--tiq-muted);">{{ stats.total_support }} total</div></div>
-  <div class="tiq-stat-card"><div class="stat-label">Pending invites</div><div class="stat-value">{{ stats.pending_invites }}</div></div>
-  <div class="tiq-stat-card"><div class="stat-label">Failed logins (7d)</div><div class="stat-value">{{ stats.failed_logins_7d }}</div></div>
+<div class="platform-kpi-grid" style="margin-bottom:1.5rem;">
+  <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-book" style="color:#8B5CF6;margin-right:5px;"></i>Courses</div><div class="stat-value">{{ stats.total_courses }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-file-lines" style="color:#6366F1;margin-right:5px;"></i>Exams</div><div class="stat-value">{{ stats.total_exams }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-pen" style="color:#06B6D4;margin-right:5px;"></i>Exam attempts</div><div class="stat-value">{{ stats.exam_attempts }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-envelope" style="color:#F59E0B;margin-right:5px;"></i>Pending invites</div><div class="stat-value">{{ stats.pending_invites }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-shield-halved" style="color:#EF4444;margin-right:5px;"></i>Failed logins (7d)</div><div class="stat-value">{{ stats.failed_logins_7d }}</div></div>
+  <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-lock" style="color:#EF4444;margin-right:5px;"></i>Locked accounts</div><div class="stat-value">{{ stats.locked_users }}</div></div>
 </div>
 
 <div class="tiq-grid tiq-grid-2 tiq-gap" style="margin-bottom:1.5rem;">
-  <!-- Enter org + quick areas -->
   <div class="tiq-card">
-    <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-key me-2"></i>Enter any organization</h3></div>
+    <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-key me-2"></i>Enter organization (support mode)</h3></div>
     <div class="tiq-card-body">
-      <form method="POST" action="{{ url_for('platform_routes.enter_by_office_key') }}" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+      <form method="POST" action="{{ url_for('platform_routes.enter_by_office_key') }}" style="display:flex;gap:0.5rem;flex-wrap:wrap;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="text" name="office_key" class="tiq-input" placeholder="Office Key e.g. COLLECTIVE" required style="flex:1;min-width:140px;text-transform:uppercase;">
-        <select name="target" class="tiq-input" style="min-width:140px;">
+        <input type="text" name="office_key" class="tiq-input" placeholder="Office Key e.g. TRAINIQ" required style="flex:1;min-width:140px;text-transform:uppercase;">
+        <select name="target" class="tiq-select" style="min-width:130px;">
           <option value="admin">Admin dashboard</option>
-          <option value="users">Users management</option>
-          <option value="support">Support tickets</option>
+          <option value="users">Users</option>
+          <option value="support">Support</option>
           <option value="billing">Billing</option>
-          <option value="settings">Org settings</option>
+          <option value="settings">Settings</option>
         </select>
-        <button type="submit" class="tiq-btn tiq-btn-primary">Enter</button>
+        <button type="submit" class="tiq-btn tiq-btn-primary">Enter org</button>
       </form>
-      <p style="font-size:0.8rem;color:var(--tiq-text-3);margin:0 0 0.75rem;">Once inside, you have full Super Admin access to that org's users, courses, exams, analytics, billing, and settings.</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:0.5rem;">
-        {% for label, icon, url in [
-          ('All Users', 'users', url_for('platform_routes.platform_users')),
-          ('Support Queue', 'headset', url_for('platform_routes.platform_support')),
-          ('Security', 'shield-halved', url_for('platform_routes.platform_security')),
-          ('Revenue', 'dollar-sign', url_for('platform_routes.platform_revenue')),
-          ('All Tenants', 'building', url_for('platform_routes.list_tenants')),
-        ] %}
-        <a href="{{ url }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm" style="justify-content:center;"><i class="fas fa-{{ icon }}"></i> {{ label }}</a>
-        {% endfor %}
-      </div>
+      <p style="font-size:0.8rem;color:var(--tiq-text-3);margin:0.75rem 0 0;">Full Super Admin access inside the customer org. Use <strong>Back to Platform</strong> when done.</p>
     </div>
   </div>
-
-  <!-- User growth chart -->
   <div class="tiq-card">
-    <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-chart-line me-2"></i>User signups (6 mo)</h3></div>
-    <div class="tiq-card-body"><canvas id="platformUserGrowth" height="180"></canvas></div>
+    <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-chart-line me-2"></i>Growth snapshot</h3></div>
+    <div class="tiq-card-body" style="min-height:200px;">
+      <div id="platformGrowthCombo"></div>
+    </div>
   </div>
 </div>
 
-<div class="tiq-grid tiq-grid-2 tiq-gap" style="margin-bottom:1.5rem;">
-  <!-- Plans -->
+<div class="platform-chart-grid" style="margin-bottom:1.5rem;">
+  <div class="tiq-card">
+    <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-building me-2"></i>Users by organization (top 15)</h3></div>
+    <div class="tiq-card-body">
+      <div id="platformOrgUsers"></div>
+    </div>
+  </div>
   <div class="tiq-card">
     <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-chart-pie me-2"></i>Plans &amp; status</h3></div>
     <div class="tiq-card-body">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-        <div>
-          <h4 style="font-size:0.85rem;margin:0 0 0.5rem;">By plan</h4>
-          <ul style="margin:0;padding:0;list-style:none;font-size:0.85rem;">
-            {% for plan, count in stats.by_plan.items() %}
-            <li style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--tiq-border);"><span>{{ plan }}</span><strong>{{ count }}</strong></li>
-            {% endfor %}
-          </ul>
-        </div>
-        <div>
-          <h4 style="font-size:0.85rem;margin:0 0 0.5rem;">By status</h4>
-          <ul style="margin:0;padding:0;list-style:none;font-size:0.85rem;">
-            {% for st, count in stats.by_status.items() %}
-            <li style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--tiq-border);"><span>{{ st }}</span><strong>{{ count }}</strong></li>
-            {% endfor %}
-          </ul>
-        </div>
+        <div id="platformPlanPie"></div>
+        <div id="platformStatusPie"></div>
       </div>
     </div>
   </div>
-
-  <!-- Recent activity -->
   <div class="tiq-card">
-    <div class="tiq-card-header">
-      <h3 class="tiq-card-title"><i class="fas fa-stream me-2"></i>Recent platform activity</h3>
-      <a href="{{ url_for('platform_routes.platform_security') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">All events</a>
-    </div>
-    <div class="tiq-card-body" style="max-height:280px;overflow-y:auto;padding:0;">
-      <table class="tiq-table" style="font-size:0.8rem;">
-        <tbody>
-          {% for ev in stats.recent_activity %}
-          <tr>
-            <td style="white-space:nowrap;color:var(--tiq-text-3);">{{ ev.created_at.strftime('%m/%d %H:%M') if ev.created_at else '—' }}</td>
-            <td><code style="font-size:0.75rem;">{{ ev.event_type }}</code></td>
-            <td>{% if ev.actor_user %}{{ ev.actor_user.employee_email }}{% else %}—{% endif %}</td>
-          </tr>
-          {% else %}
-          <tr><td colspan="3" style="padding:1rem;text-align:center;color:var(--tiq-text-3);">No recent events</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-dollar-sign me-2"></i>MRR by plan</h3></div>
+    <div class="tiq-card-body">
+      <div id="platformMrrBar"></div>
     </div>
   </div>
 </div>
 
-<!-- Organizations table -->
+<form method="get" class="platform-filter-bar" id="platformOrgFilter">
+  <div class="tiq-form-group" style="margin:0;flex:1;min-width:200px;">
+    <label class="tiq-label">Search organizations</label>
+    <input type="search" name="q" value="{{ q }}" class="tiq-input" placeholder="Name, office key, billing email…">
+  </div>
+  <div class="tiq-form-group" style="margin:0;min-width:120px;">
+    <label class="tiq-label">Plan</label>
+    <select name="plan" class="tiq-select">
+      <option value="">All plans</option>
+      {% for pid in stats.by_plan.keys() %}
+      <option value="{{ pid }}" {% if plan == pid %}selected{% endif %}>{{ pid }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="tiq-form-group" style="margin:0;min-width:120px;">
+    <label class="tiq-label">Status</label>
+    <select name="status" class="tiq-select">
+      <option value="">All statuses</option>
+      {% for st in stats.by_status.keys() %}
+      <option value="{{ st }}" {% if status == st %}selected{% endif %}>{{ st }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="tiq-form-group" style="margin:0;min-width:140px;">
+    <label class="tiq-label">Sort by</label>
+    <select name="sort" class="tiq-select">
+      <option value="users_desc" {% if sort == 'users_desc' %}selected{% endif %}>Most users</option>
+      <option value="users_asc" {% if sort == 'users_asc' %}selected{% endif %}>Fewest users</option>
+      <option value="mrr_desc" {% if sort == 'mrr_desc' %}selected{% endif %}>Highest MRR</option>
+      <option value="name" {% if sort == 'name' %}selected{% endif %}>Name A–Z</option>
+      <option value="created" {% if sort == 'created' %}selected{% endif %}>Newest</option>
+    </select>
+  </div>
+  <button type="submit" class="tiq-btn tiq-btn-primary"><i class="fas fa-filter"></i> Apply</button>
+  {% if q or plan or status or sort != 'users_desc' %}
+  <a href="{{ url_for('platform_routes.platform_dashboard') }}" class="tiq-btn tiq-btn-secondary">Clear</a>
+  {% endif %}
+</form>
+
 <div class="tiq-card">
   <div class="tiq-card-header">
-    <h3 class="tiq-card-title"><i class="fas fa-table me-2"></i>All organizations</h3>
-    <a href="{{ url_for('platform_routes.list_tenants') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">Manage tenants</a>
+    <h3 class="tiq-card-title"><i class="fas fa-table me-2"></i>All organizations ({{ filtered_rows|length }} of {{ stats.total_tenants }})</h3>
+    <div style="display:flex;gap:0.5rem;">
+      <a href="{{ url_for('platform_routes.export_tenants_csv', q=q, plan=plan, status=status, sort=sort) }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm"><i class="fas fa-file-csv"></i> CSV</a>
+      <a href="{{ url_for('platform_routes.platform_users') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm"><i class="fas fa-users"></i> All users</a>
+    </div>
   </div>
   <div class="tiq-card-body" style="padding:0;">
     <div class="tiq-table-wrapper">
-      <table class="tiq-table">
+      <table class="tiq-table tiq-table-pro">
         <thead>
           <tr>
             <th>Organization</th>
             <th>Office Key</th>
-            <th>Plan</th>
+            <th>Plan / Status</th>
             <th>Users</th>
             <th>Courses</th>
             <th>Exams</th>
+            <th>Tasks</th>
             <th>MRR</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-          {% for row in stats.tenant_rows %}
+          {% for row in filtered_rows %}
           {% set t = row.tenant %}
           <tr>
             <td><a href="{{ url_for('platform_routes.tenant_detail', tenant_id=t.id) }}"><strong>{{ t.name }}</strong></a></td>
             <td><code>{{ t.office_key or '—' }}</code></td>
             <td><span class="tiq-badge">{{ t.plan }} / {{ t.status }}</span></td>
-            <td>{{ row.users }}</td>
+            <td><strong>{{ row.users }}</strong>{% if t.max_users %}<span style="color:var(--tiq-text-3);font-size:0.75rem;"> / {{ t.max_users }}</span>{% endif %}</td>
             <td>{{ row.courses }}</td>
             <td>{{ row.exams }}</td>
+            <td>{{ row.tasks }}</td>
             <td>{% if row.mrr %}${{ row.mrr }}{% else %}—{% endif %}</td>
             <td style="white-space:nowrap;">
+              <a href="{{ url_for('platform_routes.platform_users', tenant_id=t.id) }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm" title="Users"><i class="fas fa-users"></i></a>
               <form action="{{ url_for('platform_routes.enter_tenant', tenant_id=t.id) }}" method="POST" style="display:inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">Enter</button>
               </form>
             </td>
           </tr>
+          {% else %}
+          <tr><td colspan="9" style="padding:2rem;text-align:center;color:var(--tiq-text-3);">No organizations match your filters.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  var ctx = document.getElementById('platformUserGrowth');
-  if (ctx && typeof Chart !== 'undefined') {
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: {{ stats.user_growth_labels | tojson }},
-        datasets: [{
-          label: 'New users',
-          data: {{ stats.user_growth_values | tojson }},
-          backgroundColor: 'rgba(245,158,11,0.6)',
-          borderColor: '#F59E0B',
-          borderWidth: 1
-        }]
+  if (typeof ApexCharts === 'undefined') return;
+  const charts = {{ charts | tojson }};
+  const growthLabels = {{ stats.user_growth_labels | tojson }};
+  const growthValues = {{ stats.user_growth_values | tojson }};
+  const palette = ['#6366F1', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+  const baseOpts = {
+    chart: { fontFamily: 'Inter, sans-serif', toolbar: { show: false }, animations: { speed: 600 } },
+    grid: { borderColor: '#E2E8F0', strokeDashArray: 4 },
+    tooltip: { theme: 'light' },
+  };
+
+  function render(elId, opts) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    try {
+      new ApexCharts(el, opts).render();
+    } catch (err) {
+      console.error('[Platform charts]', elId, err);
+    }
+  }
+
+  // Growth: new users (gradient area) + new orgs (line), dual axis
+  render('platformGrowthCombo', {
+    ...baseOpts,
+    chart: { ...baseOpts.chart, type: 'area', height: 230, stacked: false },
+    series: [
+      { name: 'New users', type: 'area', data: growthValues },
+      { name: 'New orgs', type: 'line', data: charts.tenant_growth_values },
+    ],
+    labels: growthLabels,
+    colors: ['#6366F1', '#06B6D4'],
+    stroke: { width: [2, 3], curve: 'smooth' },
+    fill: {
+      type: ['gradient', 'solid'],
+      gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05 },
+    },
+    dataLabels: { enabled: false },
+    yaxis: [
+      { labels: { formatter: v => Math.round(v) }, title: { text: 'Users' } },
+      { opposite: true, labels: { formatter: v => Math.round(v) }, title: { text: 'Orgs' } },
+    ],
+    legend: { position: 'bottom' },
+  });
+
+  // Users by organization — horizontal bar with value labels
+  if (charts.org_labels.length) {
+    render('platformOrgUsers', {
+      ...baseOpts,
+      chart: { ...baseOpts.chart, type: 'bar', height: Math.max(320, charts.org_labels.length * 28) },
+      series: [{ name: 'Users', data: charts.org_users }],
+      xaxis: { categories: charts.org_labels, labels: { formatter: v => Math.round(v) } },
+      colors: ['#6366F1'],
+      plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '65%', dataLabels: { position: 'bottom' } } },
+      dataLabels: {
+        enabled: true,
+        textAnchor: 'start',
+        offsetX: 6,
+        style: { fontSize: '11px', colors: ['#475569'] },
+        formatter: (val, opt) => val,
       },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
     });
+  }
+
+  function donut(elId, labels, values, colors) {
+    if (!labels.length) return;
+    render(elId, {
+      ...baseOpts,
+      chart: { ...baseOpts.chart, type: 'donut', height: 230 },
+      series: values,
+      labels: labels,
+      colors: colors,
+      legend: { position: 'bottom', fontSize: '11px' },
+      dataLabels: { enabled: true, formatter: v => Math.round(v) + '%' },
+      plotOptions: {
+        pie: {
+          donut: {
+            size: '68%',
+            labels: {
+              show: true,
+              total: { show: true, fontSize: '12px', color: '#64748B' },
+            },
+          },
+        },
+      },
+    });
+  }
+  donut('platformPlanPie', charts.plan_labels, charts.plan_values, palette);
+  donut('platformStatusPie', charts.status_labels, charts.status_values, ['#10B981', '#EF4444', '#94A3B8', '#F59E0B', '#6366F1']);
+
+  // MRR by plan — bar with $ labels
+  if (charts.mrr_labels.length) {
+    render('platformMrrBar', {
+      ...baseOpts,
+      chart: { ...baseOpts.chart, type: 'bar', height: 260 },
+      series: [{ name: 'MRR', data: charts.mrr_values }],
+      xaxis: { categories: charts.mrr_labels },
+      yaxis: { labels: { formatter: v => '$' + Math.round(v) } },
+      colors: ['#10B981'],
+      plotOptions: { bar: { borderRadius: 6, columnWidth: '45%' } },
+      dataLabels: { enabled: true, formatter: v => '$' + v, offsetY: -18, style: { fontSize: '11px', colors: ['#047857'] } },
+    });
+  } else {
+    const el = document.getElementById('platformMrrBar');
+    if (el) el.innerHTML = '<p style="color:var(--tiq-text-3);text-align:center;padding:3rem 1rem;">No paid plans yet — MRR appears once an org upgrades.</p>';
   }
 });
 </script>

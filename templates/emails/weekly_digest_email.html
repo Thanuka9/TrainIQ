@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/><title>Your TrainIQ weekly summary</title></head>
+<body style="background:#f4f4f7;margin:0;padding:0;">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+    <table width="600" style="background:#fff;border-radius:8px;margin:40px 0;">
+      <tr><td style="padding:24px;font-family:Arial,sans-serif;">
+        <h2 style="color:#333;">Hi {{ user.first_name }},</h2>
+        <p style="color:#555;line-height:1.5;">Here is your weekly TrainIQ summary:</p>
+        <ul style="color:#555;">
+          <li>Course progress items: <strong>{{ progress_count }}</strong></li>
+          <li>Open tasks: <strong>{{ open_tasks }}</strong></li>
+        </ul>
+        <a href="{{ dashboard_url }}" style="display:inline-block;padding:12px 24px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">Go to dashboard</a>
+        {% include 'emails/trainiq_email_footer.html' %}
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body>
+</html>

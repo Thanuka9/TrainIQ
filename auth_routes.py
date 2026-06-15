@@ -18,10 +18,12 @@ from models import FailedLogin
 import os
 
 from utils.logging_utils import mask_email
+from utils.platform_staff import find_user_by_email, normalize_email
 from utils.tenant_utils import (
     normalize_office_key,
     domain_matches_allowed,
     is_trainiq_staff,
+    is_platform_tenant,
     set_active_tenant_session,
 )
 
@@ -53,11 +55,16 @@ def _send_2fa_email(user):
 
 
 def _redirect_after_login(user):
-    """Post-login destination — trial billing, platform CEO, or user dashboard."""
+    """Post-login destination — user agreement, trial billing, platform CEO, or dashboard."""
     from flask import session
     from utils.billing_plans import is_trial_expired
     from utils.platform_ceo import TRAINIQ_PLATFORM_OFFICE_KEY
     from utils.tenant_utils import is_trainiq_staff
+    from utils.user_agreement import user_needs_agreement
+
+    if user_needs_agreement(user):
+        session['post_agreement_next'] = session.pop('next', None)
+        return redirect(url_for('general_routes.user_agreement_accept'))
 
     org = user.tenant
     trial_ended = bool(
@@ -82,9 +89,7 @@ def _redirect_after_login(user):
         return redirect(url_for("admin_routes.admin_dashboard"))
 
     if is_trainiq_staff(user):
-        home_key = (getattr(org, "office_key", "") or "").upper()
-        if home_key == TRAINIQ_PLATFORM_OFFICE_KEY.upper():
-            return redirect(url_for("platform_routes.platform_dashboard"))
+        return redirect(url_for("platform_routes.platform_dashboard"))
 
     return redirect(url_for("general_routes.dashboard"))
 
@@ -97,6 +102,14 @@ logging.basicConfig(level=logging.INFO,
 
 MAX_FAILED_ATTEMPTS = 3
 
+PASSWORD_PATTERN = __import__("re").compile(
+    r"^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+)
+
+
+def _user_by_email(email):
+    return find_user_by_email(email)
+
 @auth_routes.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
@@ -106,7 +119,7 @@ def register():
         # 1. Extract form fields
         first_name = request.form.get('first_name')
         last_name = request.form.get('last_name')
-        employee_email = request.form.get('employee_email')
+        employee_email = normalize_email(request.form.get('employee_email'))
         password = request.form.get('password')
         company_name = request.form.get('company_name', '').strip()
 
@@ -122,14 +135,16 @@ def register():
             return redirect(url_for('auth_routes.register'))
 
         # Password complexity validation
-        import re
-        password_pattern = re.compile(r'^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$')
-        if not password_pattern.match(password):
+        if not PASSWORD_PATTERN.match(password):
             flash("Password must be at least 8 characters and contain 1 uppercase letter, 1 symbol, and 1 number.", "error")
             return redirect(url_for('auth_routes.register'))
 
+        if not request.form.get('accept_user_agreement'):
+            flash("You must accept the TrainIQ Platform User Agreement to create an account.", "error")
+            return redirect(url_for('auth_routes.register'))
+
         # Duplication check
-        if User.query.filter_by(employee_email=employee_email).first():
+        if _user_by_email(employee_email):
             flash("Email already registered.", "error")
             return redirect(url_for('auth_routes.register'))
 
@@ -141,6 +156,13 @@ def register():
             if domain_matches_allowed(employee_email, tenant.allowed_domain):
                 matched_tenant = tenant
                 break
+
+        if matched_tenant and is_platform_tenant(matched_tenant):
+            flash(
+                "The TrainIQ platform office is staff-only. Use your organization's office key to register.",
+                "error",
+            )
+            return redirect(url_for('auth_routes.register'))
 
         is_new_tenant = False
         generated_office_key = None
@@ -302,12 +324,12 @@ def accept_invite(token):
             flash("All fields are required.", "error")
             return redirect(url_for('auth_routes.accept_invite', token=token))
 
-        password_pattern = re.compile(r'^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$')
+        password_pattern = PASSWORD_PATTERN
         if not password_pattern.match(password):
             flash("Password must be at least 8 characters and contain 1 uppercase letter, 1 symbol, and 1 number.", "error")
             return redirect(url_for('auth_routes.accept_invite', token=token))
 
-        if User.query.filter_by(employee_email=employee_email).first():
+        if _user_by_email(employee_email):
             flash("An account with this email already exists. Please log in.", "error")
             return redirect(url_for('auth_routes.login'))
 
@@ -324,9 +346,22 @@ def accept_invite(token):
             tenant_id=tenant.id,
         )
         new_user.set_password(password)
-        member_role = Role.query.filter_by(name='member').first()
-        if member_role:
-            new_user.roles.append(member_role)
+        invite_role = (getattr(invite, 'role', None) or 'learner').lower()
+        if invite_role == 'super_admin':
+            new_user.is_super_admin = True
+            for role_name in ('member', 'admin', 'super_admin'):
+                role = Role.query.filter_by(name=role_name).first()
+                if role and role not in new_user.roles:
+                    new_user.roles.append(role)
+        elif invite_role == 'admin':
+            for role_name in ('member', 'admin'):
+                role = Role.query.filter_by(name=role_name).first()
+                if role and role not in new_user.roles:
+                    new_user.roles.append(role)
+        else:
+            member_role = Role.query.filter_by(name='member').first()
+            if member_role:
+                new_user.roles.append(member_role)
         db.session.add(new_user)
 
         try:
@@ -340,7 +375,7 @@ def accept_invite(token):
         mark_invite_used(invite, new_user.id)
 
         session['user_id'] = new_user.id
-        session['is_super_admin'] = False
+        session['is_super_admin'] = bool(new_user.is_super_admin)
         session['role_id'] = new_user.roles[0].id if new_user.roles else None
         session['designation_id'] = new_user.designation_id
         set_active_tenant_session(tenant, platform_support=False)
@@ -360,6 +395,61 @@ def accept_invite(token):
     return render_template('accept_invite.html', invite=invite, tenant=tenant, token=token)
 
 
+@auth_routes.route('/accept-staff-invite/<token>', methods=['GET', 'POST'])
+@auth_routes.route('/accept_staff_invite/<token>', methods=['GET', 'POST'])
+def accept_staff_invite(token):
+    """Platform staff invite acceptance — set password and activate staff account."""
+    from utils.platform_staff import (
+        activate_staff_from_invite,
+        get_valid_staff_invite,
+    )
+
+    invite = get_valid_staff_invite(token)
+    if not invite:
+        flash("This staff invitation link is invalid or has expired.", "error")
+        return redirect(url_for('auth_routes.login'))
+
+    if request.method == 'POST':
+        password = request.form.get('password')
+        confirm = request.form.get('confirm_password')
+
+        if not password or not confirm:
+            flash("Password fields are required.", "error")
+            return redirect(url_for('auth_routes.accept_staff_invite', token=token))
+
+        if password != confirm:
+            flash("Passwords do not match.", "error")
+            return redirect(url_for('auth_routes.accept_staff_invite', token=token))
+
+        if not PASSWORD_PATTERN.match(password):
+            flash(
+                "Password must be at least 8 characters and contain 1 uppercase letter, 1 symbol, and 1 number.",
+                "error",
+            )
+            return redirect(url_for('auth_routes.accept_staff_invite', token=token))
+
+        if not request.form.get('accept_user_agreement'):
+            flash("You must accept the TrainIQ Platform User Agreement.", "error")
+            return redirect(url_for('auth_routes.accept_staff_invite', token=token))
+
+        try:
+            user = activate_staff_from_invite(invite, password)
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            logging.error(f"Staff invite acceptance DB error: {e}")
+            flash("Could not activate account. Please try again.", "error")
+            return redirect(url_for('auth_routes.accept_staff_invite', token=token))
+
+        flash(
+            "Your TrainIQ platform staff account is ready. Sign in with the TRAINIQ office key.",
+            "success",
+        )
+        log_event('PLATFORM_STAFF_ACTIVATED', user=user, role=invite.role)
+        return redirect(url_for('auth_routes.login'))
+
+    return render_template('accept_staff_invite.html', invite=invite, token=token)
+
+
 @auth_routes.route('/verify/<token>')
 def verify_email(token):
     try:
@@ -372,8 +462,8 @@ def verify_email(token):
         flash("Invalid verification link.", "error")
         return redirect(url_for('auth_routes.login'))
 
-    # 2) Look up the user record by email
-    user = User.query.filter_by(employee_email=email).first()
+    # 2) Look up the user record by email (case-insensitive)
+    user = _user_by_email(email)
     if not user:
         flash("Invalid verification link.", "error")
         return redirect(url_for('auth_routes.login'))
@@ -398,7 +488,7 @@ def verify_email(token):
 def login():
     if request.method == 'POST':
         office_key = normalize_office_key(request.form.get('office_key'))
-        email = request.form.get('employee_email')
+        email = normalize_email(request.form.get('employee_email'))
         pwd   = request.form.get('password')
 
         if not office_key:
@@ -406,6 +496,8 @@ def login():
             return redirect(url_for('auth_routes.login'))
 
         from models import Tenant
+        from utils.platform_ceo import PLATFORM_CEO_EMAIL
+
         tenant = Tenant.query.filter_by(office_key=office_key).first()
         if not tenant:
             flash("Invalid Office Key.", "error")
@@ -413,7 +505,27 @@ def login():
 
         from utils.tenant_limits import tenant_is_active, trial_expired_message
         from utils.billing_plans import is_trial_expired
-        user  = User.query.filter_by(employee_email=email).first()
+        user  = _user_by_email(email)
+
+        # Platform tenant (TRAINIQ office key) is staff-only
+        if is_platform_tenant(tenant) and not (user and is_trainiq_staff(user)):
+            flash(
+                "This office key is for TrainIQ platform staff only. "
+                "Sign in with your organization's office key instead.",
+                "error",
+            )
+            log_event('FAILED_LOGIN', user=None, email=email)
+            return redirect(url_for('auth_routes.login'))
+
+        # Platform CEO logging into TRAINIQ office key — attach to platform tenant (not support mode)
+        if user and is_platform_tenant(tenant):
+            if (user.employee_email or "").lower().strip() == PLATFORM_CEO_EMAIL:
+                user.is_super_admin = True
+                user.is_platform_staff = True
+                user.platform_staff_role = "ceo"
+                if user.tenant_id != tenant.id:
+                    user.tenant_id = tenant.id
+                    db.session.commit()
 
         org = user.tenant if user and user.tenant else tenant
         trial_ended = is_trial_expired(org) or (getattr(org, 'status', '') or '').lower() == 'expired'
@@ -460,8 +572,11 @@ def login():
             db.session.commit()
 
             if not user.is_verified:
-                flash("Account not verified. Contact support.", "error")
-                return redirect(url_for('auth_routes.login'))
+                flash(
+                    "Your email is not verified yet. We can resend the verification link.",
+                    "warning",
+                )
+                return redirect(url_for('auth_routes.resend_verification'))
 
             # put user info into session
             session['user_id']          = user.id
@@ -654,52 +769,46 @@ def resend_2fa():
 @auth_routes.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
-        email = request.form['employee_email']
-        user = User.query.filter_by(employee_email=email).first()
-        if not user:
-            flash("Email not found.", "error")
-            return redirect(url_for('auth_routes.login'))
+        email = normalize_email(request.form.get('employee_email'))
+        user = _user_by_email(email)
 
-        # 1) generate the token & expiry
-        token = s.dumps(email, salt='password-reset-salt')
-        expires_at = datetime.utcnow() + timedelta(hours=1)
+        generic_msg = "If an account exists, we sent a reset link."
+        if user:
+            token = s.dumps(user.employee_email, salt='password-reset-salt')
+            expires_at = datetime.utcnow() + timedelta(hours=1)
 
-        # 2) record it in PasswordResetRequest table
-        pr = PasswordResetRequest(
-            user_id=user.id,
-            token=token,
-            expires_at=expires_at
-        )
-        db.session.add(pr)
+            pr = PasswordResetRequest(
+                user_id=user.id,
+                token=token,
+                expires_at=expires_at
+            )
+            db.session.add(pr)
+            user.password_reset_token = token
+            user.password_reset_expiration = expires_at
 
-        # (optional) still keep it on the User for quick lookup
-        user.password_reset_token = token
-        user.password_reset_expiration = expires_at
+            try:
+                db.session.commit()
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                logging.error(f"Database error during forgot password: {e}")
+                flash("Server error. Please try again.", "error")
+                return redirect(url_for('auth_routes.login'))
 
-        try:
-            db.session.commit()
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            logging.error(f"Database error during forgot password: {e}")
-            flash("Server error. Please try again.", "error")
-            return redirect(url_for('auth_routes.login'))
+            reset_url = url_for('auth_routes.reset_password', token=token, _external=True)
+            msg = Message(subject='Password Reset', recipients=[user.employee_email])
+            msg.body = f'Reset your password using this link: {reset_url}'
+            msg.html = render_template(
+                'emails/password_reset_email.html',
+                user=user,
+                reset_url=reset_url
+            )
+            try:
+                mail.send(msg)
+            except Exception as e:
+                logging.error(f"Failed to send forgot password email: {e}")
+                _dev_only(f"[DEV] Reset Link: {reset_url}")
 
-        # 3) send the email
-        reset_url = url_for('auth_routes.reset_password', token=token, _external=True)
-        msg = Message(subject='Password Reset', recipients=[email])
-        msg.body = f'Reset your password using this link: {reset_url}'
-        msg.html = render_template(
-            'emails/password_reset_email.html',
-            user=user,
-            reset_url=reset_url
-        )
-        try:
-            mail.send(msg)
-        except Exception as e:
-            logging.error(f"Failed to send forgot password email: {e}")
-            _dev_only(f"[DEV] Reset Link: {reset_url}")
-
-        flash("Check your email for the reset link.", "info")
+        flash(generic_msg, "info")
         return redirect(url_for('auth_routes.login'))
 
     return render_template('forgot_password.html')
@@ -720,7 +829,10 @@ def reset_password(token):
         flash("Invalid or expired reset link.", "error")
         return redirect(url_for('auth_routes.forgot_password'))
 
-    user = User.query.get(pr.user_id)
+    user = _user_by_email(email)
+    if not user or user.id != pr.user_id:
+        flash("Invalid or expired reset link.", "error")
+        return redirect(url_for('auth_routes.forgot_password'))
 
     if request.method == 'POST':
         pw1 = request.form['new_password']
@@ -734,12 +846,14 @@ def reset_password(token):
             flash("Passwords do not match.", "error")
             return render_template('reset_password.html', token=token)
 
-        if len(pw1) < 8:
-            flash("Password must be at least 8 characters.", "error")
+        if not PASSWORD_PATTERN.match(pw1):
+            flash("Password must be at least 8 characters and contain 1 uppercase letter, 1 symbol, and 1 number.", "error")
             return render_template('reset_password.html', token=token)
 
-        # all good → set new password and clean up
         user.set_password(pw1)
+        user.is_locked = False
+        user.failed_login_count = 0
+        user.locked_at = None
         db.session.delete(pr)
         user.password_reset_token = None
         user.password_reset_expiration = None
@@ -805,21 +919,21 @@ def resend_verification():
         return redirect(url_for('general_routes.dashboard'))
         
     if request.method == 'POST':
-        email = request.form.get('employee_email')
-        user = User.query.filter_by(employee_email=email).first()
+        email = normalize_email(request.form.get('employee_email'))
+        user = _user_by_email(email)
         if user:
             if user.is_verified:
                 flash("Email already verified. Please sign in.", "info")
                 return redirect(url_for('auth_routes.login'))
-                
-            token = s.dumps(email, salt='email-confirmation')
+
+            token = s.dumps(user.employee_email, salt='email-confirmation')
             user.verification_token = token
             db.session.commit()
-            
+
             verify_url = url_for('auth_routes.verify_email', token=token, _external=True)
             msg = Message(
                 subject="Verify Your Email",
-                recipients=[email]
+                recipients=[user.employee_email]
             )
             msg.body = (
                 "Please verify your email by clicking the link:\n\n"
@@ -835,12 +949,12 @@ def resend_verification():
             except Exception as e:
                 logging.error(f"Failed to send verification email: {e}")
                 _dev_only(f"[DEV] Verification Link: {verify_url}")
-            
-            flash("Verification email has been resent successfully.", "success")
-            return redirect(url_for('auth_routes.login'))
-        else:
-            flash("Email address not found.", "error")
-            return redirect(url_for('auth_routes.resend_verification'))
+
+        flash(
+            "If an account exists and is unverified, we sent a new verification link.",
+            "info",
+        )
+        return redirect(url_for('auth_routes.login'))
             
     return render_template('resend_verification.html')
 

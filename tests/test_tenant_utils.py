@@ -5,8 +5,10 @@ from utils.tenant_utils import (
     domain_matches_allowed,
     host_matches_allowed,
     is_trainiq_staff,
+    is_platform_tenant,
     parse_domain_list,
     trainiq_staff_domains,
+    trainiq_staff_emails,
 )
 
 
@@ -37,16 +39,28 @@ def test_trainiq_staff_domains_default():
 
 class _FakeUser:
     is_authenticated = True
-    employee_email = "support@trainiq.com"
 
-    def __init__(self, email):
+    def __init__(self, email, *, is_platform_staff=False, tenant=None):
         self.employee_email = email
+        self.is_platform_staff = is_platform_staff
+        self.tenant = tenant
 
 
-def test_is_trainiq_staff():
-    assert is_trainiq_staff(_FakeUser("ops@trainiq.com"))
-    assert not is_trainiq_staff(_FakeUser("user@acme.com"))
+def test_is_trainiq_staff_requires_platform_staff_flag():
+    assert not is_trainiq_staff(_FakeUser("ops@trainiq.com"))
+    platform_tenant = type("T", (), {"office_key": "TRAINIQ"})()
+    assert is_trainiq_staff(
+        _FakeUser("ops@example.com", is_platform_staff=True, tenant=platform_tenant)
+    )
 
 
 def test_is_trainiq_staff_ceo_email():
-    assert is_trainiq_staff(_FakeUser("thanuka.ellepola@gmail.com"))
+    from utils.platform_ceo import PLATFORM_CEO_EMAIL
+
+    assert is_trainiq_staff(_FakeUser(PLATFORM_CEO_EMAIL))
+
+
+def test_trainiq_staff_emails_includes_ceo():
+    from utils.platform_ceo import PLATFORM_CEO_EMAIL
+
+    assert PLATFORM_CEO_EMAIL in trainiq_staff_emails()

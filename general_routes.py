@@ -28,6 +28,8 @@ class SupportRequestForm(FlaskForm):
 from utils.tenant_utils import filter_by_user_tenant, user_tenant_id
 from utils.task_filters import assigned_to_user
 from utils.announcements import active_announcements_for_tenant
+from utils.level_access import get_area_progress_summary, get_level_journey
+from utils.learner_recommendations import get_recommended_next_course
 
 # Initialize Blueprint
 general_routes = Blueprint('general_routes', __name__)
@@ -35,6 +37,7 @@ general_routes = Blueprint('general_routes', __name__)
 @general_routes.route('/home')
 def home():
     return render_template('home.html')
+
 
 @general_routes.route('/dashboard')
 @login_required
@@ -45,16 +48,20 @@ def dashboard():
 
     # — Learning Progress —
     current_progress = (
-        db.session.query(StudyMaterial.title, UserProgress.progress_percentage)
+        db.session.query(
+            StudyMaterial.id,
+            StudyMaterial.title,
+            UserProgress.progress_percentage,
+        )
           .join(UserProgress, StudyMaterial.id == UserProgress.study_material_id)
           .filter(UserProgress.user_id == user_id)
           .order_by(UserProgress.progress_percentage.desc())
           .first()
     )
     if current_progress:
-        current_course, course_progress = current_progress
+        current_course_id, current_course, course_progress = current_progress
     else:
-        current_course, course_progress = "No course in progress.", 0
+        current_course_id, current_course, course_progress = None, "No course in progress.", 0
 
     # — Last Exam Results (special or regular) —
     special_record = SpecialExamRecord.query.filter_by(user_id=user_id).first()
@@ -99,6 +106,36 @@ def dashboard():
         last_exam_score  = last_exam_score,
         upcoming_tasks   = upcoming_tasks,
         announcements    = active_announcements_for_tenant(user_tenant_id()),
+        level_journey       = get_level_journey(current_user),
+        area_progress       = get_area_progress_summary(current_user),
+        recommended_course  = get_recommended_next_course(current_user),
+        current_course_id   = current_course_id,
+    )
+
+
+@general_routes.route('/certificates/course/<int:course_id>')
+@login_required
+def download_course_certificate(course_id):
+    """Download a PDF completion certificate when the course is 100% complete."""
+    from utils.certificates import generate_completion_certificate
+
+    material = StudyMaterial.query.get_or_404(course_id)
+    if material.tenant_id and material.tenant_id != user_tenant_id():
+        flash("You do not have access to this course.", "error")
+        return redirect(url_for('general_routes.dashboard'))
+
+    pdf_bytes = generate_completion_certificate(current_user, material)
+    if not pdf_bytes:
+        flash("Complete the course to download your certificate.", "warning")
+        return redirect(url_for('study_material_routes.view_course', course_id=course_id))
+
+    safe_title = "".join(c if c.isalnum() or c in " -_" else "_" for c in material.title)[:60]
+    filename = f"certificate_{safe_title.strip() or course_id}.pdf"
+    return send_file(
+        BytesIO(pdf_bytes),
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename,
     )
 
 @general_routes.route('/study_materials')
@@ -119,13 +156,13 @@ def study_materials():
                 'progress_percentage': up.progress_percentage if up else 0
             })
 
-        is_super_admin = session.get('is_super_admin', False)
+        from utils.user_access import effective_is_super_admin, user_role_label
         return render_template(
             'study_materials.html',
             materials=materials,
             progress_data=progress_data,
-            is_super_admin=is_super_admin,
-            user_role=session.get('role')
+            is_super_admin=effective_is_super_admin(current_user),
+            user_role=user_role_label(current_user),
         )
     except Exception as e:
         logging.error(f"Error rendering study materials: {e}")
@@ -202,7 +239,6 @@ def analyticsiq_start():
             **ai_status,
         })
 
-    from utils.tenant_utils import user_tenant_id
     job_id = create_job(current_user.id, "analyticsiq", tenant_id=user_tenant_id())
 
     def work():
@@ -316,7 +352,14 @@ def client_materials():
 @general_routes.route('/hr_management')
 @login_required
 def hr_management():
-    return render_template('hr_management.html')
+    from utils.user_access import effective_is_super_admin
+    is_admin_role = bool(
+        current_user.roles and current_user.roles[0].name in ('admin', 'super_admin')
+    )
+    return render_template(
+        'hr_management.html',
+        can_access_portal=effective_is_super_admin(current_user) or is_admin_role,
+    )
 
 @general_routes.route('/privacy-policy')
 def privacy_policy():
@@ -443,21 +486,49 @@ def download_attachment(attachment_id):
         as_attachment=True
     )
 
-# ─── One-Time Privacy Policy Agreement ─────────────────────────────
+# ─── User Agreement (mandatory) ─────────────────────────────────────
+@general_routes.route('/user-agreement')
+def user_agreement_view():
+    from utils.user_agreement import agreement_context
+    return render_template('user_agreement_public.html', **agreement_context())
+
+
+@general_routes.route('/user-agreement/accept', methods=['GET', 'POST'])
+@login_required
+def user_agreement_accept():
+    from utils.user_agreement import (
+        agreement_context,
+        record_agreement_acceptance,
+        user_has_accepted_agreement,
+    )
+
+    if user_has_accepted_agreement(current_user):
+        return redirect(url_for('general_routes.dashboard'))
+
+    if request.method == 'POST':
+        record_agreement_acceptance(
+            current_user,
+            ip_address=request.headers.get('X-Forwarded-For', request.remote_addr),
+            user_agent=request.headers.get('User-Agent'),
+        )
+        next_url = session.pop('post_agreement_next', None) or url_for('general_routes.dashboard')
+        flash("Thank you. Your acceptance of the User Agreement has been recorded.", "success")
+        return redirect(next_url)
+
+    next_url = request.args.get('next') or session.get('post_agreement_next') or url_for('general_routes.dashboard')
+    session['post_agreement_next'] = next_url
+    return render_template(
+        'user_agreement_gate.html',
+        next_url=next_url,
+        **agreement_context(),
+    )
+
+
 @general_routes.route('/privacy-policy-agreement', methods=['GET', 'POST'])
 @login_required
 def privacy_policy_agreement():
-    if request.method == 'POST':
-        # mark their consent
-        current_user.privacy_agreed    = True
-        current_user.privacy_agreed_at = datetime.utcnow()
-        db.session.commit()
-        # redirect to dashboard (not root)
-        next_url = session.pop('next', url_for('general_routes.dashboard'))
-        return redirect(next_url)
-
-    # on GET, show the standalone agreement page
-    return render_template('privacy_policy1.html')
+    """Legacy route — redirect to unified User Agreement gate."""
+    return redirect(url_for('general_routes.user_agreement_accept'))
 
 
 @general_routes.route('/dismiss-trial-checklist', methods=['POST'])

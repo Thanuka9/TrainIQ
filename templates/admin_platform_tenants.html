@@ -1,110 +1,312 @@
-{% extends 'admin_base.html' %}
+{% extends 'platform_base.html' %}
+
 {% block title %}Platform Tenants — TrainIQ{% endblock %}
+
 {% block breadcrumb %}
+
   <a href="{{ url_for('platform_routes.platform_dashboard') }}">Platform</a>
+
   <span class="tiq-breadcrumb-sep">/</span>
+
   <span>All Tenants</span>
+
 {% endblock %}
+
+
 
 {% block content %}
+
 <div class="tiq-page-header">
-  <div class="tiq-flex-between">
+
+  <div class="tiq-flex-between" style="flex-wrap:wrap;gap:1rem;">
+
     <div>
+
       <h1>All Organizations</h1>
-      <p class="tiq-lead">Manage every customer tenant — plans, limits, suspend/activate, and support access.</p>
+
+      <p class="tiq-lead">Search, filter, and manage every customer tenant — plans, limits, suspend/activate, and support access.</p>
+
     </div>
+
+    <a href="{{ url_for('platform_routes.platform_users') }}" class="tiq-btn tiq-btn-secondary"><i class="fas fa-users"></i> All platform users</a>
+    <a href="{{ url_for('platform_routes.export_tenants_csv', q=q, plan=plan, status=status, sort=sort) }}" class="tiq-btn tiq-btn-secondary"><i class="fas fa-file-csv"></i> Export CSV</a>
+
   </div>
+
 </div>
+
 {% include 'partials/platform_subnav.html' %}
 
-<div class="tiq-card">
-  <div class="tiq-card-body" style="padding:0;">
-    <div class="tiq-table-wrapper">
-      <table class="tiq-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Organization</th>
-            <th>Office Key</th>
-            <th>Plan / Status</th>
-            <th>Users</th>
-            <th>Courses</th>
-            <th>Exams</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in tenants %}
-          {% set t = row.tenant %}
-          <tr>
-            <td>{{ t.id }}</td>
-            <td><a href="{{ url_for('platform_routes.tenant_detail', tenant_id=t.id) }}"><strong>{{ t.name }}</strong></a><br><small style="color:var(--tiq-text-3);">{{ t.allowed_domain or '—' }}</small></td>
-            <td><code>{{ t.office_key or '—' }}</code></td>
-            <td>
-              <span class="tiq-badge {% if t.status == 'active' %}tiq-badge-success{% elif t.status == 'suspended' or t.status == 'expired' %}tiq-badge-danger{% else %}tiq-badge-warning{% endif %}">
-                {{ t.plan }} / {{ t.status }}
-              </span>
-            </td>
-            <td>{{ row.users }} / {{ t.max_users or 10 }}</td>
-            <td>{{ row.courses }}</td>
-            <td>{{ row.exams }}</td>
-            <td style="white-space:nowrap;">
-              <form action="{{ url_for('platform_routes.enter_tenant', tenant_id=t.id) }}" method="POST" style="display:inline;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm" title="Enter support mode"><i class="fas fa-sign-in-alt"></i></button>
-              </form>
-              {% if t.status == 'suspended' %}
-              <form action="{{ url_for('platform_routes.activate_tenant', tenant_id=t.id) }}" method="POST" style="display:inline;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="tiq-btn tiq-btn-success tiq-btn-sm"><i class="fas fa-play"></i></button>
-              </form>
-              {% else %}
-              <form action="{{ url_for('platform_routes.suspend_tenant', tenant_id=t.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Suspend this tenant?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="reason" value="Suspended from platform console">
-                <button type="submit" class="tiq-btn tiq-btn-warning tiq-btn-sm"><i class="fas fa-pause"></i></button>
-              </form>
-              {% endif %}
-              <button type="button" class="tiq-btn tiq-btn-secondary tiq-btn-sm" onclick="document.getElementById('plan-{{ t.id }}').style.display='block'"><i class="fas fa-sliders-h"></i></button>
-            </td>
-          </tr>
-          <tr id="plan-{{ t.id }}" style="display:none;background:var(--tiq-surface-2);">
-            <td colspan="8">
-              <form action="{{ url_for('platform_routes.update_tenant_plan', tenant_id=t.id) }}" method="POST" style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end;padding:0.75rem;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div>
-                  <label class="tiq-label">Plan</label>
-                  <select class="tiq-select" name="plan">
-                    {% for pid, p in plan_catalog.items() %}
-                    <option value="{{ pid }}" {% if t.plan == pid %}selected{% endif %}>{{ p.name }} ({{ p.max_users }} users)</option>
-                    {% endfor %}
-                  </select>
-                </div>
-                <div>
-                  <label class="tiq-label">Status</label>
-                  <select class="tiq-select" name="status">
-                    <option value="trial" {% if t.status=='trial' %}selected{% endif %}>trial</option>
-                    <option value="active" {% if t.status=='active' %}selected{% endif %}>active</option>
-                    <option value="expired" {% if t.status=='expired' %}selected{% endif %}>expired</option>
-                    <option value="suspended" {% if t.status=='suspended' %}selected{% endif %}>suspended</option>
-                  </select>
-                </div>
-                <div><label class="tiq-label">Max users</label><input class="tiq-input" name="max_users" type="number" value="{{ t.max_users or 10 }}"></div>
-                <div><label class="tiq-label">Storage MB</label><input class="tiq-input" name="max_storage_mb" type="number" value="{{ t.max_storage_mb or 2048 }}"></div>
-                <div><label class="tiq-label">Billing email</label><input class="tiq-input" name="billing_email" value="{{ t.billing_email or '' }}"></div>
-                <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">Save</button>
-              </form>
-              {% if t.trial_ends_at %}
-              <div style="font-size:0.8rem;color:var(--tiq-text-3);padding:0 0.75rem 0.75rem;">Trial ends: {{ t.trial_ends_at.strftime('%Y-%m-%d %H:%M UTC') }}</div>
-              {% endif %}
-            </td>
-          </tr>
-          {% else %}
-          <tr><td colspan="8" style="text-align:center;padding:2rem;">No tenants found.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+
+
+<form method="get" class="platform-filter-bar" action="{{ url_for('platform_routes.list_tenants') }}">
+
+  <div class="tiq-form-group" style="margin:0;flex:1;min-width:200px;">
+
+    <label class="tiq-label">Search organizations</label>
+
+    <input type="search" name="q" value="{{ q }}" class="tiq-input" placeholder="Name, office key, billing email…">
+
   </div>
+
+  <div class="tiq-form-group" style="margin:0;min-width:120px;">
+
+    <label class="tiq-label">Plan</label>
+
+    <select name="plan" class="tiq-select">
+
+      <option value="">All plans</option>
+
+      {% for pid in stats.by_plan.keys() %}
+
+      <option value="{{ pid }}" {% if plan == pid %}selected{% endif %}>{{ pid }}</option>
+
+      {% endfor %}
+
+    </select>
+
+  </div>
+
+  <div class="tiq-form-group" style="margin:0;min-width:120px;">
+
+    <label class="tiq-label">Status</label>
+
+    <select name="status" class="tiq-select">
+
+      <option value="">All statuses</option>
+
+      {% for st in stats.by_status.keys() %}
+
+      <option value="{{ st }}" {% if status == st %}selected{% endif %}>{{ st }}</option>
+
+      {% endfor %}
+
+    </select>
+
+  </div>
+
+  <div class="tiq-form-group" style="margin:0;min-width:140px;">
+
+    <label class="tiq-label">Sort by</label>
+
+    <select name="sort" class="tiq-select">
+
+      <option value="users_desc" {% if sort == 'users_desc' %}selected{% endif %}>Most users</option>
+
+      <option value="users_asc" {% if sort == 'users_asc' %}selected{% endif %}>Fewest users</option>
+
+      <option value="mrr_desc" {% if sort == 'mrr_desc' %}selected{% endif %}>Highest MRR</option>
+
+      <option value="name" {% if sort == 'name' %}selected{% endif %}>Name A–Z</option>
+
+      <option value="created" {% if sort == 'created' %}selected{% endif %}>Newest</option>
+
+    </select>
+
+  </div>
+
+  <button type="submit" class="tiq-btn tiq-btn-primary"><i class="fas fa-filter"></i> Apply</button>
+
+  {% if q or plan or status or sort != 'users_desc' %}
+
+  <a href="{{ url_for('platform_routes.list_tenants') }}" class="tiq-btn tiq-btn-secondary">Clear</a>
+
+  {% endif %}
+
+</form>
+
+
+
+<div class="tiq-card">
+
+  <div class="tiq-card-header">
+
+    <h3 class="tiq-card-title"><i class="fas fa-building me-2"></i>{{ tenants|length }} of {{ stats.total_tenants }} organizations</h3>
+
+  </div>
+
+  <div class="tiq-card-body" style="padding:0;">
+
+    <div class="tiq-table-wrapper">
+
+      <table class="tiq-table tiq-table-pro">
+
+        <thead>
+
+          <tr>
+
+            <th>ID</th>
+
+            <th>Organization</th>
+
+            <th>Office Key</th>
+
+            <th>Plan / Status</th>
+
+            <th>Users</th>
+
+            <th>Courses</th>
+
+            <th>Exams</th>
+
+            <th>MRR</th>
+
+            <th>Actions</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          {% for row in tenants %}
+
+          {% set t = row.tenant %}
+
+          <tr>
+
+            <td>{{ t.id }}</td>
+
+            <td>
+
+              <a href="{{ url_for('platform_routes.tenant_detail', tenant_id=t.id) }}"><strong>{{ t.name }}</strong></a>
+
+              <br><small style="color:var(--tiq-text-3);">{{ t.allowed_domain or '—' }}</small>
+
+            </td>
+
+            <td><code>{{ t.office_key or '—' }}</code></td>
+
+            <td>
+
+              <span class="tiq-badge {% if t.status == 'active' %}tiq-badge-success{% elif t.status == 'suspended' or t.status == 'expired' %}tiq-badge-danger{% else %}tiq-badge-warning{% endif %}">
+
+                {{ t.plan }} / {{ t.status }}
+
+              </span>
+
+            </td>
+
+            <td><strong>{{ row.users }}</strong>{% if t.max_users %}<span style="color:var(--tiq-text-3);font-size:0.75rem;"> / {{ t.max_users }}</span>{% endif %}</td>
+
+            <td>{{ row.courses }}</td>
+
+            <td>{{ row.exams }}</td>
+
+            <td>{% if row.mrr %}${{ row.mrr }}{% else %}—{% endif %}</td>
+
+            <td style="white-space:nowrap;">
+
+              <a href="{{ url_for('platform_routes.platform_users', tenant_id=t.id) }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm" title="Users"><i class="fas fa-users"></i></a>
+
+              <form action="{{ url_for('platform_routes.enter_tenant', tenant_id=t.id) }}" method="POST" style="display:inline;">
+
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm" title="Enter support mode"><i class="fas fa-sign-in-alt"></i></button>
+
+              </form>
+
+              {% if t.status == 'suspended' %}
+
+              <form action="{{ url_for('platform_routes.activate_tenant', tenant_id=t.id) }}" method="POST" style="display:inline;">
+
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <button type="submit" class="tiq-btn tiq-btn-success tiq-btn-sm"><i class="fas fa-play"></i></button>
+
+              </form>
+
+              {% else %}
+
+              <button type="button" class="tiq-btn tiq-btn-warning tiq-btn-sm" onclick="openSuspendModal({{ t.id }}, '{{ t.name|e }}')" title="Suspend"><i class="fas fa-pause"></i></button>
+
+              {% endif %}
+
+              <button type="button" class="tiq-btn tiq-btn-secondary tiq-btn-sm" onclick="document.getElementById('plan-{{ t.id }}').style.display='table-row'"><i class="fas fa-sliders-h"></i></button>
+
+            </td>
+
+          </tr>
+
+          <tr id="plan-{{ t.id }}" style="display:none;background:var(--tiq-surface-2);">
+
+            <td colspan="9">
+
+              <form action="{{ url_for('platform_routes.update_tenant_plan', tenant_id=t.id) }}" method="POST" style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end;padding:0.75rem;">
+
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div>
+
+                  <label class="tiq-label">Plan</label>
+
+                  <select class="tiq-select" name="plan">
+
+                    {% for pid, p in plan_catalog.items() %}
+
+                    <option value="{{ pid }}" {% if t.plan == pid %}selected{% endif %}>{{ p.name }} ({{ p.max_users }} users)</option>
+
+                    {% endfor %}
+
+                  </select>
+
+                </div>
+
+                <div>
+
+                  <label class="tiq-label">Status</label>
+
+                  <select class="tiq-select" name="status">
+
+                    <option value="trial" {% if t.status=='trial' %}selected{% endif %}>trial</option>
+
+                    <option value="active" {% if t.status=='active' %}selected{% endif %}>active</option>
+
+                    <option value="expired" {% if t.status=='expired' %}selected{% endif %}>expired</option>
+
+                    <option value="suspended" {% if t.status=='suspended' %}selected{% endif %}>suspended</option>
+
+                  </select>
+
+                </div>
+
+                <div><label class="tiq-label">Max users</label><input class="tiq-input" name="max_users" type="number" value="{{ t.max_users or 10 }}"></div>
+
+                <div><label class="tiq-label">Storage MB</label><input class="tiq-input" name="max_storage_mb" type="number" value="{{ t.max_storage_mb or 2048 }}"></div>
+
+                <div><label class="tiq-label">Billing email</label><input class="tiq-input" name="billing_email" value="{{ t.billing_email or '' }}"></div>
+
+                <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">Save</button>
+
+              </form>
+
+              {% if t.trial_ends_at %}
+
+              <div style="font-size:0.8rem;color:var(--tiq-text-3);padding:0 0.75rem 0.75rem;">Trial ends: {{ t.trial_ends_at.strftime('%Y-%m-%d %H:%M UTC') }}</div>
+
+              {% endif %}
+
+            </td>
+
+          </tr>
+
+          {% else %}
+
+          <tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--tiq-text-3);">No organizations match your filters.</td></tr>
+
+          {% endfor %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
 </div>
+
+{% include 'partials/platform_suspend_modal.html' %}
 {% endblock %}
+

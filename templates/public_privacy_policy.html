@@ -126,6 +126,8 @@
     .pp-actions {
       display: flex;
       justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
       margin-top: 2.5rem;
     }
   </style>
@@ -137,6 +139,12 @@
 
 <div class="pp-card">
 
+  <div style="margin-bottom:1.25rem;">
+    {% with inverse=true %}
+    {% include 'partials/public_back_link.html' %}
+    {% endwith %}
+  </div>
+
   <!-- Logo -->
   <div class="pp-logo">
     <div class="pp-logo-icon"><i class="fas fa-brain"></i></div>
@@ -144,10 +152,13 @@
   </div>
 
   <h1 class="pp-title"><i class="fas fa-shield-halved" style="margin-right:8px; color:#67e8f9;"></i>Privacy Policy &amp; Terms</h1>
-  <p class="pp-subtitle">Effective Date: January 1, 2026 | Version 1.1</p>
+  <p class="pp-subtitle">Operated by Veyra Labs (Thanuka Ellepola) · Effective June 15, 2026 · Version 2.0</p>
   
   <p>
-    Welcome to the <b>TrainIQ SaaS Platform</b> (“the System”). This document outlines the terms, conditions, and privacy policies governing the use of TrainIQ's training courses, exam modules,white-labeled portals, and associated learning tools.
+    Welcome to the <b>TrainIQ SaaS Platform</b> (“the System”), owned and operated by <b>Thanuka Ellepola</b> through <b>Veyra Labs</b>.
+    This document outlines privacy practices and key terms governing TrainIQ training courses, exam modules, white-labeled portals, and associated learning tools.
+    The full legally binding agreement is the
+    <a href="{{ url_for('general_routes.user_agreement_view') }}">Platform User Agreement</a>.
   </p>
   
   <div class="pp-divider"></div>
@@ -180,19 +191,36 @@
 
   <div class="pp-divider"></div>
 
-  <h4>4. Subscription &amp; Tenant White-Labeling</h4>
+  <h4>4. Subscriptions, Free Trial &amp; Refunds</h4>
+  <p>
+    New organizations receive a <b>30-day free trial</b> to evaluate TrainIQ before any payment is required.
+    After subscribing, <b>all fees are non-refundable</b> except duplicate/erroneous charges or where required by law.
+    Subscriptions renew automatically until cancelled. See
+    <a href="{{ url_for('general_routes.user_agreement_view') }}#legal-section-9">User Agreement Section 9</a> for full billing terms.
+  </p>
+
+  <div class="pp-divider"></div>
+
+  <h4>5. Subscription &amp; Tenant White-Labeling</h4>
   <p>Organization super-administrators are responsible for managing their company's custom tenant configurations, which include customizing organization names, setting up allowed email domains, and uploading corporate logos. All users registered under a specific email domain are automatically bound to that organization's data silo.</p>
 
   <div class="pp-divider"></div>
 
   <!-- Agreement buttons -->
   <div class="pp-actions">
-    <a href="{{ url_for('auth_routes.login') }}" class="tiq-btn-back" style="display: inline-flex; text-decoration: none;">
-      <i class="fas fa-arrow-left"></i> Back to Sign In
+    {% with inverse=true %}
+    {% include 'partials/public_back_link.html' %}
+    {% endwith %}
+    <a href="{{ url_for('auth_routes.login') }}" class="tiq-btn-back tiq-btn-back--inverse" style="display:inline-flex;text-decoration:none;">
+      <i class="fas fa-sign-in-alt"></i> Sign In
     </a>
   </div>
 
 </div>
+
+{% with footer_variant='compact' %}
+{% include 'partials/trainiq_footer.html' %}
+{% endwith %}
 
 </body>
 </html>

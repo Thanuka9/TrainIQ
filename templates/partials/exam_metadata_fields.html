@@ -1,0 +1,62 @@
+{# Shared exam metadata fields — used by custom and AI create flows #}
+<div class="tiq-grid tiq-grid-2 tiq-gap tiq-mb-3">
+  <div class="tiq-form-group tiq-mb-0">
+    <label for="title" class="tiq-label">Exam Title</label>
+    <input type="text" id="title" name="title" class="tiq-input" placeholder="e.g. HIPAA Security Standards Assessment" required />
+  </div>
+  <div class="tiq-form-group tiq-mb-0">
+    <label for="duration" class="tiq-label">Exam Duration (minutes)</label>
+    <input type="number" id="duration" name="duration" class="tiq-input" placeholder="e.g. 45" min="1" required />
+  </div>
+  <div class="tiq-form-group tiq-mb-0">
+    <label for="passing_score" class="tiq-label">Passing Score (%)</label>
+    <input type="number" id="passing_score" name="passing_score" class="tiq-input" value="70" min="1" max="100" step="0.1" />
+  </div>
+</div>
+
+<div class="tiq-grid tiq-grid-3 tiq-gap tiq-mb-3">
+  <div class="tiq-form-group tiq-mb-0">
+    <label for="minimum_designation_id" class="tiq-label">Min Designation (skip threshold)</label>
+    <select id="minimum_designation_id" name="minimum_designation_id" class="tiq-select" required>
+      <option value="">Select Designation…</option>
+      {% for desig in designation_levels %}
+        <option value="{{ desig.id }}">{{ desig.title }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="tiq-form-group tiq-mb-0">
+    <label for="level_id" class="tiq-label">Exam Level</label>
+    <select id="level_id" name="level_id" class="tiq-select" required>
+      <option value="">Select Level…</option>
+      {% for lvl in levels %}
+        <option value="{{ lvl.id }}">Level {{ lvl.level_number }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="tiq-form-group tiq-mb-0">
+    <label for="course_id" class="tiq-label">Link to Course</label>
+    <select id="course_id" name="course_id" class="tiq-select" required>
+      <option value="">Select Course…</option>
+      {% for c in courses %}
+        <option value="{{ c.id }}">{{ c.title }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="tiq-form-group tiq-mb-0">
+    <label for="retry_cooldown_days" class="tiq-label">Retry Cooldown (days)</label>
+    <input type="number" id="retry_cooldown_days" name="retry_cooldown_days" class="tiq-input" value="30" min="0" max="365" />
+    <p style="font-size:0.75rem;color:var(--tiq-text-3);margin:0.35rem 0 0;">Days learners must wait before retaking after a failed attempt. Leave blank for default (30).</p>
+  </div>
+</div>
+
+<div class="tiq-grid tiq-grid-2 tiq-gap tiq-mb-0">
+  <div class="tiq-form-group tiq-mb-0">
+    <label for="category_id" class="tiq-label">Category</label>
+    <select id="category_id" name="category_id" class="tiq-select" required>
+      <option value="">Select Category…</option>
+      {% for cat in categories %}
+        <option value="{{ cat.id }}">{{ cat.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>

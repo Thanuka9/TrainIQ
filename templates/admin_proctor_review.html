@@ -10,11 +10,14 @@
 
 {% block content %}
 <div class="tiq-page-header">
-  <div class="tiq-flex-between">
+  <div class="tiq-flex-between" style="flex-wrap:wrap;gap:1rem;">
     <div>
       <h1><i class="fas fa-shield-halved" style="color:var(--tiq-danger);margin-right:8px"></i>ProctorIQ Review</h1>
       <p class="tiq-lead">Privacy-first exam integrity checks. Sessions with trust scores below 70 are flagged for review.</p>
     </div>
+    <a href="{{ url_for('admin_routes.proctoriq_review_export') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">
+      <i class="fas fa-file-csv"></i> Export CSV
+    </a>
   </div>
 </div>
 

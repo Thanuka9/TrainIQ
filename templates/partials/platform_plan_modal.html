@@ -1,0 +1,62 @@
+<div class="tiq-modal-backdrop" id="platformPlanModal" style="display:none;">
+  <div class="tiq-modal" style="max-width:480px;">
+    <div class="tiq-modal-header">
+      <h3 class="tiq-modal-title"><i class="fas fa-sliders-h" style="color:var(--tiq-primary);margin-right:8px;"></i>Confirm plan change?</h3>
+      <button type="button" class="tiq-btn tiq-btn-ghost tiq-btn-sm tiq-btn-icon" onclick="closePlanModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <form id="platformPlanConfirmForm" method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="plan" id="platformPlanConfirmPlan">
+      <input type="hidden" name="status" id="platformPlanConfirmStatus">
+      <input type="hidden" name="max_users" id="platformPlanConfirmMaxUsers">
+      <input type="hidden" name="max_storage_mb" id="platformPlanConfirmStorage">
+      <input type="hidden" name="billing_email" id="platformPlanConfirmBillingEmail">
+      <input type="hidden" name="custom_mrr_cents" id="platformPlanConfirmMrr">
+      <div class="tiq-modal-body">
+        <p id="platformPlanLead" style="margin:0 0 1rem;color:var(--tiq-text-2);font-size:0.9rem;"></p>
+        <dl style="margin:0;display:grid;grid-template-columns:auto 1fr;gap:0.35rem 1rem;font-size:0.85rem;">
+          <dt style="color:var(--tiq-text-3);">Plan</dt><dd id="platformPlanDisplayPlan">—</dd>
+          <dt style="color:var(--tiq-text-3);">Status</dt><dd id="platformPlanDisplayStatus">—</dd>
+          <dt style="color:var(--tiq-text-3);">Max users</dt><dd id="platformPlanDisplayMaxUsers">—</dd>
+          <dt style="color:var(--tiq-text-3);">Storage MB</dt><dd id="platformPlanDisplayStorage">—</dd>
+        </dl>
+      </div>
+      <div class="tiq-modal-footer">
+        <button type="button" class="tiq-btn tiq-btn-secondary" onclick="closePlanModal()">Cancel</button>
+        <button type="submit" class="tiq-btn tiq-btn-primary">Save plan changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  function openPlanConfirmModal(form) {
+    const modal = document.getElementById('platformPlanModal');
+    const confirmForm = document.getElementById('platformPlanConfirmForm');
+    if (!modal || !confirmForm || !form) return;
+    confirmForm.action = form.action;
+    const plan = form.querySelector('[name="plan"]');
+    const status = form.querySelector('[name="status"]');
+    const maxUsers = form.querySelector('[name="max_users"]');
+    const storage = form.querySelector('[name="max_storage_mb"]');
+    const billing = form.querySelector('[name="billing_email"]');
+    const mrr = form.querySelector('[name="custom_mrr_cents"]');
+    document.getElementById('platformPlanConfirmPlan').value = plan ? plan.value : '';
+    document.getElementById('platformPlanConfirmStatus').value = status ? status.value : '';
+    document.getElementById('platformPlanConfirmMaxUsers').value = maxUsers ? maxUsers.value : '';
+    document.getElementById('platformPlanConfirmStorage').value = storage ? storage.value : '';
+    document.getElementById('platformPlanConfirmBillingEmail').value = billing ? billing.value : '';
+    document.getElementById('platformPlanConfirmMrr').value = mrr ? mrr.value : '';
+    const planLabel = plan && plan.options ? plan.options[plan.selectedIndex].text : (plan ? plan.value : '—');
+    document.getElementById('platformPlanDisplayPlan').textContent = planLabel;
+    document.getElementById('platformPlanDisplayStatus').textContent = status ? status.value : '—';
+    document.getElementById('platformPlanDisplayMaxUsers').textContent = maxUsers ? maxUsers.value : '—';
+    document.getElementById('platformPlanDisplayStorage').textContent = storage ? storage.value : '—';
+    const lead = document.getElementById('platformPlanLead');
+    if (lead) lead.textContent = 'This will update billing limits and plan entitlements for this organization immediately.';
+    modal.style.display = 'flex';
+  }
+  function closePlanModal() {
+    const modal = document.getElementById('platformPlanModal');
+    if (modal) modal.style.display = 'none';
+  }
+</script>

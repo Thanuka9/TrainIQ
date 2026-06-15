@@ -128,9 +128,9 @@ def get_material_text(material, max_chars: int = 8000) -> str:
     if not material:
         return ""
     try:
-        from study_material_routes import _get_course_document_text
+        from utils.course_assets import collect_ai_text
 
-        text = _get_course_document_text(material)
+        text = collect_ai_text(material)
         if len(text) > max_chars:
             text = text[:max_chars] + "\n…[truncated]"
         return text.strip()

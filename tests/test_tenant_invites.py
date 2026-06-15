@@ -6,7 +6,7 @@ import pytest
 
 from extensions import db
 from models import Tenant, TenantInvite, User
-from utils.tenant_invites import create_tenant_invite, get_valid_invite, mark_invite_used
+from utils.tenant_invites import create_tenant_invite, get_valid_invite, mark_invite_used, revoke_tenant_invite
 
 
 @pytest.fixture
@@ -49,6 +49,33 @@ def test_create_and_accept_invite_token(app, invite_tenant):
 
         mark_invite_used(invite, user.id)
         assert get_valid_invite(invite.token) is None
+
+
+def test_revoke_pending_invite(app, invite_tenant):
+    email = f"revoke-{uuid.uuid4().hex[:8]}@inviteco.com"
+    with app.app_context():
+        invite = create_tenant_invite(invite_tenant.id, email, invited_by_user_id=None)
+        assert revoke_tenant_invite(invite.id, invite_tenant.id) is True
+        assert TenantInvite.query.get(invite.id) is None
+
+
+def test_invite_role_persisted_and_sanitized(app, invite_tenant):
+    with app.app_context():
+        admin_invite = create_tenant_invite(
+            invite_tenant.id,
+            f"adm-{uuid.uuid4().hex[:8]}@inviteco.com",
+            invited_by_user_id=None,
+            role="admin",
+        )
+        assert admin_invite.role == "admin"
+
+        bogus_invite = create_tenant_invite(
+            invite_tenant.id,
+            f"bogus-{uuid.uuid4().hex[:8]}@inviteco.com",
+            invited_by_user_id=None,
+            role="hacker",
+        )
+        assert bogus_invite.role == "learner"
 
 
 def test_expired_invite_rejected(app, invite_tenant):

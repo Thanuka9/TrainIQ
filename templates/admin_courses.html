@@ -12,8 +12,11 @@
 <div class="admin-page-hero">
   <div>
     <h1>Manage Courses</h1>
-    <p class="admin-page-lead">Browse and manage your organization's course catalog, restrictions, and AI-generated outlines.</p>
+    <p class="admin-page-lead">Browse and edit your course catalog — documents, uploaded videos, external links, and transcripts for LearnIQ and exam AI.</p>
   </div>
+  <a href="{{ url_for('study_material_routes.upload_course') }}" class="tiq-btn tiq-btn-primary">
+    <i class="fas fa-upload"></i> Upload Course
+  </a>
 </div>
 
 <!-- CreatorIQ Course Authoring Wizard -->
@@ -50,13 +53,14 @@
       <table class="tiq-table tiq-table-pro" id="coursesTable">
         <thead>
           <tr>
-            <th style="padding-left:1.5rem; width:80px;">ID</th>
+            <th style="padding-left:1.5rem; width:70px;">ID</th>
             <th>Title</th>
             <th>Description</th>
+            <th>Content</th>
             <th>Category</th>
             <th>Level</th>
             <th>Min Level</th>
-            <th class="tiq-text-center" style="width:120px;">Actions</th>
+            <th class="tiq-text-center" style="width:140px;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -64,7 +68,11 @@
           <tr>
             <td style="padding-left:1.5rem; font-weight:600;">{{ c.id }}</td>
             <td style="font-weight:600; color:var(--tiq-primary);">{{ c.title }}</td>
-            <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ c.description }}</td>
+            <td style="max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ c.description }}</td>
+            <td>
+              {% set summary = course_media_map.get(c.id, 'no content') %}
+              <span class="tiq-badge tiq-badge-secondary" style="font-size:0.7rem;">{{ summary }}</span>
+            </td>
             <td>
               {% if c.category %}
                 <span class="tiq-badge tiq-badge-info">{{ c.category.name }}</span>
@@ -82,16 +90,19 @@
             <td><span class="tiq-badge tiq-badge-neutral">Level {{ c.minimum_level }}</span></td>
             <td class="tiq-text-center">
               <div class="tiq-flex tiq-flex-center" style="gap:6px;">
-                <!-- Edit button -->
                 <button class="tiq-btn tiq-btn-sm tiq-btn-secondary tiq-btn-icon"
                         data-tiq-modal="editCourseModal{{ c.id }}"
                         title="Edit Course #{{ c.id }}">
                   <i class="fas fa-edit"></i>
                 </button>
-                <!-- Delete form -->
+                <a href="{{ url_for('study_material_routes.course_content', course_id=c.id) }}"
+                   class="tiq-btn tiq-btn-sm tiq-btn-primary tiq-btn-icon"
+                   title="Preview course">
+                  <i class="fas fa-play"></i>
+                </a>
                 <form action="{{ url_for('admin_routes.delete_course', course_id=c.id) }}"
                       method="POST"
-                      class="d-inline"
+                      style="display:inline;"
                       onsubmit="return confirm('Are you sure you want to delete this course?');">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="tiq-btn tiq-btn-sm tiq-btn-danger tiq-btn-icon" title="Delete Course #{{ c.id }}">
@@ -103,9 +114,10 @@
           </tr>
           {% else %}
           <tr>
-            <td colspan="7" class="tiq-text-center" style="padding:3rem;">
+            <td colspan="8" class="tiq-text-center" style="padding:3rem;">
               <div style="font-size:2rem; opacity:0.2; margin-bottom:0.5rem;"><i class="fas fa-folder-open"></i></div>
-              <p style="color:var(--tiq-text-3);">No courses available in catalog.</p>
+              <p style="color:var(--tiq-text-3); margin:0 0 1rem;">No courses in catalog.</p>
+              <a href="{{ url_for('study_material_routes.upload_course') }}" class="tiq-btn tiq-btn-primary tiq-btn-sm">Upload a course</a>
             </td>
           </tr>
           {% endfor %}
@@ -118,7 +130,7 @@
 {# Edit Course Modals #}
 {% for c in courses %}
 <div class="tiq-modal-backdrop" id="editCourseModal{{ c.id }}">
-  <div class="tiq-modal" style="max-width: 680px;">
+  <div class="tiq-modal tiq-modal-xl tiq-modal-scroll">
     <div class="tiq-modal-header">
       <h3 class="tiq-modal-title"><i class="fas fa-edit" style="margin-right:8px; color:var(--tiq-accent);"></i>Edit Course #{{ c.id }}</h3>
       <button type="button" class="tiq-btn tiq-btn-ghost tiq-btn-sm tiq-btn-icon" data-tiq-modal-close>
@@ -127,98 +139,154 @@
     </div>
     <form action="{{ url_for('admin_routes.edit_course', course_id=c.id) }}"
           method="POST"
-          enctype="multipart/form-data">
+          enctype="multipart/form-data"
+          class="admin-form-compact upload-form-compact">
       <div class="tiq-modal-body">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <!-- Title -->
         <div class="tiq-form-group">
           <label for="title{{ c.id }}" class="tiq-label">Title</label>
           <input type="text" class="tiq-input" id="title{{ c.id }}" name="title" value="{{ c.title }}" required>
         </div>
 
-        <!-- Description -->
         <div class="tiq-form-group">
           <label for="desc{{ c.id }}" class="tiq-label">Description</label>
           <textarea class="tiq-textarea" id="desc{{ c.id }}" name="description" rows="3" required>{{ c.description }}</textarea>
         </div>
 
-        <div class="tiq-grid-2">
-          <!-- Course Time -->
-          <div class="tiq-form-group">
-            <label for="courseTime{{ c.id }}" class="tiq-label">Course Time (minutes)</label>
-            <input type="number" class="tiq-input" id="courseTime{{ c.id }}" name="course_time" value="{{ c.course_time }}" min="0" required>
+        <div class="tiq-grid tiq-grid-2 tiq-gap">
+          <div class="tiq-form-group tiq-mb-0">
+            <label for="courseTime{{ c.id }}" class="tiq-label">Estimated Course Time (hours)</label>
+            <input type="number" class="tiq-input" id="courseTime{{ c.id }}" name="course_time" value="{{ c.course_time }}" min="1" required>
           </div>
-
-          <!-- Max Time -->
-          <div class="tiq-form-group">
-            <label for="maxTime{{ c.id }}" class="tiq-label">Max Time (minutes)</label>
-            <input type="number" class="tiq-input" id="maxTime{{ c.id }}" name="max_time" value="{{ c.max_time }}" min="0" required>
+          <div class="tiq-form-group tiq-mb-0">
+            <label for="maxTime{{ c.id }}" class="tiq-label">Maximum Days Allowed</label>
+            <input type="number" class="tiq-input" id="maxTime{{ c.id }}" name="max_time" value="{{ c.max_time }}" min="1" required>
           </div>
         </div>
 
-        <div class="tiq-grid-3">
-          <!-- Category -->
-          <div class="tiq-form-group">
+        <div class="tiq-grid tiq-grid-3 tiq-gap">
+          <div class="tiq-form-group tiq-mb-0">
             <label for="cat{{ c.id }}" class="tiq-label">Category</label>
             <select class="tiq-select" id="cat{{ c.id }}" name="category_id">
-              <option value="">-- Select --</option>
+              <option value="">— Select —</option>
               {% for cat in categories %}
                 <option value="{{ cat.id }}" {% if c.category and c.category.id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
               {% endfor %}
             </select>
           </div>
-
-          <!-- Level -->
-          <div class="tiq-form-group">
-            <label for="lvl{{ c.id }}" class="tiq-label">Level</label>
+          <div class="tiq-form-group tiq-mb-0">
+            <label for="lvl{{ c.id }}" class="tiq-label">Curriculum Level</label>
             <select class="tiq-select" id="lvl{{ c.id }}" name="level_id">
-              <option value="">-- Select --</option>
+              <option value="">— Select —</option>
               {% for lvl in levels %}
                 <option value="{{ lvl.id }}" {% if c.level and c.level.id == lvl.id %}selected{% endif %}>Level {{ lvl.level_number }}</option>
               {% endfor %}
             </select>
           </div>
-
-          <!-- Minimum Designation -->
-          <div class="tiq-form-group">
-            <label for="minLevel{{ c.id }}" class="tiq-label">Minimum Designation</label>
+          <div class="tiq-form-group tiq-mb-0">
+            <label for="minLevel{{ c.id }}" class="tiq-label">Min Designation Access</label>
             <select class="tiq-select" id="minLevel{{ c.id }}" name="minimum_level" required>
-              <option value="1" {% if c.minimum_level <= 1 %}selected{% endif %}>1 (Open to All)</option>
+              <option value="1" {% if c.minimum_level <= 1 %}selected{% endif %}>Level 1 (Open to All)</option>
               {% for des in designations %}
-                <option value="{{ des.starting_level }}" {% if c.minimum_level == des.starting_level %}selected{% endif %}>{{ des.title }} (Level {{ des.starting_level }})</option>
+                <option value="{{ des.starting_level or 1 }}" {% if c.minimum_level == (des.starting_level or 1) %}selected{% endif %}>{{ des.title }} (Level {{ des.starting_level or 1 }})</option>
               {% endfor %}
             </select>
           </div>
         </div>
 
-        <!-- Existing Attachments -->
-        {% if c.files %}
-        <h4 style="font-size:0.875rem; margin:1.5rem 0 0.5rem; color:var(--tiq-text);">Current Files</h4>
+        {% set assets = course_assets_map.get(c.id, []) %}
+        {% if assets %}
+        <div class="tiq-divider"></div>
+        <h4 style="font-size:0.875rem; margin:0 0 0.65rem; font-weight:700;">Current Content</h4>
+        {% for a in assets %}
+          <div class="admin-asset-card">
+            <div class="tiq-flex-between" style="align-items:flex-start; gap:0.5rem;">
+              <div>
+                <span class="tiq-badge tiq-badge-secondary" style="font-size:0.65rem;text-transform:uppercase;">{{ a.type }}</span>
+                <div style="font-size:0.875rem;font-weight:600;margin-top:0.35rem;">{{ a.title or 'Untitled' }}</div>
+              </div>
+              <label style="font-size:0.75rem;cursor:pointer;white-space:nowrap;">
+                <input type="checkbox" name="delete_assets" value="{{ a.id }}" style="margin-right:4px;"> Remove
+              </label>
+            </div>
+            {% if a.type == 'video' or a.type in ['youtube', 'vimeo', 'loom', 'gdrive', 'external'] %}
+            <div class="tiq-form-group" style="margin-top:0.65rem;margin-bottom:0;">
+              <label class="tiq-label" style="font-size:0.75rem;">Transcript / notes (for LearnIQ & exams)</label>
+              <textarea class="tiq-textarea" name="asset_transcript_{{ a.id }}" rows="2" placeholder="Paste transcript or key points…">{{ a.transcript or '' }}</textarea>
+            </div>
+            {% endif %}
+            {% if a.type in ['youtube', 'vimeo', 'gdrive', 'loom', 'external'] %}
+            <div style="font-size:0.75rem;color:var(--tiq-text-3);margin-top:0.5rem;word-break:break-all;">{{ a.url or a.embed_url or '' }}</div>
+            {% if not a.transcript %}
+            <span class="tiq-badge tiq-badge-warning" style="font-size:0.65rem;margin-top:0.35rem;display:inline-block;">Limited AI without transcript</span>
+            {% endif %}
+            {% endif %}
+          </div>
+        {% endfor %}
+        {% elif c.files %}
+        <div class="tiq-divider"></div>
+        <h4 style="font-size:0.875rem; margin:0 0 0.65rem; font-weight:700;">Legacy Files</h4>
         {% for file_entry in c.files %}
           {% set fid, fname = file_entry.split('|') %}
-          <div style="background:var(--tiq-surface-2); border:1px solid var(--tiq-border); padding:1rem; border-radius:var(--tiq-radius); margin-bottom:0.75rem;">
-            <div class="tiq-flex-between">
-              <div class="tiq-flex" style="align-items:center; gap:8px;">
-                <input type="checkbox" id="delFile{{ fid }}" name="delete_files" value="{{ fid }}" style="width:16px; height:16px; cursor:pointer;">
-                <label for="delFile{{ fid }}" style="margin:0; font-size:0.875rem; font-weight:500; cursor:pointer; color:var(--tiq-text-2)">
-                  Delete <code style="background:rgba(239,68,68,0.1); color:var(--tiq-danger); padding:2px 6px; border-radius:4px;">{{ fname }}</code>
-                </label>
-              </div>
-            </div>
-            <div style="margin-top:0.75rem;">
-              <label for="repFile{{ fid }}" class="tiq-label">Replace file</label>
-              <input type="file" id="repFile{{ fid }}" name="replace_files" style="font-size:0.8rem;">
-              <input type="hidden" name="replace_file_ids" value="{{ fid }}">
-            </div>
+          <div class="admin-asset-card">
+            <label style="font-size:0.875rem;cursor:pointer;">
+              <input type="checkbox" name="delete_assets" value="{{ fid }}" style="margin-right:6px;"> Delete {{ fname }}
+            </label>
           </div>
         {% endfor %}
         {% endif %}
 
-        <!-- New uploads -->
-        <div class="tiq-form-group" style="margin-top:1.5rem;">
-          <label for="newFiles{{ c.id }}" class="tiq-label">Attach New Files</label>
-          <input type="file" id="newFiles{{ c.id }}" name="new_files" multiple>
+        <div class="course-content-section">
+          <div class="tiq-divider"></div>
+          <h4 class="course-content-heading">Add Content</h4>
+          <p class="course-content-lead">Documents, video uploads, or external links — same as the upload form.</p>
+
+          <div class="media-tabs-wrap" data-course="{{ c.id }}">
+            <div class="media-tabs" role="tablist" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+              <button type="button" class="tiq-btn tiq-btn-secondary media-tab media-tab--active" data-tab="documents"><i class="fas fa-file-alt"></i> Documents</button>
+              <button type="button" class="tiq-btn tiq-btn-ghost media-tab" data-tab="videos"><i class="fas fa-video"></i> Video</button>
+              <button type="button" class="tiq-btn tiq-btn-ghost media-tab" data-tab="links"><i class="fas fa-link"></i> Links</button>
+            </div>
+            <div class="media-panels-stage">
+              <div class="media-panel media-panel--active" data-panel="documents">
+                <div class="tiq-form-group tiq-mb-0">
+                  <label class="tiq-label">New Documents</label>
+                  <input type="file" name="new_files" class="tiq-file-input" multiple accept=".pdf,.docx,.pptx,.txt">
+                </div>
+              </div>
+              <div class="media-panel" data-panel="videos">
+                <div class="tiq-form-group">
+                  <label class="tiq-label">New Videos</label>
+                  <input type="file" name="new_videos" class="tiq-file-input admin-video-input" data-transcript-wrap="videoTranscripts{{ c.id }}" multiple accept=".mp4,.webm,.mov,.m4v">
+                </div>
+                <div id="videoTranscripts{{ c.id }}"></div>
+              </div>
+              <div class="media-panel" data-panel="links">
+                <div class="link-rows" id="linkRows{{ c.id }}">
+                  <div class="link-row admin-asset-card" style="margin-bottom:0.5rem;">
+                    <div class="tiq-grid tiq-grid-2 tiq-gap">
+                      <div class="tiq-form-group tiq-mb-0">
+                        <label class="tiq-label">Link URL</label>
+                        <input type="url" name="new_link_urls" class="tiq-input" placeholder="YouTube, Drive, Vimeo…">
+                      </div>
+                      <div class="tiq-form-group tiq-mb-0">
+                        <label class="tiq-label">Display Title</label>
+                        <input type="text" name="new_link_titles" class="tiq-input" placeholder="Optional">
+                      </div>
+                    </div>
+                    <div class="tiq-form-group tiq-mb-0" style="margin-top:0.5rem;">
+                      <label class="tiq-label">Transcript / notes</label>
+                      <textarea name="new_link_transcripts" class="tiq-textarea" rows="2" placeholder="Recommended for YouTube/video links"></textarea>
+                    </div>
+                  </div>
+                </div>
+                <button type="button" class="tiq-btn tiq-btn-ghost tiq-btn-sm admin-add-link" data-target="linkRows{{ c.id }}">
+                  <i class="fas fa-plus"></i> Add another link
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -274,6 +342,64 @@
   creatoriqApplyBtn?.addEventListener("click", () => {
     if (!creatoriqOutline) return;
     window.TrainIQAI.applyCreatorOutline(creatoriqOutline);
+  });
+
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".media-tabs-wrap").forEach(function (wrap) {
+      wrap.querySelectorAll(".media-tab").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.preventDefault();
+          const tab = btn.getAttribute("data-tab");
+          wrap.querySelectorAll(".media-tab").forEach(function (b) {
+            const active = b === btn;
+            b.classList.toggle("media-tab--active", active);
+            b.classList.toggle("tiq-btn-secondary", active);
+            b.classList.toggle("tiq-btn-ghost", !active);
+          });
+          wrap.querySelectorAll(".media-panel").forEach(function (p) {
+            p.classList.toggle("media-panel--active", p.getAttribute("data-panel") === tab);
+          });
+        });
+      });
+    });
+
+    document.querySelectorAll(".admin-add-link").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        const container = document.getElementById(btn.getAttribute("data-target"));
+        const tpl = container?.querySelector(".link-row");
+        if (!tpl || !container) return;
+        const clone = tpl.cloneNode(true);
+        clone.querySelectorAll("input, textarea").forEach(function (i) { i.value = ""; });
+        container.appendChild(clone);
+      });
+    });
+
+    document.querySelectorAll(".admin-video-input").forEach(function (input) {
+      input.addEventListener("change", function () {
+        const wrapId = input.getAttribute("data-transcript-wrap");
+        const wrap = document.getElementById(wrapId);
+        if (!wrap) return;
+        wrap.innerHTML = "";
+        Array.from(input.files || []).forEach(function (file, i) {
+          const block = document.createElement("div");
+          block.className = "tiq-form-group";
+          block.style.marginTop = i ? "0.65rem" : "0";
+          const label = document.createElement("label");
+          label.className = "tiq-label";
+          label.style.fontSize = "0.75rem";
+          label.textContent = "Transcript: " + file.name;
+          const ta = document.createElement("textarea");
+          ta.name = "new_video_transcripts";
+          ta.className = "tiq-textarea";
+          ta.rows = 2;
+          ta.placeholder = "Paste transcript for AI / LearnIQ";
+          block.appendChild(label);
+          block.appendChild(ta);
+          wrap.appendChild(block);
+        });
+      });
+    });
   });
 </script>
 {% endblock %}

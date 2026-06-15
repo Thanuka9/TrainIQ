@@ -11,6 +11,10 @@
       Manage accounts, departments, designations, and delegated admin access for your organization.
     </p>
   </div>
+  <div class="tiq-flex" style="gap:0.5rem;flex-wrap:wrap;">
+    <a href="{{ url_for('admin_routes.view_roles') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm"><i class="fas fa-user-shield"></i> Roles &amp; permissions</a>
+    <a href="{{ url_for('admin_routes.tenant_settings') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm"><i class="fas fa-lock"></i> Security settings</a>
+  </div>
 </div>
 
 <div class="admin-stat-chips">
@@ -52,24 +56,52 @@
         Send a magic-link invitation — <strong>{{ tenant_usage.remaining_seats }}</strong> seat{{ 's' if tenant_usage.remaining_seats != 1 else '' }} remaining.
       </p>
       <form method="post" action="{{ url_for('admin_routes.send_user_invite', status=status) }}" style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end;">
-        <div style="flex:1;min-width:240px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div style="flex:1;min-width:220px;">
           <label class="admin-label-xs">Email address</label>
           <input type="email" name="invite_email" class="tiq-input" placeholder="colleague@company.com" required />
+        </div>
+        <div style="min-width:160px;">
+          <label class="admin-label-xs">Access level</label>
+          <select name="invite_role" class="tiq-select">
+            <option value="learner" selected>Learner</option>
+            <option value="admin">Admin</option>
+            <option value="super_admin">Super Admin</option>
+          </select>
         </div>
         <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">
           <i class="fas fa-envelope"></i> Send invite
         </button>
       </form>
+      <p style="color:var(--tiq-text-3);font-size:0.75rem;margin:0.5rem 0 0;">
+        <i class="fas fa-shield-halved"></i> Admins get management tools; Super Admins get full org control including billing and security. Fine-tune later in
+        <a href="{{ url_for('admin_routes.view_roles') }}">Roles &amp; permissions</a>.
+      </p>
       {% endif %}
       {% if pending_invites %}
       <ul class="admin-invite-list">
         {% for inv in pending_invites %}
-        <li>
-          {{ inv.email }}
+        <li style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;padding:0.35rem 0;">
+          <span style="flex:1;min-width:180px;">{{ inv.email }}</span>
+          {% if inv.role and inv.role != 'learner' %}
+            <span class="tiq-badge" style="font-size:0.65rem;background:rgba(99,102,241,0.12);color:#4F46E5;">{{ inv.role.replace('_', ' ') }}</span>
+          {% endif %}
           {% if inv.is_valid %}
-            <span class="tiq-badge" style="margin-left:4px;font-size:0.7rem;">expires {{ inv.expires_at.strftime('%b %d') }}</span>
+            <span class="tiq-badge" style="font-size:0.7rem;">expires {{ inv.expires_at.strftime('%b %d') }}</span>
+            <button type="button" class="tiq-btn tiq-btn-ghost tiq-btn-sm" title="Copy invite link"
+              onclick="navigator.clipboard.writeText('{{ url_for('auth_routes.accept_invite', token=inv.token, _external=True) }}');this.innerHTML='<i class=\'fas fa-check\'></i> Copied';">
+              <i class="fas fa-link"></i>
+            </button>
+            <form method="post" action="{{ url_for('admin_routes.revoke_user_invite', invite_id=inv.id, status=status) }}" style="display:inline;" onsubmit="return confirm('Revoke invite for {{ inv.email }}?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="tiq-btn tiq-btn-ghost tiq-btn-sm" style="color:var(--tiq-danger);" title="Revoke invite"><i class="fas fa-times"></i></button>
+            </form>
           {% else %}
-            <span class="tiq-badge" style="margin-left:4px;font-size:0.7rem;background:#fef2f2;color:#b91c1c;">expired</span>
+            <span class="tiq-badge" style="font-size:0.7rem;background:#fef2f2;color:#b91c1c;">expired</span>
+            <form method="post" action="{{ url_for('admin_routes.revoke_user_invite', invite_id=inv.id, status=status) }}" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="tiq-btn tiq-btn-ghost tiq-btn-sm" title="Remove expired invite"><i class="fas fa-trash"></i></button>
+            </form>
           {% endif %}
         </li>
         {% endfor %}

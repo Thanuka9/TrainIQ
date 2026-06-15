@@ -16,8 +16,19 @@ def _ensure_dir():
     os.makedirs(CACHE_DIR, exist_ok=True)
 
 
-def make_key(feature, course_id, file_id=None, page=None, model=None):
-    raw = f"{feature}:{course_id}:{file_id or ''}:{page or 0}:{model or ''}"
+def make_key(
+    feature,
+    course_id,
+    file_id=None,
+    page=None,
+    asset_type=None,
+    video_time=None,
+    model=None,
+):
+    raw = (
+        f"{feature}:{course_id}:{file_id or ''}:{page or 0}:"
+        f"{asset_type or ''}:{video_time or ''}:{model or ''}"
+    )
     return hashlib.sha256(raw.encode()).hexdigest()
 
 

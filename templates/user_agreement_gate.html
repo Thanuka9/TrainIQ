@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>User Agreement — TrainIQ Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/legal.css') }}?v=2"/>
+</head>
+<body class="legal-page legal-page--gate">
+
+<div class="legal-progress" aria-hidden="true"><div class="legal-progress__bar" id="legalProgressBar"></div></div>
+
+<div class="legal-layout">
+  <aside class="legal-sidebar" id="legalSidebar">
+    <div class="legal-brand">
+      <div class="legal-brand-icon"><i class="fas fa-brain"></i></div>
+      <div class="legal-brand-name">Train<span>IQ</span></div>
+    </div>
+
+    <div class="legal-owner-card">
+      <div class="legal-owner-card__label">Platform owner</div>
+      <div class="legal-owner-card__name">{{ owner_name }}</div>
+      <div style="font-size:0.8rem;color:var(--tiq-text-3);margin:0.15rem 0 0.35rem;">{{ owner_organization }}</div>
+      <a href="{{ owner_url }}" target="_blank" rel="noopener noreferrer" class="legal-owner-card__link">
+        {{ owner_url }}
+      </a>
+    </div>
+
+    <div class="legal-meta-pills">
+      <span class="legal-pill">v{{ agreement_version }}</span>
+      <span class="legal-pill">{{ agreement_effective_date }}</span>
+    </div>
+
+    <div class="legal-sidebar-title">Contents</div>
+    {% include 'legal/legal_toc.html' %}
+  </aside>
+
+  <div class="legal-main" id="legalDocument">
+    <header class="legal-main-header">
+      <h1>Platform User Agreement</h1>
+      <p class="legal-main-lead">
+        Please read this Agreement carefully. It protects TrainIQ technology, intellectual property, and defines your rights and obligations on the Platform.
+      </p>
+      <div class="legal-alert"><i class="fas fa-circle-exclamation"></i> Required before you can use TrainIQ</div>
+    </header>
+
+    <div class="legal-document">
+      <div class="legal-scroll-hint" id="legalScrollHint">
+        <i class="fas fa-arrow-down"></i> Scroll to the end of the document to enable acceptance
+      </div>
+      {% include 'legal/platform_user_agreement_body.html' %}
+    </div>
+  </div>
+</div>
+
+<button type="button" class="legal-mobile-toc-toggle" id="legalTocToggle" aria-label="Table of contents">
+  <i class="fas fa-list"></i>
+</button>
+
+<div class="legal-accept-dock">
+  <div class="legal-accept-dock__inner">
+    <label class="legal-checkbox">
+      <input type="checkbox" id="agreementCheckbox" disabled/>
+      <span>
+        I have read and agree to the TrainIQ Platform User Agreement (v{{ agreement_version }}) operated by
+        {{ owner_organization }} ({{ owner_name }}),
+        including subscription, billing, and non-refund terms (Section 9), IP, copyright, and confidentiality terms, and the
+        <a href="{{ url_for('general_routes.privacy_policy') }}" target="_blank" rel="noopener">Privacy Policy</a>.
+      </span>
+    </label>
+    <div class="legal-accept-actions">
+      <button type="button" id="disagreeBtn" class="tiq-btn tiq-btn-secondary legal-btn-decline">
+        <i class="fas fa-right-from-bracket"></i> Decline
+      </button>
+      <button type="button" id="agreeBtn" class="tiq-btn tiq-btn-primary legal-btn-agree" disabled>
+        <i class="fas fa-file-signature"></i> I Agree &amp; Continue
+      </button>
+    </div>
+  </div>
+</div>
+
+<input type="hidden" id="csrfToken" value="{{ csrf_token() }}"/>
+
+<script>
+  const acceptUrl = {{ url_for("general_routes.user_agreement_accept") | tojson }};
+  const nextUrl = {{ (next_url or url_for("general_routes.dashboard")) | tojson }};
+  const disagreeUrl = {{ url_for("auth_routes.logout") | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/user_agreement.js') }}?v=2"></script>
+</body>
+</html>

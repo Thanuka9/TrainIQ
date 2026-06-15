@@ -1,13 +1,37 @@
-{% extends 'admin_base.html' %}
+{% extends 'platform_base.html' %}
 {% block title %}Platform Activity{% endblock %}
 {% block breadcrumb %}Platform / Activity{% endblock %}
 
 {% block content %}
 <div class="tiq-page-header" style="margin-bottom:1rem;">
-  <h1>Platform Activity Log</h1>
-  <p class="tiq-lead">CEO support sessions, signups, plan changes, and security events across the platform.</p>
+  <div class="tiq-flex-between" style="flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1>Platform Activity Log</h1>
+      <p class="tiq-lead">CEO support sessions, signups, plan changes, and security events across the platform.</p>
+    </div>
+    <a href="{{ url_for('platform_routes.export_activity_csv', start=start, end=end) }}" class="tiq-btn tiq-btn-secondary"><i class="fas fa-file-csv"></i> Export CSV</a>
+  </div>
 </div>
 {% include 'partials/platform_subnav.html' %}
+
+<div class="tiq-card" style="margin-bottom:1.25rem;">
+  <div class="tiq-card-body">
+    <form method="get" class="platform-filter-bar" style="margin:0;padding:0;border:none;background:transparent;">
+      <div class="tiq-form-group" style="margin:0;min-width:140px;">
+        <label class="tiq-label">From</label>
+        <input type="date" name="start" class="tiq-input" value="{{ start or '' }}">
+      </div>
+      <div class="tiq-form-group" style="margin:0;min-width:140px;">
+        <label class="tiq-label">To</label>
+        <input type="date" name="end" class="tiq-input" value="{{ end or '' }}">
+      </div>
+      <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm"><i class="fas fa-filter"></i> Filter</button>
+      {% if start or end %}
+      <a href="{{ url_for('platform_routes.platform_activity') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+</div>
 
 <div class="tiq-card">
   <div class="tiq-card-body" style="padding:0;">
@@ -31,7 +55,7 @@
             <td>{{ ev.ip_address or '—' }}</td>
           </tr>
           {% else %}
-          <tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--tiq-text-3);">No platform activity recorded yet.</td></tr>
+          <tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--tiq-text-3);">No platform activity in this range.</td></tr>
           {% endfor %}
         </tbody>
       </table>

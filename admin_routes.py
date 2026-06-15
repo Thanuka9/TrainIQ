@@ -44,6 +44,7 @@ from utils.tenant_utils import (
 )
 from utils.special_exams import special_paper_label
 from utils.exam_grading import DEFAULT_PASSING_SCORE
+from utils.mongo_tenant import get_tenant_gridfs
 from utils.admin_permissions import (
     user_has_permission,
     user_can_access_admin,
@@ -89,8 +90,6 @@ def delete_files_from_gridfs(file_refs, tenant_id=None):
     Given a list of 'file_id|filename' strings, delete each from tenant GridFS.
     Falls back to legacy shared DB when tenant_id is None.
     """
-    from utils.mongo_tenant import get_tenant_gridfs
-
     deleted = []
     gfs = get_tenant_gridfs(tenant_id)
     for ref in file_refs or []:
@@ -284,6 +283,10 @@ def admin_dashboard():
                 'exams':   exam_hits
             }
 
+        from utils.proctor_analytics import flagged_session_count
+
+        flagged_proctor_count = flagged_session_count(user_tenant_id())
+
         return render_template(
             'admin_dashboard.html',
             # aggregates
@@ -302,6 +305,8 @@ def admin_dashboard():
             special_exam_passed_2=special_exam_passed_2,
             course_completion_avg=round(course_completion_avg, 2),
             recent_events=recent_events,
+            learniq_status=__import__('utils.local_ai', fromlist=['get_ai_status']).get_ai_status(),
+            flagged_proctor_count=flagged_proctor_count,
             # search
             q=q,
             search_results=search_results,
@@ -640,50 +645,10 @@ def edit_course(course_id):
         except ValueError:
             course.minimum_level = 1
 
-        # 4) Delete checked files
-        from utils.mongo_tenant import get_tenant_gridfs
-        course_gfs = get_tenant_gridfs(course.tenant_id)
-        for fid in request.form.getlist('delete_files'):
-            try:
-                course_gfs.delete(ObjectId(fid))
-            except Exception:
-                try:
-                    get_tenant_gridfs(None).delete(ObjectId(fid))
-                except Exception:
-                    pass
-            course.files = [f for f in course.files if not f.startswith(fid + '|')]
+        # 4) Media assets (documents, videos, links, transcripts)
+        from utils.course_edit import apply_course_media_edits
 
-        # 5) Replace files
-        replace_ids   = request.form.getlist('replace_file_ids')
-        replace_files = request.files.getlist('replace_files')
-        for fid, new_file in zip(replace_ids, replace_files):
-            if new_file and allowed_file(new_file.filename):
-                try:
-                    course_gfs.delete(ObjectId(fid))
-                except Exception:
-                    pass
-                course.files = [f for f in course.files if not f.startswith(fid + '|')]
-
-                filename = secure_filename(new_file.filename)
-                new_fid  = course_gfs.put(
-                    new_file.read(),
-                    filename=filename,
-                    content_type=new_file.content_type,
-                    metadata={"tenant_id": course.tenant_id, "study_material_id": course.id},
-                )
-                course.files.append(f"{new_fid}|{filename}")
-
-        # 6) Add any brand-new uploads
-        for extra in request.files.getlist('new_files'):
-            if extra and allowed_file(extra.filename):
-                fn  = secure_filename(extra.filename)
-                fid = course_gfs.put(
-                    extra.read(),
-                    filename=fn,
-                    content_type=extra.content_type,
-                    metadata={"tenant_id": course.tenant_id, "study_material_id": course.id},
-                )
-                course.files.append(f"{fid}|{fn}")
+        apply_course_media_edits(course, request.form, request.files)
 
         db.session.commit()
         flash("Course updated successfully.", "success")
@@ -716,61 +681,91 @@ def delete_exam(exam_id):
     except Exception as e:
         logging.error(f"user_id={user_id} error deleting exam {exam_id}: {e}")
         flash("Failed to delete exam.", "error")
-    return redirect(url_for('admin_routes.admin_dashboard'))
+    return redirect(url_for('admin_routes.view_exams'))
+
+
+def _apply_exam_metadata_from_form(exam, form) -> str | None:
+    """Update exam from POST form. Returns error message or None."""
+    title = (form.get('title') or '').strip()
+    if not title:
+        return "Title cannot be blank."
+
+    exam.title = title
+
+    duration = (form.get('duration') or '').strip()
+    if duration.isdigit():
+        exam.duration = int(duration)
+
+    passing_raw = (form.get('passing_score') or '').strip()
+    if passing_raw:
+        try:
+            exam.passing_score = float(passing_raw)
+        except ValueError:
+            pass
+
+    level_raw = (form.get('level') or form.get('level_id') or '').strip()
+    if level_raw.isdigit():
+        exam.level_id = int(level_raw)
+
+    area_raw = (form.get('area') or form.get('area_id') or '').strip()
+    if area_raw.isdigit():
+        exam.area_id = int(area_raw)
+
+    course_raw = (form.get('course_id') or '').strip()
+    if course_raw.isdigit():
+        exam.course_id = int(course_raw)
+
+    category_raw = (form.get('category_id') or '').strip()
+    if category_raw.isdigit():
+        exam.category_id = int(category_raw)
+
+    desig_raw = (form.get('minimum_designation_id') or form.get('minimum_designation_level') or '').strip()
+    if desig_raw.isdigit():
+        exam.minimum_designation_id = int(desig_raw)
+
+    if level_raw.isdigit():
+        lvl = Level.query.get(int(level_raw))
+        if lvl:
+            exam.minimum_level = lvl.level_number
+
+    retry_raw = (form.get('retry_cooldown_days') or '').strip()
+    if retry_raw.isdigit():
+        exam.retry_cooldown_days = max(0, int(retry_raw))
+    elif retry_raw == '':
+        pass
+
+    return None
 
 
 @admin_routes.route('/edit_exam/<int:exam_id>', methods=['GET', 'POST'])
 @login_required
 @super_admin_required
 def edit_exam(exam_id):
-    """
-    GET  → Render a form to edit (title, duration, level, etc.) for that exam.
-    POST → Read the form data and update the existing exam record.
-    """
+    """Update exam metadata from Manage Exams modal or edit-exam page."""
     exam = Exam.query.get_or_404(exam_id)
     assert_tenant_access(exam)
 
-    if request.method == 'POST':
-        # 1) Grab each field from request.form (names must match your form inputs)
-        new_title    = request.form.get('title', '').strip()
-        new_duration = request.form.get('duration', '').strip()
-        new_level    = request.form.get('level', '').strip()  # this is a string ID
-        passing_raw  = request.form.get('passing_score', '').strip()
+    if request.method == 'GET':
+        return redirect(url_for('.edit_exam_page', exam_id=exam_id))
 
-        # 2) Simple validation
-        if not new_title:
-            flash("Title cannot be blank.", "warning")
-            return redirect(url_for('admin_routes.edit_exam', exam_id=exam_id))
+    err = _apply_exam_metadata_from_form(exam, request.form)
+    if err:
+        flash(err, "warning")
+        if request.form.get('return_to') == 'questions':
+            return redirect(url_for('.edit_exam_page', exam_id=exam_id))
+        return redirect(url_for('admin_routes.view_exams'))
 
-        # 3) Assign back onto the `exam` object
-        exam.title = new_title
+    try:
+        db.session.commit()
+        flash("Exam updated successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating exam {exam_id}: {e}")
+        flash("Failed to update exam.", "error")
 
-        # Convert duration to int if valid, otherwise leave as-is
-        if new_duration.isdigit():
-            exam.duration = int(new_duration)
-
-        if passing_raw:
-            try:
-                exam.passing_score = float(passing_raw)
-            except ValueError:
-                pass
-
-        # Convert level to int and assign to the foreign-key column
-        if new_level.isdigit():
-            exam.level_id = int(new_level)
-
-        try:
-            db.session.commit()
-            flash("Exam updated successfully.", "success")
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Error updating exam {exam_id}: {e}")
-            flash("Failed to update exam.", "error")
-
-        return redirect(url_for('admin_routes.admin_dashboard'))
-
-    # If GET → render a simple template with current exam data pre‐filled
-    return render_template("admin_edit_exam.html", exam=exam)
+    if request.form.get('return_to') == 'questions':
+        return redirect(url_for('.edit_exam_page', exam_id=exam_id))
+    return redirect(url_for('admin_routes.view_exams'))
 
 
 
@@ -801,22 +796,27 @@ def edit_exam_page(exam_id):
     tid = user_tenant_id()
     levels     = tenant_levels_query().order_by(Level.level_number).all()
     areas      = tenant_areas_query().order_by(Area.name).all()
-    courses    = (
+    courses_q = (
         tenant_courses_query()
         .options(joinedload(StudyMaterial.level), joinedload(StudyMaterial.category))
         .order_by(StudyMaterial.title)
         .all()
     )
-    categories = Category.query.order_by(Category.name).all()
+    from utils.course_assets import course_picker_row
+
+    courses = [course_picker_row(c) for c in courses_q]
+    categories = tenant_categories_query().order_by(Category.name).all()
+    designations = tenant_designations_query().order_by(Designation.title).all()
 
     return render_template(
-        'edit_exam.html',    # adjust to match where your file actually lives
+        'edit_exam.html',
         exam=exam,
         questions=questions,
         levels=levels,
         areas=areas,
         courses=courses,
-        categories=categories
+        categories=categories,
+        designations=designations,
     )
 
 
@@ -1066,10 +1066,13 @@ def view_users():
 @super_admin_required
 def send_user_invite():
     from models import Tenant
-    from utils.tenant_invites import create_tenant_invite, send_invite_email
+    from utils.tenant_invites import create_tenant_invite, send_invite_email, INVITE_ROLES
     from utils.tenant_limits import assert_tenant_can_invite
 
     email = (request.form.get('invite_email') or '').strip().lower()
+    invite_role = (request.form.get('invite_role') or 'learner').strip().lower()
+    if invite_role not in INVITE_ROLES:
+        invite_role = 'learner'
     if not email or '@' not in email:
         flash("Enter a valid email address.", "error")
         return redirect(url_for('admin_routes.view_users', status=request.args.get('status')))
@@ -1084,15 +1087,30 @@ def send_user_invite():
         flash("A user with that email already exists.", "error")
         return redirect(url_for('admin_routes.view_users', status=request.args.get('status')))
 
-    invite = create_tenant_invite(tid, email, current_user.id)
+    invite = create_tenant_invite(tid, email, current_user.id, role=invite_role)
     try:
         from extensions import mail
         send_invite_email(invite, tenant, mail)
-        flash(f"Invitation sent to {email}.", "success")
+        role_note = '' if invite_role == 'learner' else f" (as {invite_role.replace('_', ' ')})"
+        flash(f"Invitation sent to {email}{role_note}.", "success")
     except Exception as e:
         logging.error(f"Failed to send invite email: {e}")
         flash(f"Invite created but email failed. Share this link manually: {url_for('auth_routes.accept_invite', token=invite.token, _external=True)}", "warning")
 
+    return redirect(url_for('admin_routes.view_users', status=request.args.get('status')))
+
+
+@admin_routes.route('/admin/users/invite/<int:invite_id>/revoke', methods=['POST'])
+@login_required
+@super_admin_required
+def revoke_user_invite(invite_id):
+    from utils.tenant_invites import revoke_tenant_invite
+
+    tid = user_tenant_id()
+    if revoke_tenant_invite(invite_id, tid):
+        flash("Invitation revoked.", "success")
+    else:
+        flash("Could not revoke invitation — it may already be used.", "error")
     return redirect(url_for('admin_routes.view_users', status=request.args.get('status')))
 
 
@@ -1302,12 +1320,20 @@ def view_courses():
     levels       = tenant_levels_query().order_by(Level.level_number).all()
     designations = tenant_designations_query().order_by(Designation.starting_level).all()
 
+    from utils.course_edit import course_assets_for_template
+    from utils.course_assets import course_media_summary
+
+    course_assets_map = {c.id: course_assets_for_template(c) for c in courses}
+    course_media_map = {c.id: course_media_summary(c) for c in courses}
+
     return render_template(
         'admin_courses.html',
         courses=courses,
         categories=categories,
         levels=levels,
         designations=designations,
+        course_assets_map=course_assets_map,
+        course_media_map=course_media_map,
     )
 
 
@@ -1386,19 +1412,65 @@ def creatoriq_generate_outline():
 @super_admin_required
 def proctoriq_review():
     """ProctorIQ: Admin view of exam sessions flagged by low trust scores."""
+    from utils.proctor_analytics import flagged_sessions_query
+
     flagged = (
-        filter_scores_by_tenant(UserScore.query, current_user)
+        flagged_sessions_query(current_user)
         .options(
             db.joinedload(UserScore.user),
             db.joinedload(UserScore.exam),
         )
-        .filter(UserScore.trust_score.isnot(None))
-        .filter(UserScore.trust_score < 70)
-        .order_by(UserScore.created_at.desc())
         .limit(50)
         .all()
     )
     return render_template('admin_proctor_review.html', sessions=flagged)
+
+
+@admin_routes.route('/admin/proctor-review/export.csv')
+@login_required
+@super_admin_required
+def proctoriq_review_export():
+    """CSV export of flagged ProctorIQ sessions."""
+    from utils.proctor_analytics import flagged_sessions_query
+
+    sessions = (
+        flagged_sessions_query(current_user)
+        .options(
+            db.joinedload(UserScore.user),
+            db.joinedload(UserScore.exam),
+        )
+        .limit(500)
+        .all()
+    )
+
+    si = io.StringIO()
+    cw = csv.writer(si)
+    cw.writerow([
+        "User",
+        "Email",
+        "Exam",
+        "Score",
+        "Trust Score",
+        "Date",
+        "AI Assessment",
+    ])
+    for s in sessions:
+        user = s.user
+        exam = s.exam
+        cw.writerow([
+            f"{user.first_name} {user.last_name}" if user else "",
+            user.employee_email if user else "",
+            exam.title if exam else "",
+            s.score,
+            s.trust_score,
+            s.created_at.strftime("%Y-%m-%d %H:%M") if s.created_at else "",
+            (s.proctor_narrative or "").replace("\n", " ").strip(),
+        ])
+
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = "attachment; filename=proctor_review.csv"
+    output.headers["Content-Type"] = "text/csv"
+    return output
 
 
 # --- Manage Exams page ---
@@ -1423,8 +1495,17 @@ def view_exams():
     # needed if you plan to offer filters or editing forms
     levels     = tenant_levels_query().order_by(Level.level_number).all()
     areas      = tenant_areas_query().order_by(Area.name).all()
-    courses    = tenant_courses_query().order_by(StudyMaterial.title).all()
+    courses_q = (
+        tenant_courses_query()
+        .options(joinedload(StudyMaterial.level), joinedload(StudyMaterial.category))
+        .order_by(StudyMaterial.title)
+        .all()
+    )
+    from utils.course_assets import course_picker_row
+
+    courses = [course_picker_row(c) for c in courses_q]
     categories = tenant_categories_query().order_by(Category.name).all()
+    designations = tenant_designations_query().order_by(Designation.title).all()
     users      = filter_by_user_tenant(User.query, User).order_by(User.first_name, User.last_name).all()
 
     return render_template(
@@ -1434,6 +1515,7 @@ def view_exams():
         areas=areas,
         courses=courses,
         categories=categories,
+        designations=designations,
         users=users
     )
 

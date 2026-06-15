@@ -215,12 +215,17 @@
     </div>
 
     <div class="onb-left-footer">
-      &copy; 2026 TrainIQ SaaS Platform. Powered by MongoDB GridFS &amp; PostgreSQL.
+      {% with footer_variant='inline' %}
+      {% include 'partials/trainiq_footer.html' %}
+      {% endwith %}
     </div>
   </div>
 
   <!-- Right Form Panel -->
   <div class="onb-right">
+    <div style="margin-bottom:1rem;">
+      {% include 'partials/public_back_link.html' %}
+    </div>
     <div class="onb-card">
       <div class="onb-header">
         <h1 id="onb-header-title">Create Workspace</h1>
@@ -313,7 +318,7 @@
           <div class="tiq-form-group" style="display:flex; align-items:flex-start; gap:10px;">
             <input type="checkbox" id="terms" name="terms" required disabled style="margin-top: 4px;">
             <label class="tiq-label" for="terms" style="font-weight: 500; font-size: 0.85rem; line-height: 1.5; color:var(--tiq-muted);">
-              I agree to the <a href="{{ url_for('general_routes.privacy_policy') }}" target="_blank" style="color:var(--tiq-primary); font-weight:700;">TrainIQ Terms of Service</a> and confirm that all custom document uploads comply with HIPAA security regulations.
+              I agree to the <a href="{{ url_for('general_routes.user_agreement_view') }}" target="_blank" style="color:var(--tiq-primary); font-weight:700;">TrainIQ Platform User Agreement</a> and confirm that all custom document uploads comply with applicable regulations.
             </label>
           </div>
         </div>

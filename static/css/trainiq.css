@@ -539,6 +539,17 @@ h6 { font-size: 0.875rem; }
   transform: translateX(-2px);
 }
 
+.tiq-btn-back--inverse {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.92);
+}
+.tiq-btn-back--inverse:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #fff;
+}
+
 .tiq-btn-danger {
   background: var(--tiq-danger);
   color: white;
@@ -760,6 +771,23 @@ h6 { font-size: 0.875rem; }
   display: flex; align-items: center; justify-content: flex-end;
   gap: 0.75rem;
 }
+.tiq-modal-lg { max-width: 720px; }
+.tiq-modal-xl { max-width: 860px; }
+.tiq-modal-scroll .tiq-modal-body {
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+}
+.admin-form-compact .tiq-form-group { margin-bottom: 1rem; }
+.admin-form-compact .tiq-grid .tiq-form-group { margin-bottom: 0; }
+.admin-form-compact .tiq-divider { margin: 1rem 0; }
+.admin-asset-card {
+  background: var(--tiq-surface-2);
+  border: 1px solid var(--tiq-border);
+  padding: 0.85rem 1rem;
+  border-radius: var(--tiq-radius);
+  margin-bottom: 0.65rem;
+}
+.admin-asset-card:last-child { margin-bottom: 0; }
 
 /* ─── Avatar ─────────────────────────────────────────────────── */
 .tiq-avatar {
@@ -925,9 +953,94 @@ h6 { font-size: 0.875rem; }
 /* ─── Dividers ───────────────────────────────────────────────── */
 .tiq-divider { height: 1px; background: var(--tiq-border); margin: 1.5rem 0; }
 
+/* ─── Media tabs (upload study materials) ─────────────────────── */
+.media-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+.media-tab--active {
+  border-color: var(--tiq-primary);
+  background: rgba(79, 70, 229, 0.08);
+}
+.media-panels-stage {
+  margin-bottom: 0;
+}
+.media-panel {
+  display: none;
+}
+.media-panel.media-panel--active {
+  display: block;
+}
+.course-content-section {
+  margin-top: 0.25rem;
+}
+.course-content-section .tiq-divider {
+  margin: 1rem 0 0.75rem;
+}
+.course-content-heading {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+}
+.course-content-lead {
+  font-size: 0.875rem;
+  color: var(--tiq-text-3);
+  margin: 0 0 0.75rem;
+}
+
+/* File inputs — compact native picker (avoid tiq-input bordered field look) */
+.tiq-file-input {
+  display: block;
+  width: 100%;
+  font-family: var(--tiq-font-sans);
+  font-size: 0.875rem;
+  color: var(--tiq-text);
+  padding: 0.25rem 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+}
+.tiq-file-input::file-selector-button {
+  font-family: var(--tiq-font-sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--tiq-text);
+  background: var(--tiq-surface-2);
+  border: 1.5px solid var(--tiq-border);
+  border-radius: var(--tiq-radius);
+  padding: 0.45rem 0.85rem;
+  margin-right: 0.75rem;
+  cursor: pointer;
+  transition: all var(--tiq-transition);
+}
+.tiq-file-input::file-selector-button:hover {
+  border-color: var(--tiq-primary);
+  background: rgba(79, 70, 229, 0.06);
+}
+
+/* Compact upload / exam form spacing */
+.upload-form-compact .tiq-form-group,
+.exam-form-compact .tiq-form-group {
+  margin-bottom: 1rem;
+}
+.upload-form-compact .tiq-grid .tiq-form-group,
+.exam-form-compact .tiq-grid .tiq-form-group {
+  margin-bottom: 0;
+}
+.exam-form-compact .tiq-divider {
+  margin: 1rem 0;
+}
+
 /* ─── Utility Spacing ────────────────────────────────────────── */
 .tiq-mt-auto { margin-top: auto; }
 .tiq-mb-0 { margin-bottom: 0; }
+.tiq-mb-1 { margin-bottom: 0.5rem; }
+.tiq-mb-2 { margin-bottom: 0.75rem; }
+.tiq-mb-3 { margin-bottom: 1rem; }
+.tiq-mb-4 { margin-bottom: 1.5rem; }
 .tiq-p-0 { padding: 0; }
 .tiq-w-full { width: 100%; }
 .tiq-text-right { text-align: right; }
@@ -1907,8 +2020,329 @@ h6 { font-size: 0.875rem; }
   flex-wrap: wrap;
 }
 
+/* ─── Course Viewer Header ───────────────────────────────────── */
+.viewer-header {
+  background: var(--tiq-navbar-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--tiq-border);
+  box-shadow: var(--tiq-shadow-xs);
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+  padding: 0.75rem 1.25rem 0.875rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem 1.5rem;
+}
+
+.viewer-header__zone--left {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.viewer-header__zone--center {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  text-align: center;
+}
+
+.viewer-header__title {
+  margin: 0;
+  width: 100%;
+  max-width: 560px;
+  font-size: 1.0625rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--tiq-text);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.viewer-header__meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+  width: 100%;
+  max-width: 560px;
+}
+
+.viewer-header__asset-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--tiq-primary);
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--tiq-radius-full);
+  white-space: nowrap;
+}
+
+.viewer-header__watch-pct {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--tiq-text-2);
+  white-space: nowrap;
+}
+
+.viewer-header__course-pct {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--tiq-text-3);
+  white-space: nowrap;
+}
+
+.viewer-header__course-pct span {
+  color: var(--tiq-primary);
+  font-weight: 800;
+}
+
+.viewer-header__progress {
+  width: 100%;
+  max-width: 420px;
+  height: 7px;
+  margin: 0;
+}
+
+.viewer-header__progress .tiq-progress-bar {
+  width: 0;
+}
+
+.viewer-header__zone--right {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+
+.viewer-header__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.28rem 0.32rem;
+  background: var(--tiq-surface);
+  border: 1px solid var(--tiq-border);
+  border-radius: var(--tiq-radius-full);
+  box-shadow: var(--tiq-shadow-xs);
+}
+
+.viewer-header__controls .tiq-btn {
+  border-radius: var(--tiq-radius-full);
+  white-space: nowrap;
+}
+
+.viewer-header__controls-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--tiq-border);
+  margin: 0 0.15rem;
+  flex-shrink: 0;
+}
+
+.viewer-header__controls .tiq-theme-toggle {
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.viewer-header__controls .tiq-theme-toggle:hover {
+  background: var(--tiq-surface-2);
+}
+
+.viewer-header__user {
+  flex-shrink: 0;
+  cursor: default;
+  box-shadow: var(--tiq-shadow-xs);
+}
+
+#viewerMeta.video-mode + .viewer-shell #docToolbar {
+  display: none !important;
+}
+
+@media (max-width: 960px) {
+  .viewer-header {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+    padding: 0.65rem 1rem 0.75rem;
+  }
+  .viewer-header__zone--left { order: 1; }
+  .viewer-header__zone--right {
+    order: 2;
+    justify-content: space-between;
+    width: 100%;
+  }
+  .viewer-header__zone--center {
+    order: 3;
+    width: 100%;
+  }
+  .viewer-header__title {
+    max-width: 100%;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 1rem;
+  }
+  .viewer-header__progress { max-width: none; }
+}
+
+@media (max-width: 520px) {
+  .viewer-header__controls .viewer-btn-label { display: none; }
+  .viewer-header__controls .tiq-btn { padding-left: 0.55rem; padding-right: 0.55rem; }
+  .viewer-header__meta { gap: 0.3rem 0.5rem; }
+}
+
+/* ─── Platform CEO subnav ─────────────────────────────────────── */
+.platform-subnav {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  margin-bottom: 1.5rem;
+  padding: 0.35rem;
+  background: var(--tiq-surface-2);
+  border-radius: var(--tiq-radius-lg);
+  border: 1px solid var(--tiq-border);
+}
+.platform-subnav .tiq-btn { flex-shrink: 0; white-space: nowrap; }
+
+.tiq-app-footer--compact {
+  padding: 0.65rem 1rem;
+  border-top: 1px solid var(--tiq-border);
+  background: var(--tiq-surface);
+}
+.tiq-app-footer--compact .tiq-app-footer__inner {
+  font-size: 0.75rem;
+}
+.tiq-footer-credit {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--tiq-text-3);
+  line-height: 1.5;
+}
+.tiq-footer-credit--inline {
+  font-size: 0.75rem;
+}
+.tiq-footer-credit--marketing {
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.35);
+}
+.tiq-footer-credit--marketing .tiq-footer-credit__brand {
+  color: rgba(255, 255, 255, 0.85);
+}
+.tiq-footer-credit--marketing .tiq-footer-credit__brand span {
+  color: #22d3ee;
+}
+.tiq-footer-credit--marketing .tiq-footer-credit__tenant,
+.tiq-footer-credit--marketing .tiq-footer-credit__copy,
+.tiq-footer-credit--marketing .tiq-footer-credit__sep {
+  color: rgba(255, 255, 255, 0.35);
+}
+.tiq-footer-credit__brand {
+  font-weight: 800;
+  color: var(--tiq-text);
+  text-decoration: none;
+  letter-spacing: -0.02em;
+}
+.tiq-footer-credit__brand span { color: var(--tiq-secondary); }
+.tiq-footer-credit__brand:hover {
+  color: var(--tiq-primary);
+  text-decoration: underline;
+}
+.tiq-footer-credit__sep { margin: 0 0.25rem; }
+.tiq-main .tiq-app-footer--compact {
+  margin-top: auto;
+}
+
+/* ─── App footer (TrainIQ credit) ─────────────────────────────── */
+.tiq-app-footer {
+  background: var(--tiq-surface);
+  color: var(--tiq-text-2);
+  border-top: 1px solid var(--tiq-border);
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.tiq-app-footer__inner {
+  margin: 0;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+}
+.tiq-app-footer__tenant { color: var(--tiq-text-3); }
+.tiq-app-footer__sep { color: var(--tiq-text-3); margin: 0 0.25rem; }
+.tiq-app-footer__brand {
+  font-weight: 800;
+  color: var(--tiq-text);
+  text-decoration: none;
+  letter-spacing: -0.02em;
+}
+.tiq-app-footer__brand span { color: var(--tiq-secondary); }
+.tiq-app-footer__brand:hover {
+  color: var(--tiq-primary);
+  text-decoration: underline;
+}
+.tiq-app-footer__copy { color: var(--tiq-text-3); }
+.tiq-app-footer--dark {
+  background: rgba(9, 13, 22, 0.95);
+  border-top-color: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+}
+.tiq-app-footer--dark .tiq-app-footer__brand { color: #e2e8f0; }
+.tiq-app-footer--dark .tiq-app-footer__brand span { color: #22d3ee; }
+.tiq-app-footer--dark .tiq-app-footer__tenant,
+.tiq-app-footer--dark .tiq-app-footer__copy,
+.tiq-app-footer--dark .tiq-app-footer__sep { color: #64748b; }
+
 /* ─── Print ──────────────────────────────────────────────────── */
 @media print {
   .tiq-sidebar, .tiq-topbar, .tiq-theme-toggle { display: none !important; }
   .tiq-main { margin-left: 0 !important; }
+}
+
+/* ─── Accessibility ─────────────────────────────────────────── */
+.tiq-skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 10000;
+  padding: 0.75rem 1rem;
+  background: var(--tiq-primary);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0 0 6px 0;
+}
+.tiq-skip-link:focus {
+  left: 0;
+  outline: 3px solid var(--tiq-secondary);
+  outline-offset: 2px;
+}
+:focus-visible {
+  outline: 2px solid var(--tiq-primary);
+  outline-offset: 2px;
 }

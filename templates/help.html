@@ -2,7 +2,11 @@
 {% block title %}Help Center — {{ display_org_name }}{% endblock %}
 
 {% block breadcrumb %}
+  {% if current_user.is_authenticated %}
   <a href="{{ url_for('general_routes.dashboard') }}">Home</a>
+  {% else %}
+  <a href="{{ url_for('general_routes.home') }}">Home</a>
+  {% endif %}
   <span class="tiq-breadcrumb-sep">/</span>
   <span>Help Center</span>
 {% endblock %}
@@ -14,8 +18,8 @@
       <h1>Help Center</h1>
       <p class="tiq-lead">Welcome to the TrainIQ Help Center. Find answers to common platform issues, system navigation tips, and contact resources.</p>
     </div>
-    <a href="{{ url_for('general_routes.dashboard') }}" class="tiq-btn tiq-btn-secondary">
-      <i class="fas fa-home"></i> Back to Home
+    <a href="{% if current_user.is_authenticated %}{{ url_for('general_routes.dashboard') }}{% else %}{{ url_for('general_routes.home') }}{% endif %}" class="tiq-btn tiq-btn-secondary">
+      <i class="fas fa-arrow-left"></i> {% if current_user.is_authenticated %}Back to Dashboard{% else %}Back to Home{% endif %}
     </a>
   </div>
 </div>

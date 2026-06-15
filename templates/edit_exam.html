@@ -27,7 +27,7 @@
 {# Flash messages #}
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
-    <div class="mb-4">
+    <div class="tiq-mb-3">
       {% for category, msg in messages %}
         <div class="tiq-alert tiq-alert-{{ 'success' if category == 'success' else ('danger' if category == 'error' else 'warning') }}">
           <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
@@ -39,37 +39,47 @@
 {% endwith %}
 
 <!-- 1) Exam metadata -->
-<div class="tiq-card mb-5">
+<div class="tiq-card tiq-mb-4">
   <div class="tiq-card-header">
-    <div class="tiq-card-title"><i class="fas fa-file-alt me-2"></i>Exam Parameters</div>
+    <div class="tiq-card-title"><i class="fas fa-file-alt" style="margin-right:0.5rem;"></i>Exam Parameters</div>
   </div>
   <div class="tiq-card-body">
-    <form action="{{ url_for('admin_routes.edit_exam', exam_id=exam.id) }}" method="POST">
+    <form action="{{ url_for('admin_routes.edit_exam', exam_id=exam.id) }}" method="POST" class="exam-form-compact">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="return_to" value="questions">
 
-      <div class="tiq-grid tiq-grid-2 tiq-gap mb-4">
-        <!-- Title -->
-        <div class="tiq-form-group mb-0">
+      <div class="tiq-grid tiq-grid-3 tiq-gap tiq-mb-3">
+        <div class="tiq-form-group tiq-mb-0">
           <label for="title" class="tiq-label">Title</label>
           <input id="title" name="title" class="tiq-input" value="{{ exam.title }}" required>
         </div>
-
-        <!-- Duration -->
-        <div class="tiq-form-group mb-0">
+        <div class="tiq-form-group tiq-mb-0">
           <label for="duration" class="tiq-label">Duration (min)</label>
           <input type="number" id="duration" name="duration" class="tiq-input" value="{{ exam.duration }}" min="1" required>
         </div>
-
-        <!-- Passing Score -->
-        <div class="tiq-form-group mb-0">
+        <div class="tiq-form-group tiq-mb-0">
           <label for="passing_score" class="tiq-label">Passing Score (%)</label>
           <input type="number" id="passing_score" name="passing_score" class="tiq-input" value="{{ exam.passing_score or 70 }}" min="1" max="100" step="0.1">
         </div>
+        <div class="tiq-form-group tiq-mb-0">
+          <label for="retry_cooldown_days" class="tiq-label">Retry Cooldown (days)</label>
+          <input type="number" id="retry_cooldown_days" name="retry_cooldown_days" class="tiq-input" value="{{ exam.retry_cooldown_days if exam.retry_cooldown_days is not none else 30 }}" min="0" max="365">
+        </div>
       </div>
 
-      <div class="tiq-grid tiq-grid-4 tiq-gap mb-4">
+      <div class="tiq-form-group tiq-mb-3">
+        <label for="minimum_designation_id" class="tiq-label">Min Designation (skip threshold)</label>
+        <select id="minimum_designation_id" name="minimum_designation_id" class="tiq-select" required>
+          <option value="">— Select —</option>
+          {% for desig in designations %}
+            <option value="{{ desig.id }}" {% if exam.minimum_designation_id == desig.id %}selected{% endif %}>{{ desig.title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="tiq-grid tiq-grid-4 tiq-gap tiq-mb-0">
         <!-- Level -->
-        <div class="tiq-form-group mb-0">
+        <div class="tiq-form-group tiq-mb-0">
           <label for="level" class="tiq-label">Level</label>
           <select id="level" name="level" class="tiq-select" required>
             <option value="">— Select —</option>
@@ -82,7 +92,7 @@
         </div>
 
         <!-- Area -->
-        <div class="tiq-form-group mb-0">
+        <div class="tiq-form-group tiq-mb-0">
           <label for="area" class="tiq-label">Area</label>
           <select id="area" name="area" class="tiq-select" required>
             <option value="">— Select —</option>
@@ -95,20 +105,20 @@
         </div>
 
         <!-- Course -->
-        <div class="tiq-form-group mb-0">
+        <div class="tiq-form-group tiq-mb-0">
           <label for="course_id" class="tiq-label">Course Link</label>
           <select id="course_id" name="course_id" class="tiq-select" required>
             <option value="">— Select —</option>
             {% for c in courses %}
               <option value="{{ c.id }}" {% if exam.course and exam.course.id == c.id %}selected{% endif %}>
-                {{ c.title }}
+                [L{{ c.level_number }}] {{ c.category_name }} — {{ c.title }} ({{ c.media_summary }})
               </option>
             {% endfor %}
           </select>
         </div>
 
         <!-- Category -->
-        <div class="tiq-form-group mb-0">
+        <div class="tiq-form-group tiq-mb-0">
           <label for="category_id" class="tiq-label">Category</label>
           <select id="category_id" name="category_id" class="tiq-select" required>
             <option value="">— Select —</option>
@@ -131,26 +141,26 @@
 </div>
 
 <!-- 2) {{ display_org_name }} AI question generator -->
-<div class="tiq-card mb-5 tiq-reveal" style="border-color:rgba(139,92,246,0.35);">
+<div class="tiq-card tiq-mb-4 tiq-reveal" style="border-color:rgba(139,92,246,0.35);">
   <div class="tiq-card-header">
     <div class="tiq-card-title">
-      <i class="fas fa-wand-magic-sparkles me-2" style="color:#8B5CF6;"></i>
+      <i class="fas fa-wand-magic-sparkles" style="margin-right:0.5rem;color:#8B5CF6;"></i>
       {{ display_org_name }} AI — Generate Exam Paper
     </div>
   </div>
   <div class="tiq-card-body">
-      <p style="font-size:0.875rem;color:var(--tiq-text-3);margin:0 0 1.25rem;">
-      RAG-grounded generation reads your selected study documents and builds questions from their content — any subject, level, or category.
+      <p style="font-size:0.875rem;color:var(--tiq-text-3);margin:0 0 1rem;">
+      RAG-grounded generation reads study documents, video transcripts, and link context to build questions.
     </p>
-    <form action="{{ url_for('admin_routes.generate_exam_questions_ai', exam_id=exam.id) }}" method="POST" id="aiGenForm">
+    <form action="{{ url_for('admin_routes.generate_exam_questions_ai', exam_id=exam.id) }}" method="POST" id="aiGenForm" class="exam-form-compact">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-      <div class="tiq-grid tiq-grid-3 tiq-gap mb-4">
-        <div class="tiq-form-group mb-0">
+      <div class="tiq-grid tiq-grid-3 tiq-gap tiq-mb-3">
+        <div class="tiq-form-group tiq-mb-0">
           <label for="question_count" class="tiq-label">Number of Questions</label>
           <input type="number" id="question_count" name="question_count" class="tiq-input" value="5" min="1" max="20" required>
         </div>
-        <div class="tiq-form-group mb-0">
+        <div class="tiq-form-group tiq-mb-0">
           <label for="ai_filter_level" class="tiq-label">Filter by Level</label>
           <select id="ai_filter_level" class="tiq-select">
             <option value="">All Levels</option>
@@ -159,7 +169,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="tiq-form-group mb-0">
+        <div class="tiq-form-group tiq-mb-0">
           <label for="ai_filter_category" class="tiq-label">Filter by Category</label>
           <select id="ai_filter_category" class="tiq-select">
             <option value="">All Categories</option>
@@ -170,7 +180,7 @@
         </div>
       </div>
 
-      <div class="tiq-form-group mb-3">
+      <div class="tiq-form-group tiq-mb-2">
         <label class="tiq-label">Question Types</label>
         <div style="display:flex;gap:1.25rem;flex-wrap:wrap;">
           <label><input type="checkbox" name="question_types" value="single_choice" checked> Single Choice</label>
@@ -185,11 +195,10 @@
           {% for c in courses %}
             <option value="{{ c.id }}"
               {% if exam.course and exam.course.id == c.id %}selected{% endif %}
-              data-level="{% if c.level %}L{{ c.level.level_number }}{% else %}L{{ c.minimum_level or 1 }}{% endif %}"
+              data-level="L{{ c.level_number }}"
               data-category-id="{{ c.category_id or '' }}"
-              data-category="{{ c.category.name if c.category else 'General' }}">
-              [{% if c.level %}L{{ c.level.level_number }}{% else %}L{{ c.minimum_level or 1 }}{% endif %}]
-              {{ c.category.name if c.category else 'General' }} — {{ c.title }}
+              data-category="{{ c.category_name }}">
+              [L{{ c.level_number }}] {{ c.category_name }} — {{ c.title }} ({{ c.media_summary }})
             </option>
           {% endfor %}
         </select>
@@ -212,8 +221,8 @@
 <div class="tiq-divider"></div>
 
 <!-- 3) Question list -->
-<div class="tiq-flex-between mb-4 tiq-reveal" style="flex-wrap: wrap; gap: 1rem;">
-  <h2 style="margin:0;"><i class="fas fa-question-circle me-2"></i>Questions List ({{ questions|length }})</h2>
+<div class="tiq-flex-between tiq-mb-3 tiq-reveal" style="flex-wrap: wrap; gap: 1rem;">
+  <h2 style="margin:0;"><i class="fas fa-question-circle" style="margin-right:0.5rem;"></i>Questions ({{ questions|length }})</h2>
 </div>
 
 {% if questions %}
@@ -227,7 +236,7 @@
           <div class="tiq-card-title">Question #{{ loop.index }}</div>
         </div>
         <div class="tiq-card-body">
-          <form action="{{ url_for('admin_routes.update_question', question_id=q.id) }}" method="POST" class="mb-3">
+          <form action="{{ url_for('admin_routes.update_question', question_id=q.id) }}" method="POST" class="tiq-mb-2">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="tiq-form-group">
@@ -246,9 +255,9 @@
             </div>
 
             <div class="q-choices-block" style="{% if qt == 'structured' %}display:none{% endif %}">
-            <div class="tiq-grid tiq-grid-4 tiq-gap mb-4">
+            <div class="tiq-grid tiq-grid-4 tiq-gap tiq-mb-3">
               {% for idx in range(4) %}
-                <div class="tiq-form-group mb-0">
+                <div class="tiq-form-group tiq-mb-0">
                   <label class="tiq-label">Option {{ 'ABCD'[idx] }}</label>
                   <input name="option_{{ idx }}" class="tiq-input q-opt" value="{{ opts[idx] }}">
                 </div>
@@ -257,8 +266,8 @@
             </div>
 
             <div class="q-single-correct" style="{% if qt != 'single_choice' %}display:none{% endif %}">
-            <div class="tiq-grid tiq-grid-2 tiq-gap align-items-end">
-              <div class="tiq-form-group mb-0">
+            <div class="tiq-grid tiq-grid-2 tiq-gap">
+              <div class="tiq-form-group tiq-mb-0">
                 <label class="tiq-label">Correct Answer Key</label>
                 <select name="correct_ans" class="tiq-select">
                   <option value="">— Select —</option>
@@ -286,7 +295,7 @@
               </div>
             </div>
 
-            <div class="tiq-flex-between align-items-end mb-3" style="flex-wrap:wrap; gap:0.5rem;">
+            <div class="tiq-flex-between tiq-mb-2" style="flex-wrap:wrap; gap:0.5rem;">
               <button type="button" class="tiq-btn tiq-btn-secondary ai-improve-btn" onclick="improveQuestion(this)">
                 <i class="fas fa-magic"></i> AI Improve Question
               </button>
@@ -301,7 +310,7 @@
           <form action="{{ url_for('admin_routes.delete_question', question_id=q.id) }}" method="POST" onsubmit="return confirm('Delete this question?');" style="margin: 0;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="tiq-btn tiq-btn-sm tiq-btn-danger">
-              <i class="fas fa-trash-alt me-1"></i> Delete Question
+              <i class="fas fa-trash-alt"></i> Delete Question
             </button>
           </form>
         </div>
@@ -310,8 +319,8 @@
   </div>
 {% else %}
   <div class="tiq-card">
-    <div class="tiq-card-body text-center text-muted py-5">
-      <i class="fas fa-exclamation-triangle fa-2x mb-3" style="color: var(--tiq-text-3);"></i>
+    <div class="tiq-card-body tiq-text-center" style="padding:3rem;color:var(--tiq-text-3);">
+      <i class="fas fa-exclamation-triangle" style="font-size:2rem;margin-bottom:0.75rem;"></i>
       <p style="margin: 0;">No questions have been added to this exam yet.</p>
     </div>
   </div>

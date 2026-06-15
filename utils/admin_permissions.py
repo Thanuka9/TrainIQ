@@ -122,6 +122,7 @@ ROUTE_PERMISSIONS: Dict[str, Optional[str]] = {
     "view_special_exam_record": "analytics.view",
     "view_users": "users.manage",
     "send_user_invite": "users.manage",
+    "revoke_user_invite": "users.manage",
     "set_user_super_admin": None,
     "change_designation": "users.manage",
     "change_user_departments": "users.manage",

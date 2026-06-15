@@ -49,20 +49,70 @@ def test_notifications_api(auth_client):
 
 
 def test_create_notification_dedupe(auth_client):
-    from utils.notifications import create_notification, unread_count
+    import uuid
+
+    from extensions import db
+    from models import Notification
+    from utils.notifications import create_notification
 
     _, user = auth_client
+    key = f"test_dedupe_{user.id}_{uuid.uuid4().hex[:8]}"
     with flask_app.app_context():
-        create_notification(
-            user.id,
-            "Test alert",
-            "Body",
-            dedupe_key="test_dedupe_key",
-        )
-        create_notification(
-            user.id,
-            "Test alert duplicate",
-            "Body",
-            dedupe_key="test_dedupe_key",
-        )
-        assert unread_count(user.id) >= 1
+        ok1 = create_notification(user.id, "Test alert", "Body", dedupe_key=key)
+        ok2 = create_notification(user.id, "Test alert duplicate", "Body", dedupe_key=key)
+        assert ok1 is True
+        assert ok2 is False
+        assert Notification.query.filter_by(user_id=user.id, dedupe_key=key).count() == 1
+        db.session.commit()
+
+
+def test_mark_all_read_stays_read_after_sync(auth_client):
+    from extensions import db
+    from models import Notification
+    from utils.notifications import create_notification, sync_user_notifications, unread_count
+
+    client, user = auth_client
+    key = f"test_mark_all_{user.id}"
+    with flask_app.app_context():
+        Notification.query.filter_by(user_id=user.id, dedupe_key=key).delete()
+        Notification.query.filter_by(user_id=user.id, dedupe_key=f"{key}_b").delete()
+        db.session.commit()
+        create_notification(user.id, "Alert A", "One", dedupe_key=key)
+        create_notification(user.id, "Alert B", "Two", dedupe_key=f"{key}_b")
+        assert unread_count(user.id) >= 2
+
+    resp = client.post("/notifications/read-all")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert data["unread_count"] == 0
+    assert data.get("items") is not None
+
+    with flask_app.app_context():
+        sync_user_notifications(user)
+        create_notification(user.id, "Alert A again", "One", dedupe_key=key)
+        assert unread_count(user.id) == 0
+
+
+def test_mark_single_read(auth_client):
+    from extensions import db
+    from models import Notification
+    from utils.notifications import create_notification
+
+    client, user = auth_client
+    with flask_app.app_context():
+        key = f"test_single_read_{user.id}"
+        Notification.query.filter_by(user_id=user.id, dedupe_key=key).delete()
+        db.session.commit()
+        create_notification(user.id, "Read me", "Body", dedupe_key=key)
+        n = Notification.query.filter_by(user_id=user.id, dedupe_key=key).first()
+        nid = n.id
+
+    resp = client.post(f"/notifications/{nid}/read")
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+    with flask_app.app_context():
+        n = db.session.get(Notification, nid)
+        assert n.is_read is True
+        assert n.read_at is not None

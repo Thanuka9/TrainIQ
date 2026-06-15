@@ -13,13 +13,20 @@ logger = logging.getLogger(__name__)
 def find_material_for_file_id(file_id: str):
     """Return StudyMaterial that owns this GridFS file id, or None."""
     from models import StudyMaterial
+    from sqlalchemy import or_
 
     if not file_id:
         return None
-    needle = f"{file_id}|"
+    fid = str(file_id).strip()
+    needle = f"{fid}|"
+    assets_text = cast(StudyMaterial.media_assets, Text)
     return (
         StudyMaterial.query.filter(
-            cast(StudyMaterial.files, Text).contains(needle)
+            or_(
+                cast(StudyMaterial.files, Text).contains(needle),
+                assets_text.contains(f'"mongo_id": "{fid}"'),
+                assets_text.contains(f'"id": "{fid}"'),
+            )
         ).first()
     )
 

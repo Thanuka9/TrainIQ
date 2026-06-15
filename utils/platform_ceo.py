@@ -12,6 +12,29 @@ PLATFORM_CEO_EMAIL = os.getenv("TRAINIQ_CEO_EMAIL", "thanuka.ellepola@gmail.com"
 TRAINIQ_PLATFORM_OFFICE_KEY = os.getenv("TRAINIQ_PLATFORM_OFFICE_KEY", "TRAINIQ")
 
 
+def _is_production() -> bool:
+    env = (os.getenv("FLASK_ENV") or os.getenv("ENV") or "").lower()
+    return env in ("production", "prod")
+
+
+def _ceo_bootstrap_password() -> str | None:
+    """Return CEO bootstrap password from env; never use a hardcoded production secret."""
+    pw = (os.getenv("TRAINIQ_CEO_DEFAULT_PASSWORD") or "").strip()
+    if pw:
+        return pw
+    if _is_production():
+        return None
+    # Dev-only: generate a one-time password and log it (no committed default).
+    import secrets
+    dev_pw = secrets.token_urlsafe(16)
+    logger.warning(
+        "TRAINIQ_CEO_DEFAULT_PASSWORD not set — generated dev password for %s: %s",
+        PLATFORM_CEO_EMAIL,
+        dev_pw,
+    )
+    return dev_pw
+
+
 def is_platform_ceo(user=None) -> bool:
     from flask_login import current_user
 
@@ -19,7 +42,11 @@ def is_platform_ceo(user=None) -> bool:
     if not user or not getattr(user, "is_authenticated", False):
         return False
     email = (getattr(user, "employee_email", "") or "").lower().strip()
-    return email == PLATFORM_CEO_EMAIL
+    if email == PLATFORM_CEO_EMAIL:
+        return True
+    if getattr(user, "is_platform_staff", False) and (getattr(user, "platform_staff_role", "") or "").lower() == "ceo":
+        return True
+    return False
 
 
 def ensure_platform_ceo():
@@ -55,6 +82,12 @@ def ensure_platform_ceo():
 
         user = User.query.filter(db.func.lower(User.employee_email) == PLATFORM_CEO_EMAIL).first()
         if not user:
+            bootstrap_pw = _ceo_bootstrap_password()
+            if not bootstrap_pw:
+                logger.error(
+                    "TRAINIQ_CEO_DEFAULT_PASSWORD must be set in production to bootstrap CEO account"
+                )
+                return
             user = User(
                 first_name="Thanuka",
                 last_name="Ellepola",
@@ -64,14 +97,27 @@ def ensure_platform_ceo():
                 is_verified=True,
                 is_super_admin=True,
                 tenant_id=tenant.id,
+                current_level=1,
             )
-            user.set_password(os.getenv("TRAINIQ_CEO_DEFAULT_PASSWORD", "TrainIQ@2026!"))
+            user.is_platform_staff = True
+            user.platform_staff_role = "ceo"
+            user.set_password(bootstrap_pw)
             db.session.add(user)
             logger.info("Created platform CEO user %s", PLATFORM_CEO_EMAIL)
         else:
             user.is_super_admin = True
             user.is_verified = True
-            if not user.tenant_id:
+            user.is_platform_staff = True
+            user.platform_staff_role = "ceo"
+            if user.tenant_id != tenant.id:
+                logger.warning(
+                    "Reassigning platform CEO %s from tenant %s → platform tenant %s",
+                    PLATFORM_CEO_EMAIL,
+                    user.tenant_id,
+                    tenant.id,
+                )
+                user.tenant_id = tenant.id
+            elif not user.tenant_id:
                 user.tenant_id = tenant.id
 
         for role_name in ("admin", "super_admin"):

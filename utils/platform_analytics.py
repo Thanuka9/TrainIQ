@@ -10,6 +10,12 @@ from utils.billing_plans import PLANS, TRIAL_DAYS
 
 def _plan_mrr(tenant) -> float:
     plan_id = (getattr(tenant, "plan", "") or "trial").lower()
+    custom_cents = getattr(tenant, "custom_mrr_cents", None)
+    if plan_id == "enterprise" and custom_cents is not None:
+        try:
+            return max(0.0, float(int(custom_cents)) / 100.0)
+        except (TypeError, ValueError):
+            return 0.0
     if plan_id in ("trial", "enterprise"):
         return 0.0
     plan = PLANS.get(plan_id)
@@ -73,6 +79,7 @@ def get_platform_alerts() -> list[dict]:
     )
     for tk in open_tickets:
         org = tk.user.tenant.name if tk.user and tk.user.tenant else "Unknown"
+        tenant_id = tk.user.tenant_id if tk.user else None
         alerts.append(
             {
                 "level": "info",
@@ -80,6 +87,9 @@ def get_platform_alerts() -> list[dict]:
                 "title": f"Support: {tk.title[:50]}",
                 "detail": f"{org} · {tk.status}",
                 "ticket_id": tk.id,
+                "tenant_id": tenant_id,
+                "action_endpoint": "platform_routes.platform_support",
+                "action_label": "Queue",
             }
         )
 
@@ -91,6 +101,8 @@ def get_platform_alerts() -> list[dict]:
                 "icon": "lock",
                 "title": f"{locked} locked account(s)",
                 "detail": "Review in Security console",
+                "action_endpoint": "platform_routes.platform_security",
+                "action_label": "Security",
             }
         )
 
@@ -149,7 +161,7 @@ def get_platform_analytics() -> dict:
         tmrr = _plan_mrr(t)
         if pid == "trial":
             trial_count += 1
-        elif pid != "enterprise" and st == "active":
+        elif st == "active" and tmrr > 0:
             paid_count += 1
             mrr += tmrr
             revenue_by_plan[pid] = revenue_by_plan.get(pid, 0.0) + tmrr
@@ -248,6 +260,112 @@ def get_platform_analytics() -> dict:
         "user_growth_values": growth_values,
         "recent_activity": recent_activity,
         "alerts": get_platform_alerts(),
+    }
+
+
+def filter_tenant_rows(
+    tenant_rows: list,
+    q: str = "",
+    plan: str = "",
+    status: str = "",
+    sort: str = "users_desc",
+) -> list:
+    """Filter and sort organization rows for CEO console tables."""
+    rows = list(tenant_rows)
+    q = (q or "").strip().lower()
+    plan = (plan or "").strip().lower()
+    status = (status or "").strip().lower()
+
+    if q:
+        def _match(row):
+            t = row["tenant"]
+            hay = " ".join(
+                filter(
+                    None,
+                    [
+                        t.name or "",
+                        t.office_key or "",
+                        t.billing_email or "",
+                        str(t.id),
+                    ],
+                )
+            ).lower()
+            return q in hay
+
+        rows = [r for r in rows if _match(r)]
+
+    if plan:
+        rows = [r for r in rows if (r["tenant"].plan or "trial").lower() == plan]
+    if status:
+        rows = [r for r in rows if (r["tenant"].status or "active").lower() == status]
+
+    sort_key = {
+        "users_desc": lambda r: r.get("users", 0),
+        "users_asc": lambda r: r.get("users", 0),
+        "name": lambda r: (r["tenant"].name or "").lower(),
+        "mrr_desc": lambda r: r.get("mrr", 0),
+        "created": lambda r: r["tenant"].created_at or datetime.min,
+    }.get(sort, lambda r: r.get("users", 0))
+
+    reverse = sort in ("users_desc", "mrr_desc", "created")
+    rows.sort(key=sort_key, reverse=reverse)
+    return rows
+
+
+def get_platform_chart_series(stats: dict) -> dict:
+    """Chart payloads for CEO command center."""
+    rows = sorted(stats.get("tenant_rows") or [], key=lambda r: r.get("users", 0), reverse=True)
+    top_orgs = rows[:15]
+
+    plan_labels = list(stats.get("by_plan", {}).keys())
+    plan_values = [stats["by_plan"][k] for k in plan_labels]
+
+    status_labels = list(stats.get("by_status", {}).keys())
+    status_values = [stats["by_status"][k] for k in status_labels]
+
+    # New organizations per month (6 mo)
+    from models import Tenant
+
+    now = datetime.utcnow()
+    tenant_growth_labels = []
+    tenant_growth_values = []
+    for i in range(5, -1, -1):
+        month_start = (now.replace(day=1) - timedelta(days=i * 28)).replace(day=1)
+        if month_start.month == 12:
+            month_end = month_start.replace(year=month_start.year + 1, month=1)
+        else:
+            month_end = month_start.replace(month=month_start.month + 1)
+        tenant_growth_labels.append(month_start.strftime("%b %Y"))
+        tenant_growth_values.append(
+            Tenant.query.filter(
+                Tenant.created_at >= month_start,
+                Tenant.created_at < month_end,
+            ).count()
+        )
+
+    mrr_labels = []
+    mrr_values = []
+    for plan_id, amount in sorted(
+        (stats.get("revenue_by_plan") or {}).items(),
+        key=lambda x: x[1],
+        reverse=True,
+    ):
+        mrr_labels.append(plan_id.title())
+        mrr_values.append(round(amount, 2))
+
+    return {
+        "org_labels": [(r["tenant"].name or f"Org #{r['tenant'].id}")[:28] for r in top_orgs],
+        "org_users": [r.get("users", 0) for r in top_orgs],
+        "org_courses": [r.get("courses", 0) for r in top_orgs],
+        "org_exams": [r.get("exams", 0) for r in top_orgs],
+        "plan_labels": plan_labels,
+        "plan_values": plan_values,
+        "status_labels": status_labels,
+        "status_values": status_values,
+        "tenant_growth_labels": tenant_growth_labels,
+        "tenant_growth_values": tenant_growth_values,
+        "mrr_labels": mrr_labels,
+        "mrr_values": mrr_values,
     }
 
 
@@ -383,8 +501,8 @@ def search_platform_users(
     tenant_id: int | None = None,
     status: str = "",
     limit: int = 100,
-) -> list[dict]:
-    """Cross-tenant user search for CEO."""
+) -> tuple[list[dict], int]:
+    """Cross-tenant user search for CEO. Returns (rows, total_match_count)."""
     from extensions import db
     from models import Tenant, User
 
@@ -411,13 +529,17 @@ def search_platform_users(
             )
         )
 
+    total = query.count()
     rows = []
     tenant_cache: dict[int, Tenant | None] = {}
-    for u in query.order_by(User.join_date.desc()).limit(limit).all():
+    user_query = query.order_by(User.join_date.desc())
+    if limit:
+        user_query = user_query.limit(limit)
+    for u in user_query.all():
         if u.tenant_id not in tenant_cache:
             tenant_cache[u.tenant_id] = Tenant.query.get(u.tenant_id) if u.tenant_id else None
         rows.append({"user": u, "tenant": tenant_cache[u.tenant_id]})
-    return rows
+    return rows, total
 
 
 def get_platform_support_queue(status: str = "open", limit: int = 100) -> list[dict]:
@@ -466,25 +588,33 @@ def get_platform_security_feed(limit: int = 100, event_type: str = "") -> dict:
     }
 
 
-def get_platform_activity_feed(limit: int = 100) -> list[dict]:
+def get_platform_activity_feed(
+    limit: int = 100,
+    *,
+    start=None,
+    end=None,
+) -> list[dict]:
     """Recent platform-wide activity for CEO activity console."""
     from models import AuditLog, User
 
     platform_types = (
         "PLATFORM_ENTER_TENANT",
         "PLATFORM_EXIT_TENANT",
+        "PLATFORM_SUSPEND_TENANT",
+        "PLATFORM_ACTIVATE_TENANT",
+        "PLATFORM_UPDATE_TENANT",
         "PLAN_UPGRADE",
         "USER_REGISTER",
         "TENANT_CREATED",
         "FAILED_LOGIN",
         "USER_LOGIN",
     )
-    events = (
-        AuditLog.query.filter(AuditLog.event_type.in_(platform_types))
-        .order_by(AuditLog.created_at.desc())
-        .limit(limit)
-        .all()
-    )
+    query = AuditLog.query.filter(AuditLog.event_type.in_(platform_types))
+    if start:
+        query = query.filter(AuditLog.created_at >= start)
+    if end:
+        query = query.filter(AuditLog.created_at <= end)
+    events = query.order_by(AuditLog.created_at.desc()).limit(limit).all()
     rows = []
     for ev in events:
         actor = User.query.get(ev.actor_user_id) if ev.actor_user_id else None
@@ -506,6 +636,12 @@ def _activity_summary(ev, actor, desc) -> str:
         return f"{email} entered support mode → {desc.get('tenant_name', 'org')}"
     if et == "PLATFORM_EXIT_TENANT":
         return f"{email} exited support mode"
+    if et == "PLATFORM_SUSPEND_TENANT":
+        return f"{email} suspended tenant — {desc.get('tenant_id', '')}"
+    if et == "PLATFORM_ACTIVATE_TENANT":
+        return f"{email} reactivated tenant — {desc.get('tenant_id', '')}"
+    if et == "PLATFORM_UPDATE_TENANT":
+        return f"{email} updated tenant plan/status — {desc.get('plan', '')}"
     if et == "PLAN_UPGRADE":
         return f"{email} changed plan — {desc.get('details', '')}"
     if et == "USER_REGISTER":

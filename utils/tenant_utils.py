@@ -20,6 +20,26 @@ def trainiq_staff_domains():
     return {d.strip().lower() for d in raw.split(",") if d.strip()}
 
 
+def trainiq_staff_emails():
+    """Explicit staff allowlist — always includes TRAINIQ_CEO_EMAIL."""
+    from utils.platform_ceo import PLATFORM_CEO_EMAIL
+
+    raw = os.getenv("TRAINIQ_STAFF_EMAILS", "")
+    emails = {e.strip().lower() for e in raw.split(",") if e.strip()}
+    if PLATFORM_CEO_EMAIL:
+        emails.add(PLATFORM_CEO_EMAIL)
+    return emails
+
+
+def is_platform_tenant(tenant) -> bool:
+    from utils.platform_ceo import TRAINIQ_PLATFORM_OFFICE_KEY
+
+    if not tenant:
+        return False
+    key = normalize_office_key(getattr(tenant, "office_key", "") or "")
+    return key == normalize_office_key(TRAINIQ_PLATFORM_OFFICE_KEY)
+
+
 def email_domain(email: str) -> str:
     return (email or "").split("@")[-1].lower().strip()
 
@@ -31,13 +51,17 @@ def is_platform_ceo(user=None) -> bool:
 
 
 def is_trainiq_staff(user=None) -> bool:
-    """TrainIQ platform staff (or CEO) may access any tenant via office-key login."""
+    """TrainIQ platform CEO or invited platform staff on the platform tenant."""
     user = user or current_user
     if not user or not getattr(user, "is_authenticated", False):
         return False
     if is_platform_ceo(user):
         return True
-    return email_domain(getattr(user, "employee_email", "")) in trainiq_staff_domains()
+    from utils.platform_staff import user_on_platform_tenant
+
+    if getattr(user, "is_platform_staff", False) and user_on_platform_tenant(user):
+        return True
+    return False
 
 
 def parse_domain_list(raw: str) -> list[str]:

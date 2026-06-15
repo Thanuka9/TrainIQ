@@ -204,7 +204,9 @@
   </div>
 
   <div class="login-left-footer">
-    &copy; {{ 2025 }} TrainIQ &mdash; All rights reserved
+    {% with footer_variant='inline' %}
+    {% include 'partials/trainiq_footer.html' %}
+    {% endwith %}
   </div>
 </div>
 
@@ -230,7 +232,7 @@
       <div class="tiq-input-wrapper">
         <i class="fas fa-building tiq-input-icon"></i>
         <input type="text" class="tiq-input" id="office_key" name="office_key"
-               placeholder="COLLECTIVE" required autocomplete="off" style="text-transform: uppercase;"/>
+               placeholder="TRAINIQ" required autocomplete="off" style="text-transform: uppercase;"/>
       </div>
     </div>
 
@@ -283,9 +285,7 @@
   </div>
 
   <div style="margin-top:auto;padding-top:2rem;text-align:center;">
-    <a href="{{ url_for('general_routes.home') }}" class="tiq-btn-back" style="display:inline-flex;">
-      <i class="fas fa-arrow-left"></i> Back to TrainIQ.com
-    </a>
+    {% include 'partials/public_back_link.html' %}
   </div>
 </div>
 

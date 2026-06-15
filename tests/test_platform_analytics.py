@@ -90,6 +90,34 @@ def test_platform_activity_page(platform_staff_client):
     assert "Platform Activity" in resp.get_data(as_text=True)
 
 
+def test_platform_dashboard_denied_for_regular_user():
+    flask_app.config["TESTING"] = True
+    flask_app.config["WTF_CSRF_ENABLED"] = False
+    for lim in flask_app.extensions.get("limiter") or ():
+        lim.enabled = False
+
+    from models import User
+
+    with flask_app.app_context():
+        user = (
+            User.query.filter(User.is_super_admin.is_(False))
+            .filter(User.employee_email.notilike("%trainiq.com%"))
+            .first()
+        )
+        if not user:
+            pytest.skip("No regular tenant user in database")
+
+    client = flask_app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(user.id)
+        sess["_fresh"] = True
+        sess["tenant_id"] = user.tenant_id
+
+    resp = client.get("/platform/dashboard", follow_redirects=False)
+    assert resp.status_code in (302, 303)
+    assert "dashboard" in (resp.location or "").lower() or resp.status_code == 302
+
+
 def test_security_headers_present():
     client = flask_app.test_client()
     resp = client.get("/auth/login")

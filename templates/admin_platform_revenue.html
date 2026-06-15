@@ -1,4 +1,4 @@
-{% extends 'admin_base.html' %}
+{% extends 'platform_base.html' %}
 {% block title %}Platform Revenue{% endblock %}
 {% block breadcrumb %}Platform / Revenue{% endblock %}
 
@@ -35,7 +35,7 @@
   <div class="tiq-card">
     <div class="tiq-card-header"><h3 class="tiq-card-title">Tenant count by plan</h3></div>
     <div class="tiq-card-body">
-      <canvas id="planChart" height="200"></canvas>
+      <div id="planChartApex"></div>
     </div>
   </div>
 </div>
@@ -73,16 +73,19 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  var ctx = document.getElementById('planChart');
-  if (ctx && typeof Chart !== 'undefined') {
-    new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: {{ revenue.by_plan.keys() | list | tojson }},
-        datasets: [{ data: {{ revenue.by_plan.values() | list | tojson }}, backgroundColor: ['#F59E0B','#6366F1','#10B981','#EF4444','#8B5CF6','#06B6D4'] }]
-      },
-      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-    });
+  var el = document.getElementById('planChartApex');
+  if (el && typeof ApexCharts !== 'undefined') {
+    var labels = {{ revenue.by_plan.keys() | list | tojson }};
+    var values = {{ revenue.by_plan.values() | list | tojson }};
+    new ApexCharts(el, {
+      chart: { type: 'donut', height: 260, fontFamily: 'Inter, sans-serif' },
+      labels: labels,
+      series: values,
+      colors: ['#F59E0B', '#6366F1', '#10B981', '#EF4444', '#8B5CF6', '#06B6D4'],
+      legend: { position: 'bottom', fontSize: '12px' },
+      dataLabels: { enabled: true },
+      stroke: { width: 0 }
+    }).render();
   }
 });
 </script>

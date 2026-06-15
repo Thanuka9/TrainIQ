@@ -10,7 +10,20 @@
 {% endblock %}
 
 {% block extra_head %}
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  .course-progress-ring--sm {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto;
+  }
+  .course-progress-ring--sm::before {
+    inset: 7px;
+  }
+  .course-progress-ring--sm span {
+    font-size: 0.65rem;
+    font-weight: 800;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -52,6 +65,25 @@
   </div>
 </div>
 
+{% if recommended_course %}
+<div class="tiq-card" style="margin-bottom:1.5rem;border-color:rgba(99,102,241,0.25);">
+  <div class="tiq-card-body" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:1rem;">
+      <div style="width:44px;height:44px;border-radius:var(--tiq-radius);background:var(--tiq-gradient-soft);display:flex;align-items:center;justify-content:center;color:var(--tiq-primary);font-size:1.1rem;">
+        <i class="fas fa-lightbulb"></i>
+      </div>
+      <div>
+        <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--tiq-primary);">Recommended for you</div>
+        <div style="font-weight:700;color:var(--tiq-text);">{{ recommended_course.title }}</div>
+      </div>
+    </div>
+    <a href="{{ url_for('study_material_routes.view_course', course_id=recommended_course.id) }}" class="tiq-btn tiq-btn-primary tiq-btn-sm">
+      <i class="fas fa-arrow-right"></i> View Course
+    </a>
+  </div>
+</div>
+{% endif %}
+
 <!-- Materials Table Card -->
 <div class="tiq-card">
   <div class="tiq-card-header">
@@ -85,11 +117,8 @@
                 <td class="tiq-text-center fw-bold">{{ material.course_time }} hrs</td>
                 <td class="tiq-text-center fw-bold">{{ material.max_time }} days</td>
                 <td class="tiq-text-center">
-                  <div style="position: relative; width: 64px; height: 64px; margin: 0 auto;">
-                    <canvas id="progress-chart-{{ material.id }}"></canvas>
-                    <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; color: var(--tiq-text);">
-                      {{ progress_data[loop.index0].progress_percentage }}%
-                    </div>
+                  <div class="course-progress-ring course-progress-ring--sm" style="--pct: {{ progress_data[loop.index0].progress_percentage }};">
+                    <span>{{ progress_data[loop.index0].progress_percentage }}%</span>
                   </div>
                 </td>
                 <td class="tiq-text-center">
@@ -198,38 +227,6 @@
     if (noMatchRow) {
       tbody.appendChild(noMatchRow);
     }
-  });
-
-  // Render Chart.js progress rings
-  const progressData = {{ progress_data | tojson }};
-  document.addEventListener("DOMContentLoaded", () => {
-    progressData.forEach(data => {
-      const canvas = document.getElementById(`progress-chart-${data.course_id}`);
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-
-      new Chart(ctx, {
-        type: "doughnut",
-        data: {
-          labels: ["Completed", "Remaining"],
-          datasets: [{
-            data: [data.progress_percentage, 100 - data.progress_percentage],
-            backgroundColor: ["#10B981", "var(--tiq-surface-3)"],
-            borderWidth: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          cutout: "75%",
-          animation: { animateRotate: true, animateScale: true },
-          plugins: {
-            legend: { display: false },
-            tooltip: { enabled: false }
-          }
-        }
-      });
-    });
   });
 
   // Keep-alive ping

@@ -28,15 +28,20 @@
 <div class="tiq-grid tiq-grid-3 tiq-gap">
   <div class="tiq-card tiq-reveal" style="grid-column: span 2;">
     <div class="tiq-card-header">
-      <div class="tiq-card-title"><i class="fas fa-info-circle me-2"></i>Course Metadata</div>
+      <div class="tiq-card-title"><i class="fas fa-info-circle" style="margin-right:0.5rem;"></i>Course Metadata</div>
     </div>
     <div class="tiq-card-body">
       <div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:1.5rem;">
         <span class="course-meta-pill"><i class="fas fa-layer-group" style="color:var(--tiq-primary);"></i>
           {% if study_material.level %}Level {{ study_material.level.level_number }}{% else %}Level {{ study_material.minimum_level or 1 }}{% endif %}
         </span>
-        <span class="course-meta-pill"><i class="fas fa-clock" style="color:var(--tiq-secondary);"></i> {{ study_material.course_time }} mins</span>
-        <span class="course-meta-pill"><i class="fas fa-file-alt" style="color:var(--tiq-accent);"></i> {{ study_material.total_pages }} pages</span>
+        <span class="course-meta-pill"><i class="fas fa-clock" style="color:var(--tiq-secondary);"></i> {{ study_material.course_time }} hrs</span>
+        {% if viewer_mode in ['video', 'mixed'] %}
+        <span class="course-meta-pill"><i class="fas fa-video" style="color:var(--tiq-accent);"></i> {{ asset_count }} video{{ 's' if asset_count != 1 else '' }}</span>
+        <span class="course-meta-pill"><i class="fas fa-layer-group" style="color:var(--tiq-info);"></i> {{ media_summary }}</span>
+        {% else %}
+        <span class="course-meta-pill"><i class="fas fa-file-alt" style="color:var(--tiq-accent);"></i> {{ asset_count or study_material.total_pages }} slide{{ 's' if (asset_count or study_material.total_pages) != 1 else '' }}</span>
+        {% endif %}
         <span class="course-meta-pill"><i class="fas fa-hourglass-half" style="color:var(--tiq-warning);"></i> {{ study_material.max_time }} days max</span>
         {% if study_material.category %}
         <span class="course-meta-pill"><i class="fas fa-tag" style="color:var(--tiq-info);"></i> {{ study_material.category.name }}</span>
@@ -45,25 +50,31 @@
 
       <div class="tiq-grid tiq-grid-2 tiq-gap">
         <div style="line-height: 1.8;">
-          <p><strong><i class="fas fa-calendar-alt me-2 text-primary"></i>Start Date</strong><br/>
-            <span class="text-muted">
+          <p><strong><i class="fas fa-calendar-alt" style="margin-right:0.5rem;color:var(--tiq-primary);"></i>Start Date</strong><br/>
+            <span style="color:var(--tiq-text-3);">
               {{ user_progress.start_date.strftime('%Y-%m-%d %H:%M') if user_progress.start_date else 'Not started yet' }}
             </span>
           </p>
-          <p><strong><i class="fas fa-check-circle me-2 text-success"></i>Completion Date</strong><br/>
-            <span class="text-muted">
+          <p><strong><i class="fas fa-check-circle" style="margin-right:0.5rem;color:var(--tiq-success);"></i>Completion Date</strong><br/>
+            <span style="color:var(--tiq-text-3);">
               {{ user_progress.completion_date.strftime('%Y-%m-%d %H:%M') if user_progress.completion_date else 'Incomplete' }}
             </span>
           </p>
         </div>
         <div style="line-height: 1.8;">
-          <p><strong><i class="fas fa-book-open me-2 text-secondary"></i>Slides Visited</strong><br/>
-            <span class="text-muted">{{ user_progress.pages_visited or 0 }} of {{ study_material.total_pages }}</span>
+          {% if viewer_mode in ['video', 'mixed'] %}
+          <p><strong><i class="fas fa-play-circle" style="margin-right:0.5rem;color:var(--tiq-secondary);"></i>Videos Completed</strong><br/>
+            <span style="color:var(--tiq-text-3);">{{ assets_completed }} of {{ asset_count }}</span>
           </p>
-          <p><strong><i class="fas fa-signal me-2 text-info"></i>Status</strong><br/>
+          {% else %}
+          <p><strong><i class="fas fa-book-open" style="margin-right:0.5rem;color:var(--tiq-secondary);"></i>Progress Items</strong><br/>
+            <span style="color:var(--tiq-text-3);">{{ assets_completed }} of {{ asset_count or study_material.total_pages }} slides completed</span>
+          </p>
+          {% endif %}
+          <p><strong><i class="fas fa-signal" style="margin-right:0.5rem;color:var(--tiq-info);"></i>Status</strong><br/>
             {% if user_progress.progress_percentage >= 100 %}
               <span class="tiq-badge tiq-badge-success">Completed</span>
-            {% elif user_progress.pages_visited %}
+            {% elif user_progress.progress_percentage > 0 %}
               <span class="tiq-badge tiq-badge-info">In Progress</span>
             {% else %}
               <span class="tiq-badge tiq-badge-warning">Not Started</span>
@@ -77,29 +88,38 @@
   <div class="tiq-card tiq-reveal" style="display:flex;flex-direction:column;justify-content:space-between;">
     <div>
       <div class="tiq-card-header">
-        <div class="tiq-card-title"><i class="fas fa-tasks me-2"></i>My Progress</div>
+        <div class="tiq-card-title"><i class="fas fa-tasks" style="margin-right:0.5rem;"></i>My Progress</div>
       </div>
-      <div class="tiq-card-body text-center" style="padding-top:1.5rem;">
+      <div class="tiq-card-body tiq-text-center" style="padding-top:1.5rem;">
         <div class="course-progress-ring" style="--pct: {{ user_progress.progress_percentage }};">
           <span>{{ user_progress.progress_percentage }}%</span>
         </div>
-        <p class="tiq-label" style="margin-bottom:1rem;">Syllabus Completed</p>
-        <div class="tiq-progress mb-3">
+        <p class="tiq-label" style="margin-bottom:1rem;">{% if viewer_mode in ['video', 'mixed'] %}Watch Progress{% else %}Syllabus Completed{% endif %}</p>
+        <div class="tiq-progress tiq-mb-3">
           <div class="tiq-progress-bar" data-width="{{ user_progress.progress_percentage }}%" style="width:0%;"></div>
         </div>
         <p style="font-size:0.875rem;color:var(--tiq-text-3);">
-          Visited {{ user_progress.pages_visited or 0 }} of {{ study_material.total_pages }} slides.
+          {% if viewer_mode in ['video', 'mixed'] %}
+            Based on watch time across {{ asset_count }} video{{ 's' if asset_count != 1 else '' }}.
+          {% else %}
+            Based on completion across all course slides.
+          {% endif %}
         </p>
       </div>
     </div>
-    <div class="tiq-card-footer" style="background:transparent;border-top:none;padding:1.5rem;">
+    <div class="tiq-card-footer" style="background:transparent;border-top:none;padding:1.5rem;display:flex;flex-direction:column;gap:0.75rem;">
       <a href="{{ continue_url or '#' }}" class="tiq-btn tiq-btn-primary tiq-w-full {% if not continue_url %}disabled{% endif %}" style="justify-content:center;padding:0.8rem;font-size:1rem;">
-        {% if user_progress.pages_visited == 0 %}
-          <i class="fas fa-play me-1"></i> Start Course
+        {% if user_progress.progress_percentage == 0 %}
+          <i class="fas fa-play"></i> Start Course
         {% else %}
-          <i class="fas fa-play-circle me-1"></i> Continue Learning
+          <i class="fas fa-play-circle"></i> Continue Learning
         {% endif %}
       </a>
+      {% if user_progress.progress_percentage >= 100 %}
+      <a href="{{ url_for('general_routes.download_course_certificate', course_id=study_material.id) }}" class="tiq-btn tiq-btn-secondary tiq-w-full" style="justify-content:center;">
+        <i class="fas fa-certificate"></i> Download Certificate
+      </a>
+      {% endif %}
     </div>
   </div>
 </div>

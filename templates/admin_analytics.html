@@ -381,71 +381,37 @@
   </div>
 </div>
 
-<!-- FIFTH ROW: 3D Scatter + Info Panel -->
+<!-- FIFTH ROW: Learner Performance Matrix -->
 <div class="tiq-card tiq-reveal" style="margin-bottom: 2.5rem;">
   <div class="tiq-card-header" style="flex-wrap: wrap; gap: 1rem;">
-    <h2 class="tiq-card-title"><i class="fas fa-cube" style="margin-right: 8px; color: var(--tiq-primary);"></i>3D User Analytics: Explore Relationships</h2>
-    
-    <div class="tiq-flex" style="flex-wrap: wrap; gap: 1rem; align-items: center;">
-      <div class="tiq-form-group" style="margin-bottom:0; display:flex; align-items:center; gap:8px;">
-        <label for="scatter-x" class="tiq-label" style="margin-bottom:0; text-transform:none; font-size:0.8rem;">X Axis</label>
-        <select id="scatter-x" class="tiq-select" style="width: 140px; padding: 0.35rem 1.75rem 0.35rem 0.75rem;">
-          {% for opt in axis_options %}
-            <option value="{{ opt.key }}" {% if opt.key == default_x %}selected{% endif %}>{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="tiq-form-group" style="margin-bottom:0; display:flex; align-items:center; gap:8px;">
-        <label for="scatter-y" class="tiq-label" style="margin-bottom:0; text-transform:none; font-size:0.8rem;">Y Axis</label>
-        <select id="scatter-y" class="tiq-select" style="width: 140px; padding: 0.35rem 1.75rem 0.35rem 0.75rem;">
-          {% for opt in axis_options %}
-            <option value="{{ opt.key }}" {% if opt.key == default_y %}selected{% endif %}>{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="tiq-form-group" style="margin-bottom:0; display:flex; align-items:center; gap:8px;">
-        <label for="scatter-z" class="tiq-label" style="margin-bottom:0; text-transform:none; font-size:0.8rem;">Z Axis</label>
-        <select id="scatter-z" class="tiq-select" style="width: 140px; padding: 0.35rem 1.75rem 0.35rem 0.75rem;">
-          {% for opt in axis_options %}
-            <option value="{{ opt.key }}" {% if opt.key == default_z %}selected{% endif %}>{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="tiq-form-group" style="margin-bottom:0; display:flex; align-items:center; gap:8px;">
-        <label for="scatter-color" class="tiq-label" style="margin-bottom:0; text-transform:none; font-size:0.8rem;">Color By</label>
-        <select id="scatter-color" class="tiq-select" style="width: 140px; padding: 0.35rem 1.75rem 0.35rem 0.75rem;">
-          <option value="department" selected>Department</option>
-          {% for opt in axis_options %}
-            <option value="{{ opt.key }}">{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
+    <h2 class="tiq-card-title"><i class="fas fa-crosshairs" style="margin-right: 8px; color: var(--tiq-primary);"></i>Learner Performance Matrix</h2>
+    <div class="tiq-flex" style="flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+      <label for="matrix-x" class="tiq-label" style="margin:0;font-size:0.8rem;">X axis</label>
+      <select id="matrix-x" class="tiq-select" style="width: 150px; padding: 0.35rem 2rem 0.35rem 0.75rem;">
+        {% for opt in axis_options %}
+          <option value="{{ opt.key }}" {% if opt.key == default_x %}selected{% endif %}>{{ opt.label }}</option>
+        {% endfor %}
+      </select>
+      <label for="matrix-y" class="tiq-label" style="margin:0;font-size:0.8rem;">Y axis</label>
+      <select id="matrix-y" class="tiq-select" style="width: 150px; padding: 0.35rem 2rem 0.35rem 0.75rem;">
+        {% for opt in axis_options %}
+          <option value="{{ opt.key }}" {% if opt.key == 'completion_rate' %}selected{% endif %}>{{ opt.label }}</option>
+        {% endfor %}
+      </select>
     </div>
   </div>
-  
   <div class="tiq-card-body">
-    <div class="tiq-grid" style="grid-template-columns: 3fr 1fr; gap: 1.5rem; min-height: 480px;">
-      <div style="position:relative; border-radius:18px; border:1px solid var(--tiq-border); overflow:hidden;">
-        <div id="scatter3d" style="width:100%; height:100%; min-height:480px; background:var(--tiq-surface-2);"></div>
-        <div id="noScatterData" class="tiq-text-center" style="display:none; padding-top:10rem; color:var(--tiq-text-3);">
-          No 3D scatter data available.
-        </div>
+    <div class="tiq-grid" style="grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+      <div class="tiq-chart-panel" style="min-height:420px;">
+        <canvas id="performanceMatrix"></canvas>
+        <div id="noMatrixData" class="tiq-text-center" style="display:none;padding-top:6rem;color:var(--tiq-text-3);">No learner data for this filter.</div>
       </div>
-      
-      <div style="background:var(--tiq-surface-2); border:1px solid var(--tiq-border); padding:1.25rem; border-radius:var(--tiq-radius-lg); font-size:0.875rem;">
-        <h4 style="color:var(--tiq-primary); font-weight:700; margin-bottom:0.75rem;">
-          <i class="fas fa-circle-info" style="margin-right:6px;"></i> 3D Scatter Guide
-        </h4>
-        <p style="color:var(--tiq-text-2); margin-bottom:1rem; line-height:1.5;">
-          This 3D scatter plot visualizes three metrics per user simultaneously. Each dot represents a unique user.
-        </p>
-        <ul style="padding-left:1.25rem; margin-bottom:1rem; color:var(--tiq-text-2); line-height:1.6;">
-          <li><strong>Axes Selection:</strong> Choose custom metrics for X, Y, and Z axes to see clusters or trends.</li>
-          <li><strong>Color Mode:</strong> Group users visually by Department or color intensity based on a numeric metric.</li>
-          <li><strong>Interactivity:</strong> Drag to rotate, scroll to zoom, hover to view user details.</li>
-        </ul>
-        <div style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.15); padding:0.75rem; border-radius:var(--tiq-radius); color:var(--tiq-info); font-size:0.8rem; line-height:1.4;">
-          <strong>Tip:</strong> Plotting "Completion Rate" on Z and "Avg Special Exam Score" on X helps spot standout learners.
+      <div>
+        <h4 style="font-size:0.9rem;font-weight:700;margin:0 0 0.75rem;color:var(--tiq-warning);"><i class="fas fa-triangle-exclamation"></i> At-risk learners</h4>
+        <p style="font-size:0.8rem;color:var(--tiq-text-3);margin:0 0 0.75rem;">Low exam score (&lt;60%) or low completion (&lt;40%). Hover a bubble for details.</p>
+        <div id="atRiskList" style="max-height:360px;overflow-y:auto;font-size:0.85rem;"></div>
+        <div style="margin-top:1rem;padding:0.75rem;background:var(--tiq-surface-2);border-radius:var(--tiq-radius);font-size:0.8rem;color:var(--tiq-text-2);">
+          <strong>How to use:</strong> Bottom-left = needs intervention. Top-right = high performers. Bubble size = exams taken.
         </div>
       </div>
     </div>
@@ -556,6 +522,7 @@
             { id: 'specPassFailChart', title: 'Special Exams Pass/Fail' },
             { id: 'deptPieChart', title: 'Users by Department' },
             { id: 'desigBarChart', title: 'Users by Designation' },
+            { id: 'performanceMatrix', title: 'Learner Performance Matrix' },
           ];
           const out = [];
           for (const spec of specs) {
@@ -565,11 +532,10 @@
               const data = el.toDataURL('image/jpeg', 0.82);
               if (data && data.length > 100) out.push({ title: spec.title, data });
             } catch (_) { /* skip */ }
-            if (out.length >= 6) break;
+            if (out.length >= 8) break;
           }
           const plotlySpecs = [
             { id: 'heatmapPlot', title: 'Time Spent per Course by Dept', w: 900, h: 420 },
-            { id: 'scatter3d', title: '3D User Analytics', w: 900, h: 480 },
           ];
           for (const spec of plotlySpecs) {
             if (out.length >= 8) break;
@@ -1316,141 +1282,132 @@
         }
       });
 
-      // --- 3D SCATTER (Plotly) ---
-      function getDeptColorMap(depts) {
-        const unique = Array.from(new Set(depts));
-        const palette = [
-          chartPalette[0], chartPalette[1], chartPalette[2], chartPalette[3], chartPalette[4],
-          "#8B5CF6","#3B82F6","#EC4899","#6B7280","#6366F1"
-        ];
-        let map = {};
-        unique.forEach((d,i) => map[d] = palette[i % palette.length]);
-        return map;
-      }
+      // --- Learner Performance Matrix (Chart.js bubble) ---
+      let matrixChart = null;
       function getAxisLabel(key) {
         if (key === 'department') return 'Department';
         const found = axisOptions.find(o => o.key === key);
         return found ? found.label : key;
       }
-      function drawScatter3D(xkey, ykey, zkey, colorKey) {
-        safeChart('scatter3d', function(){
-        const container = document.getElementById('scatter3d');
-        const noDataEl = document.getElementById('noScatterData');
-        if (!container || !noDataEl) return;
-        if (!Array.isArray(user_labels) || user_labels.length === 0) {
-          container.style.display = 'none';
-          noDataEl.style.display = 'block';
-          return;
-        }
-        if (!window.Plotly) return;
-        container.style.display = 'block';
-        noDataEl.style.display = 'none';
-        const markerBase = { size: 6, opacity: 0.88, line: { width: 0.5, color: '#333' } };
-        
-        const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
-        const pTextCol = isDarkTheme ? '#94A3B8' : '#475569';
-        const pBgCol = isDarkTheme ? '#111827' : '#FFFFFF';
-
-        if (colorKey === 'department') {
-          const deptMap = getDeptColorMap(departments);
-          const traces = Object.entries(deptMap).map(([dept,colorHex]) => {
-            const idxs = departments.map((d,i) => (d===dept ? i : -1)).filter(i => i !== -1);
-            return {
-              x: idxs.map(i => (metrics[xkey]||[])[i]),
-              y: idxs.map(i => (metrics[ykey]||[])[i]),
-              z: idxs.map(i => (metrics[zkey]||[])[i]),
-              mode: 'markers',
-              type: 'scatter3d',
-              name: dept,
-              text: idxs.map(i => user_labels[i]),
-              marker: { ...markerBase, color: colorHex }
-            };
-          });
-          const layout = {
-            scene: {
-              xaxis:{ title: { text: getAxisLabel(xkey), font: { color: pTextCol } }, gridcolor:'rgba(200,200,200,0.15)', zerolinecolor:'rgba(200,200,200,0.15)', tickfont:{ size:11, color: pTextCol } },
-              yaxis:{ title: { text: getAxisLabel(ykey), font: { color: pTextCol } }, gridcolor:'rgba(200,200,200,0.15)', zerolinecolor:'rgba(200,200,200,0.15)', tickfont:{ size:11, color: pTextCol } },
-              zaxis:{ title: { text: getAxisLabel(zkey), font: { color: pTextCol } }, gridcolor:'rgba(200,200,200,0.15)', zerolinecolor:'rgba(200,200,200,0.15)', tickfont:{ size:11, color: pTextCol } }
-            },
-            margin:{ l:0, r:0, b:0, t:0 },
-            hovermode:'closest',
-            legend:{ title:{ text:'Department', font:{ color: pTextCol } }, orientation:'v', x:1.02, y:0.9, font: { color: pTextCol } },
-            paper_bgcolor: pBgCol,
-            plot_bgcolor: pBgCol,
-            font:{ family: "var(--tiq-font-sans)", size:12, color: pTextCol }
-          };
-          Plotly.newPlot('scatter3d', traces, layout, { displayModeBar: false, responsive: true });
-          return;
-        }
-        // Color by numeric metric
-        const cVals = (metrics[colorKey]||[]).map(v => Number(v)).filter(v => Number.isFinite(v));
-        const cRange = numericRange(cVals);
-        const trace = {
-          x: (metrics[xkey]||[]),
-          y: (metrics[ykey]||[]),
-          z: (metrics[zkey]||[]),
-          mode:'markers',
-          type:'scatter3d',
-          text:user_labels,
-          marker:{
-            ...markerBase,
-            color: cVals.length ? (metrics[colorKey]||[]) : chartPrimary,
-            colorscale: 'Viridis',
-            showscale: cVals.length > 0,
-            colorbar:{ title: { text: getAxisLabel(colorKey), font: { color: pTextCol } }, tickfont: { color: pTextCol } },
-            cmin: cRange.min,
-            cmax: cRange.max
+      function getDeptColorMap(depts) {
+        const unique = Array.from(new Set(depts));
+        const palette = [
+          chartPalette[0], chartPalette[1], chartPalette[2], chartPalette[3], chartPalette[4],
+          '#8B5CF6', '#3B82F6', '#EC4899', '#6B7280', '#6366F1'
+        ];
+        const map = {};
+        unique.forEach((d, i) => { map[d] = palette[i % palette.length]; });
+        return map;
+      }
+      function buildAtRiskList() {
+        const listEl = document.getElementById('atRiskList');
+        if (!listEl) return;
+        const rows = [];
+        for (let i = 0; i < user_labels.length; i++) {
+          const score = Number((metrics.avg_exam_score || [])[i]) || 0;
+          const comp = Number((metrics.completion_rate || [])[i]) || 0;
+          if (score < 60 || comp < 40) {
+            rows.push({
+              name: user_labels[i],
+              dept: departments[i] || '—',
+              score,
+              comp,
+              risk: score < 60 && comp < 40 ? 'high' : 'medium',
+            });
           }
-        };
-        const layout = {
-          scene: {
-            xaxis:{ title: { text: getAxisLabel(xkey), font: { color: pTextCol } }, gridcolor:'rgba(200,200,200,0.15)', zerolinecolor:'rgba(200,200,200,0.15)', tickfont:{ size:11, color: pTextCol } },
-            yaxis:{ title: { text: getAxisLabel(ykey), font: { color: pTextCol } }, gridcolor:'rgba(200,200,200,0.15)', zerolinecolor:'rgba(200,200,200,0.15)', tickfont:{ size:11, color: pTextCol } },
-            zaxis:{ title: { text: getAxisLabel(zkey), font: { color: pTextCol } }, gridcolor:'rgba(200,200,200,0.15)', zerolinecolor:'rgba(200,200,200,0.15)', tickfont:{ size:11, color: pTextCol } }
-          },
-          margin:{ l:0, r:0, b:0, t:0 },
-          hovermode:'closest',
-          paper_bgcolor: pBgCol,
-          plot_bgcolor: pBgCol,
-          font:{ family: "var(--tiq-font-sans)", size:12, color: pTextCol }
-        };
-        Plotly.newPlot('scatter3d', [trace], layout, { displayModeBar: false, responsive: true });
+        }
+        rows.sort((a, b) => (a.score + a.comp) - (b.score + b.comp));
+        if (!rows.length) {
+          listEl.innerHTML = '<p style="color:var(--tiq-text-3);margin:0;">No at-risk learners in this filter.</p>';
+          return;
+        }
+        listEl.innerHTML = rows.slice(0, 12).map(r => (
+          `<div style="padding:0.5rem 0;border-bottom:1px solid var(--tiq-border);">
+            <strong>${r.name}</strong>
+            <span class="tiq-badge" style="margin-left:4px;font-size:0.65rem;background:${r.risk === 'high' ? '#fef2f2' : '#fffbeb'};color:${r.risk === 'high' ? '#b91c1c' : '#b45309'};">${r.risk}</span>
+            <div style="color:var(--tiq-text-3);font-size:0.75rem;">${r.dept} · score ${r.score.toFixed(0)}% · completion ${r.comp.toFixed(0)}%</div>
+          </div>`
+        )).join('');
+      }
+      function drawPerformanceMatrix(xkey, ykey) {
+        safeChart('performanceMatrix', function() {
+          const canvas = document.getElementById('performanceMatrix');
+          const noDataEl = document.getElementById('noMatrixData');
+          if (!canvas || !noDataEl) return;
+          if (!Array.isArray(user_labels) || user_labels.length === 0) {
+            canvas.style.display = 'none';
+            noDataEl.style.display = 'block';
+            return;
+          }
+          canvas.style.display = 'block';
+          noDataEl.style.display = 'none';
+          const deptColors = getDeptColorMap(departments);
+          const examsTaken = metrics.exams_taken || [];
+          const maxExams = Math.max(1, ...examsTaken.map(v => Number(v) || 0));
+          const datasets = Object.entries(deptColors).map(([dept, color]) => ({
+            label: dept,
+            data: user_labels.map((name, i) => {
+              if ((departments[i] || 'Unknown') !== dept) return null;
+              const r = 4 + ((Number(examsTaken[i]) || 0) / maxExams) * 14;
+              return {
+                x: Number((metrics[xkey] || [])[i]) || 0,
+                y: Number((metrics[ykey] || [])[i]) || 0,
+                r,
+                label: name,
+              };
+            }).filter(Boolean),
+            backgroundColor: color + 'AA',
+            borderColor: color,
+            borderWidth: 1,
+          }));
+          if (matrixChart) matrixChart.destroy();
+          matrixChart = new Chart(canvas.getContext('2d'), {
+            type: 'bubble',
+            data: { datasets },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                x: {
+                  title: { display: true, text: getAxisLabel(xkey), color: textColor },
+                  ticks: { color: textColor },
+                  grid: { color: gridColor },
+                },
+                y: {
+                  title: { display: true, text: getAxisLabel(ykey), color: textColor },
+                  ticks: { color: textColor },
+                  grid: { color: gridColor },
+                },
+              },
+              plugins: {
+                legend: { labels: { color: textColor, boxWidth: 10 } },
+                tooltip: {
+                  callbacks: {
+                    label(ctx) {
+                      const pt = ctx.raw;
+                      return `${pt.label}: ${getAxisLabel(xkey)} ${pt.x}, ${getAxisLabel(ykey)} ${pt.y}`;
+                    },
+                  },
+                },
+              },
+            },
+          });
+          buildAtRiskList();
         });
       }
-      // Initial render or fallback
-      if (!Array.isArray(user_labels) || user_labels.length === 0) {
-        document.getElementById('scatter3d').style.display = 'none';
-        document.getElementById('noScatterData').style.display = 'block';
-      } else {
-        drawScatter3D(
-          document.getElementById('scatter-x').value,
-          document.getElementById('scatter-y').value,
-          document.getElementById('scatter-z').value,
-          document.getElementById('scatter-color').value
-        );
+      const matrixX = document.getElementById('matrix-x');
+      const matrixY = document.getElementById('matrix-y');
+      if (matrixX && matrixY) {
+        const redrawMatrix = () => drawPerformanceMatrix(matrixX.value, matrixY.value);
+        redrawMatrix();
+        matrixX.addEventListener('change', redrawMatrix);
+        matrixY.addEventListener('change', redrawMatrix);
       }
-      // Redraw when any dropdown changes
-      ['scatter-x','scatter-y','scatter-z','scatter-color'].forEach(id => {
-        document.getElementById(id).addEventListener('change', () => {
-          drawScatter3D(
-            document.getElementById('scatter-x').value,
-            document.getElementById('scatter-y').value,
-            document.getElementById('scatter-z').value,
-            document.getElementById('scatter-color').value
-          );
-        });
-      });
 
-      // Listen for theme changes to redraw Plotly charts
       window.addEventListener('tiqThemeChanged', () => {
         drawHeatmap();
-        if (Array.isArray(user_labels) && user_labels.length > 0) {
-          drawScatter3D(
-            document.getElementById('scatter-x').value,
-            document.getElementById('scatter-y').value,
-            document.getElementById('scatter-z').value,
-            document.getElementById('scatter-color').value
-          );
+        if (matrixX && matrixY && Array.isArray(user_labels) && user_labels.length > 0) {
+          drawPerformanceMatrix(matrixX.value, matrixY.value);
         }
       });
 

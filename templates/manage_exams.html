@@ -1,75 +1,18 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Manage Exams</title>
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='css/exams.css') }}"
-    />
-  </head>
-  <body>
-    <header>
-      <h1>Manage Exams</h1>
-    </header>
-    <main>
-      <section class="create-exam">
-        <h2>Create a New Exam</h2>
-        <form
-          id="create-exam-form"
-          method="POST"
-          action="{{ url_for('exams_routes.create_exam') }}"
-        >
-          <label for="title">Exam Title:</label>
-          <input type="text" name="title" required />
+{% extends 'admin_base.html' %}
+{% block title %}Manage Exams{% endblock %}
+{% block breadcrumb %}Exams{% endblock %}
 
-          <h3>Questions</h3>
-          <div id="questions-container">
-            <div class="question">
-              <label for="question">Question:</label>
-              <input type="text" name="questions[][text]" required />
-
-              <label for="options">Options (comma-separated):</label>
-              <input type="text" name="questions[][options]" required />
-
-              <label for="correct_answer">Correct Answer:</label>
-              <input type="text" name="questions[][correct_answer]" required />
-            </div>
-          </div>
-          <button type="button" onclick="addQuestion()">Add Question</button>
-          <button type="submit">Create Exam</button>
-        </form>
-      </section>
-
-      <section class="existing-exams">
-        <h2>Existing Exams</h2>
-        <ul>
-          {% for exam in exams %}
-          <li>{{ exam.title }} (Created at: {{ exam.created_at }})</li>
-          {% endfor %}
-        </ul>
-      </section>
-    </main>
-    <footer>
-      <p>Collective Intranet© 2024</p>
-    </footer>
-
-    <script>
-      function addQuestion() {
-        const container = document.getElementById("questions-container");
-        const questionDiv = document.createElement("div");
-        questionDiv.classList.add("question");
-        questionDiv.innerHTML = `
-                <label for="question">Question:</label>
-                <input type="text" name="questions[][text]" required>
-                <label for="options">Options (comma-separated):</label>
-                <input type="text" name="questions[][options]" required>
-                <label for="correct_answer">Correct Answer:</label>
-                <input type="text" name="questions[][correct_answer]" required>
-            `;
-        container.appendChild(questionDiv);
-      }
-    </script>
-  </body>
-</html>
+{% block content %}
+<div class="tiq-page-header">
+  <h1>Manage Exams</h1>
+  <p class="tiq-lead">Exam management has moved to the TrainIQ admin console.</p>
+</div>
+<div class="tiq-card">
+  <div class="tiq-card-body" style="text-align:center;padding:2.5rem;">
+    <p style="margin-bottom:1.25rem;color:var(--tiq-text-2);">Create, edit, and proctor exams from the unified admin exams page.</p>
+    <a href="{{ url_for('admin_routes.view_exams') }}" class="tiq-btn tiq-btn-primary">
+      <i class="fas fa-file-lines"></i> Open Admin Exams
+    </a>
+  </div>
+</div>
+{% endblock %}

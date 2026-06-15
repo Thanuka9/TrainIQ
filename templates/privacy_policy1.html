@@ -328,6 +328,10 @@
 
 </div>
 
+{% with footer_variant='compact' %}
+{% include 'partials/trainiq_footer.html' %}
+{% endwith %}
+
 <!-- CSRF token -->
 <input type="hidden" id="csrfToken" value="{{ csrf_token() }}"/>
 

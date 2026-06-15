@@ -9,6 +9,14 @@ from extensions import db
 logger = logging.getLogger(__name__)
 
 
+def _safe_url(endpoint: str, **kwargs) -> str:
+    try:
+        from flask import url_for
+        return url_for(endpoint, **kwargs)
+    except RuntimeError:
+        return kwargs.get("_fallback", f"/{endpoint.split('.')[-1].replace('_', '-')}")
+
+
 def create_notification(
     user_id: int,
     title: str,
@@ -24,10 +32,26 @@ def create_notification(
     from models import Notification
 
     if dedupe_key:
-        exists = Notification.query.filter_by(
-            user_id=user_id, dedupe_key=dedupe_key, is_read=False
+        existing = Notification.query.filter_by(
+            user_id=user_id, dedupe_key=dedupe_key
         ).first()
-        if exists:
+        if existing:
+            existing.title = title[:200]
+            existing.body = body
+            existing.category = category
+            if link_url is not None:
+                existing.link_url = link_url
+            if icon:
+                existing.icon = icon
+            elif category:
+                existing.icon = _category_icon(category)
+            if commit:
+                try:
+                    db.session.commit()
+                except Exception as exc:
+                    db.session.rollback()
+                    logger.error("Notification update failed: %s", exc)
+                    return False
             return False
 
     n = Notification(
@@ -86,7 +110,10 @@ def mark_read(notification_id: int, user_id: int) -> bool:
     n = Notification.query.filter_by(id=notification_id, user_id=user_id).first()
     if not n:
         return False
+    if n.is_read:
+        return True
     n.is_read = True
+    n.read_at = datetime.utcnow()
     db.session.commit()
     return True
 
@@ -94,9 +121,10 @@ def mark_read(notification_id: int, user_id: int) -> bool:
 def mark_all_read(user_id: int) -> int:
     from models import Notification
 
+    now = datetime.utcnow()
     updated = (
         Notification.query.filter_by(user_id=user_id, is_read=False)
-        .update({"is_read": True}, synchronize_session=False)
+        .update({"is_read": True, "read_at": now}, synchronize_session=False)
     )
     db.session.commit()
     return updated
@@ -143,7 +171,11 @@ def sync_user_notifications(user) -> None:
     if not user or not getattr(user, "id", None):
         return
 
-    from flask import url_for
+    from models import User
+
+    user = db.session.get(User, user.id)
+    if not user:
+        return
 
     tenant = getattr(user, "tenant", None)
     if not tenant:
@@ -160,7 +192,7 @@ def sync_user_notifications(user) -> None:
                 f"Trial ending in {days} day{'s' if days != 1 else ''}",
                 f"Your {tenant.name} trial ends soon. Review billing to keep your team online.",
                 category="warning",
-                link_url=url_for("billing_routes.billing_home"),
+                link_url=_safe_url("billing_routes.billing_home", _fallback="/billing"),
                 icon="clock",
                 dedupe_key=f"trial_expiry_{tenant.id}",
                 commit=False,
@@ -171,7 +203,7 @@ def sync_user_notifications(user) -> None:
                 "Trial has ended",
                 "Upgrade your plan to restore full access for your organization.",
                 category="danger",
-                link_url=url_for("billing_routes.billing_home"),
+                link_url=_safe_url("billing_routes.billing_home", _fallback="/billing"),
                 icon="credit-card",
                 dedupe_key=f"trial_expired_{tenant.id}",
                 commit=False,
@@ -183,7 +215,7 @@ def sync_user_notifications(user) -> None:
                 "User seat limit reached",
                 f"You are at {usage['users']}/{usage['max_users']} seats. Upgrade to invite more people.",
                 category="warning",
-                link_url=url_for("billing_routes.billing_home"),
+                link_url=_safe_url("billing_routes.billing_home", _fallback="/billing"),
                 icon="users",
                 dedupe_key=f"seat_limit_{tenant.id}",
                 commit=False,
@@ -200,7 +232,6 @@ def notify_trainiq_staff(user) -> None:
     """Platform staff alerts — expiring trials across all tenants."""
     from utils.tenant_utils import is_trainiq_staff
     from utils.platform_analytics import get_platform_alerts
-    from flask import url_for
 
     if not is_trainiq_staff(user):
         return
@@ -212,8 +243,10 @@ def notify_trainiq_staff(user) -> None:
                 alert["title"],
                 alert.get("detail", ""),
                 category=alert.get("level", "info"),
-                link_url=url_for(
-                    "platform_routes.tenant_detail", tenant_id=alert["tenant_id"]
+                link_url=_safe_url(
+                    "platform_routes.tenant_detail",
+                    tenant_id=alert["tenant_id"],
+                    _fallback=f"/platform/tenants/{alert['tenant_id']}",
                 ),
                 icon=alert.get("icon", "bell"),
                 dedupe_key=f"platform_alert_{alert.get('tenant_id')}_{alert.get('icon')}",

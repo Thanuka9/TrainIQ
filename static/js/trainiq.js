@@ -430,6 +430,12 @@
 
     render(data) {
       const count = data.unread_count || 0;
+      const markAllBtn = document.getElementById('tiqNotifMarkAll');
+      if (markAllBtn) {
+        markAllBtn.disabled = count === 0;
+        markAllBtn.style.opacity = count === 0 ? '0.45' : '1';
+        markAllBtn.style.cursor = count === 0 ? 'not-allowed' : 'pointer';
+      }
       if (this.badgeEl) {
         if (count > 0) {
           this.badgeEl.hidden = false;
@@ -479,21 +485,56 @@
     },
 
     async markRead(id) {
-      await fetch(`/notifications/${id}/read`, {
+      const res = await fetch(`/notifications/${id}/read`, {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { 'X-CSRFToken': this.csrf() },
+        headers: {
+          'X-CSRFToken': this.csrf(),
+          'Content-Type': 'application/json',
+        },
       });
-      this.load(true);
+      if (!res.ok) return;
+      const el = this.listEl?.querySelector(`.tiq-notif-item[data-id="${id}"]`);
+      if (el) el.classList.remove('unread');
+      const data = await res.json();
+      if (this.badgeEl) {
+        const c = data.unread_count || 0;
+        if (c > 0) {
+          this.badgeEl.hidden = false;
+          this.badgeEl.textContent = c > 99 ? '99+' : String(c);
+        } else {
+          this.badgeEl.hidden = true;
+        }
+      }
+      const markAllBtn = document.getElementById('tiqNotifMarkAll');
+      if (markAllBtn) markAllBtn.disabled = (data.unread_count || 0) === 0;
     },
 
     async markAllRead() {
-      await fetch('/notifications/read-all', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'X-CSRFToken': this.csrf() },
-      });
-      this.load(true);
+      const markAllBtn = document.getElementById('tiqNotifMarkAll');
+      if (markAllBtn?.disabled) return;
+      if (markAllBtn) markAllBtn.disabled = true;
+      try {
+        const res = await fetch('/notifications/read-all', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'X-CSRFToken': this.csrf(),
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!res.ok) {
+          window.TrainIQ?.Toast?.show('error', '', 'Could not mark notifications as read');
+          return;
+        }
+        const data = await res.json();
+        this.render(data);
+      } finally {
+        const markAllBtn = document.getElementById('tiqNotifMarkAll');
+        if (markAllBtn && (this.badgeEl?.hidden !== false)) {
+          markAllBtn.disabled = true;
+        }
+      }
     },
 
     escape(s) {

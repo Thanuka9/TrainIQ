@@ -1,0 +1,11 @@
+{# Email-safe TrainIQ footer credit #}
+<p style="margin:16px 0 0;font-size:12px;line-height:1.5;color:#64748b;text-align:center;">
+  {% if display_org_name is defined and not is_platform_brand|default(false) %}
+    {{ display_org_name }} ·
+  {% endif %}
+  Powered by
+  <a href="{{ trainiq_website_url|default('https://trainiq.com') }}"
+     style="color:#4f46e5;font-weight:700;text-decoration:none;"
+     target="_blank" rel="noopener noreferrer">TrainIQ</a>
+  © {{ current_year|default(2026) }}
+</p>

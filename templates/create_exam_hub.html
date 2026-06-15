@@ -1,0 +1,59 @@
+{% extends 'admin_base.html' %}
+{% block title %}Create Exam{% endblock %}
+{% block breadcrumb %}
+  <a href="{{ url_for('admin_routes.view_exams') }}">Exams</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <span>Create Exam</span>
+{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <h1>Create Exam</h1>
+      <p class="tiq-lead">Choose how you want to build this exam — write questions manually or generate them with AI from study materials.</p>
+    </div>
+    <a href="{{ url_for('exams_routes.list_exams') }}" class="tiq-btn tiq-btn-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Exams
+    </a>
+  </div>
+</div>
+
+<div class="tiq-grid tiq-grid-2 tiq-gap" style="max-width:900px;margin:0 auto;">
+  <a href="{{ url_for('exams_routes.create_exam_custom') }}" class="tiq-card tiq-reveal" style="text-decoration:none;color:inherit;border-color:rgba(34,211,238,0.35);transition:transform 0.2s, border-color 0.2s;">
+    <div class="tiq-card-body" style="padding:2rem;">
+      <div style="width:48px;height:48px;border-radius:12px;background:rgba(34,211,238,0.12);display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
+        <i class="fas fa-pen-to-square" style="font-size:1.25rem;color:#22d3ee;"></i>
+      </div>
+      <h2 style="font-size:1.25rem;font-weight:700;margin:0 0 0.5rem;">Custom Exam</h2>
+      <p style="font-size:0.875rem;color:var(--tiq-text-3);margin:0 0 1rem;line-height:1.5;">Build questions yourself with a step-by-step editor. Best for precise control, compliance wording, and manual review.</p>
+      <ul style="font-size:0.8125rem;color:var(--tiq-text-2);margin:0;padding-left:1.1rem;line-height:1.6;">
+        <li>Add single, multiple choice, or structured questions</li>
+        <li>Duplicate and reorder question cards</li>
+        <li>No AI required</li>
+      </ul>
+      <span class="tiq-btn tiq-btn-primary mt-4" style="display:inline-flex;margin-top:1.25rem;">
+        Start custom exam <i class="fas fa-arrow-right ms-1"></i>
+      </span>
+    </div>
+  </a>
+
+  <a href="{{ url_for('exams_routes.create_exam_ai') }}" class="tiq-card tiq-reveal" style="text-decoration:none;color:inherit;border-color:rgba(139,92,246,0.35);transition:transform 0.2s, border-color 0.2s;">
+    <div class="tiq-card-body" style="padding:2rem;">
+      <div style="width:48px;height:48px;border-radius:12px;background:rgba(139,92,246,0.12);display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
+        <i class="fas fa-wand-magic-sparkles" style="font-size:1.25rem;color:#8B5CF6;"></i>
+      </div>
+      <h2 style="font-size:1.25rem;font-weight:700;margin:0 0 0.5rem;">AI-Generated Exam</h2>
+      <p style="font-size:0.875rem;color:var(--tiq-text-3);margin:0 0 1rem;line-height:1.5;">Generate RAG-grounded questions from uploaded documents and video transcripts, then review before publishing.</p>
+      <ul style="font-size:0.8125rem;color:var(--tiq-text-2);margin:0;padding-left:1.1rem;line-height:1.6;">
+        <li>Pick source courses (docs + videos)</li>
+        <li>Choose question types and count</li>
+        <li>Edit AI output before saving</li>
+      </ul>
+      <span class="tiq-btn tiq-btn-primary mt-4" style="display:inline-flex;margin-top:1.25rem;background:linear-gradient(135deg,#8B5CF6,#6366F1);border:none;">
+        Start AI exam <i class="fas fa-arrow-right ms-1"></i>
+      </span>
+    </div>
+  </a>
+</div>
+{% endblock %}

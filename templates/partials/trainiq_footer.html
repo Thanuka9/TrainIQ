@@ -1,0 +1,43 @@
+{# TrainIQ footer credit — variants: default | compact | inline | marketing | dark #}
+{% set _url = trainiq_website_url|default('https://trainiq.com') %}
+{% set _year = current_year|default(2026) %}
+{% set _variant = footer_variant|default('default') %}
+{% set _show_tenant = show_tenant|default(not is_platform_brand) %}
+
+{% if _variant == 'inline' %}
+<p class="tiq-footer-credit tiq-footer-credit--inline">
+  {% if _show_tenant and display_org_name is defined %}
+    <span class="tiq-footer-credit__tenant">{{ display_org_name }}</span>
+    <span class="tiq-footer-credit__sep" aria-hidden="true">·</span>
+  {% endif %}
+  <span>Powered by </span>
+  <a href="{{ _url }}" target="_blank" rel="noopener noreferrer" class="tiq-footer-credit__brand" title="Visit TrainIQ">Train<span>IQ</span></a>
+  <span class="tiq-footer-credit__copy"> © {{ _year }}</span>
+</p>
+
+{% elif _variant == 'marketing' %}
+<p class="tiq-footer-credit tiq-footer-credit--marketing">
+  {% if _show_tenant and display_org_name is defined %}
+    <span class="tiq-footer-credit__tenant">{{ display_org_name }}</span>
+    <span class="tiq-footer-credit__sep" aria-hidden="true">·</span>
+  {% endif %}
+  <span>Powered by </span>
+  <a href="{{ _url }}" target="_blank" rel="noopener noreferrer" class="tiq-footer-credit__brand" title="Visit TrainIQ">Train<span>IQ</span></a>
+  <span class="tiq-footer-credit__copy"> © {{ _year }}. All rights reserved.</span>
+</p>
+
+{% else %}
+<footer class="tiq-app-footer{% if _variant == 'compact' %} tiq-app-footer--compact{% elif _variant == 'dark' %} tiq-app-footer--dark{% endif %}"{% if footer_style %} style="{{ footer_style }}"{% endif %}>
+  <p class="tiq-app-footer__inner">
+    {% if _show_tenant and display_org_name is defined %}
+      <span class="tiq-app-footer__tenant">{{ display_org_name }}</span>
+      <span class="tiq-app-footer__sep" aria-hidden="true">·</span>
+    {% endif %}
+    <span>Powered by </span>
+    <a href="{{ _url }}" target="_blank" rel="noopener noreferrer" class="tiq-app-footer__brand" title="Visit TrainIQ">
+      Train<span>IQ</span>
+    </a>
+    <span class="tiq-app-footer__copy"> © {{ _year }}</span>
+  </p>
+</footer>
+{% endif %}

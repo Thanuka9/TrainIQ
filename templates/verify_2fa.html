@@ -255,6 +255,10 @@
 
 </div>
 
+{% with footer_variant='compact' %}
+{% include 'partials/trainiq_footer.html' %}
+{% endwith %}
+
 <script src="{{ url_for('static', filename='js/trainiq.js') }}"></script>
 <script>
   document.getElementById('verifyForm').addEventListener('submit', function () {

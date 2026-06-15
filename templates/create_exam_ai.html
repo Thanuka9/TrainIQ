@@ -1,0 +1,122 @@
+{% extends 'admin_base.html' %}
+{% block title %}AI Exam{% endblock %}
+
+{% block breadcrumb %}
+  <a href="{{ url_for('admin_routes.view_exams') }}">Exams</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <a href="{{ url_for('exams_routes.create_exam') }}">Create</a>
+  <span class="tiq-breadcrumb-sep">/</span>
+  <span>AI</span>
+{% endblock %}
+
+{% block content %}
+<div class="tiq-page-header">
+  <div class="tiq-flex-between">
+    <div>
+      <h1><i class="fas fa-wand-magic-sparkles me-2" style="color:#8B5CF6;"></i>AI Exam Generator</h1>
+      <p class="tiq-lead">Set exam details, generate questions from study materials (documents &amp; video transcripts), then review before publishing.</p>
+    </div>
+    <a href="{{ url_for('exams_routes.create_exam') }}" class="tiq-btn tiq-btn-secondary">
+      <i class="fas fa-arrow-left"></i> Change method
+    </a>
+  </div>
+</div>
+
+<div class="tiq-card" style="max-width: 900px; margin: 0 auto;">
+  <div class="tiq-card-body">
+    <form id="uploadExamForm" class="exam-form-compact" method="POST" action="{{ url_for('exams_routes.create_exam') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      {% include 'partials/exam_metadata_fields.html' %}
+
+      <div class="tiq-divider"></div>
+
+      <div class="tiq-card" style="margin-bottom:1.25rem;border-color:rgba(139,92,246,0.35);">
+        <div class="tiq-card-header">
+          <div class="tiq-card-title"><i class="fas fa-wand-magic-sparkles me-2" style="color:#8B5CF6;"></i>{{ display_org_name }} AI — Generate Questions</div>
+        </div>
+        <div class="tiq-card-body">
+          <p style="font-size:0.875rem;color:var(--tiq-text-3);margin:0 0 1rem;">Sources include PDFs, docs, uploaded videos (with transcripts), YouTube/Drive links, and course descriptions. Courses tagged <strong>video+transcript</strong> work best for video-based questions.</p>
+          <div class="tiq-grid tiq-grid-3 tiq-gap tiq-mb-2">
+            <div class="tiq-form-group tiq-mb-0">
+              <label for="ai_question_count" class="tiq-label">Number of Questions</label>
+              <input type="number" id="ai_question_count" class="tiq-input" value="5" min="1" max="20">
+            </div>
+            <div class="tiq-form-group tiq-mb-0">
+              <label for="upload_ai_filter_level" class="tiq-label">Filter by Level</label>
+              <select id="upload_ai_filter_level" class="tiq-select">
+                <option value="">All Levels</option>
+                {% for lvl in levels %}
+                  <option value="L{{ lvl.level_number }}">Level {{ lvl.level_number }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="tiq-form-group tiq-mb-0">
+              <label for="upload_ai_filter_category" class="tiq-label">Filter by Category</label>
+              <select id="upload_ai_filter_category" class="tiq-select">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                  <option value="{{ cat.id }}">{{ cat.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="tiq-form-group tiq-mb-2">
+            <label class="tiq-label">Question Types</label>
+            <div style="display:flex;gap:1rem;flex-wrap:wrap;" id="uploadAiTypes">
+              <label><input type="checkbox" value="single_choice" checked> Single Choice</label>
+              <label><input type="checkbox" value="multiple_choice"> Multiple Choice</label>
+              <label><input type="checkbox" value="structured" checked> Structured</label>
+            </div>
+          </div>
+          <div class="tiq-form-group tiq-mb-2">
+            <label class="tiq-label">Source Courses / Materials</label>
+            <select id="upload_material_ids" class="tiq-select" multiple size="6" style="min-height:140px;">
+              {% for c in courses %}
+                <option value="{{ c.id }}"
+                  data-level="L{{ c.level_number }}"
+                  data-category-id="{{ c.category_id or '' }}">
+                  [L{{ c.level_number }}] {{ c.category_name }} — {{ c.title }} ({{ c.media_summary }})
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="button" class="tiq-btn tiq-btn-primary" id="uploadAiGenerateBtn" style="background:linear-gradient(135deg,#8B5CF6,#6366F1);border:none;">
+            <i class="fas fa-magic"></i> Generate with {{ display_org_name }} AI
+          </button>
+        </div>
+      </div>
+
+      <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0 0 0.75rem;"><i class="fas fa-list-check me-1"></i>Review Generated Questions</h3>
+      <div id="questionsContainer" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.25rem;"></div>
+
+      <div class="tiq-text-right">
+        <button type="submit" class="tiq-btn tiq-btn-primary" style="padding: 0.75rem 2rem;" id="submitAiExam" disabled>
+          <i class="fas fa-upload"></i> Create Exam with AI Questions
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/exam-ai-generator.js') }}"></script>
+<script>
+  function toggleUploadQType(sel) {
+    const body = sel.closest('.tiq-card-body');
+    const t = sel.value;
+    const choices = body.querySelector('.q-upload-choices');
+    const structured = body.querySelector('.q-upload-structured');
+    if (choices) choices.style.display = t === 'structured' ? 'none' : '';
+    if (structured) structured.style.display = t === 'structured' ? '' : 'none';
+    body.querySelectorAll('.q-choices-input, .q-correct-input').forEach(el => {
+      el.required = t !== 'structured';
+    });
+  }
+  window.CATEGORIES = {{ categories | tojson }};
+</script>
+<script>
+  window.AI_PREVIEW_URL = "{{ url_for('admin_routes.ai_preview_exam_questions') }}";
+  window.CSRF_TOKEN = "{{ csrf_token() }}";
+  window.EXAM_LIST_URL = "{{ url_for('exams_routes.list_exams') }}";
+</script>
+<script src="{{ url_for('static', filename='js/exam-ai-create.js') }}"></script>
+{% endblock %}

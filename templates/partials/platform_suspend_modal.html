@@ -1,0 +1,37 @@
+<div class="tiq-modal-backdrop" id="platformSuspendModal" style="display:none;">
+  <div class="tiq-modal" style="max-width:480px;">
+    <div class="tiq-modal-header">
+      <h3 class="tiq-modal-title"><i class="fas fa-pause-circle" style="color:var(--tiq-warning);margin-right:8px;"></i>Suspend organization?</h3>
+      <button type="button" class="tiq-btn tiq-btn-ghost tiq-btn-sm tiq-btn-icon" onclick="closeSuspendModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <form id="platformSuspendForm" method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="tiq-modal-body">
+        <p id="platformSuspendLead" style="margin:0 0 1rem;color:var(--tiq-text-2);font-size:0.9rem;"></p>
+        <div class="tiq-form-group tiq-mb-0">
+          <label class="tiq-label" for="platformSuspendReason">Reason</label>
+          <textarea id="platformSuspendReason" name="reason" class="tiq-textarea" rows="3" required>Suspended by TrainIQ support.</textarea>
+        </div>
+      </div>
+      <div class="tiq-modal-footer">
+        <button type="button" class="tiq-btn tiq-btn-secondary" onclick="closeSuspendModal()">Cancel</button>
+        <button type="submit" class="tiq-btn tiq-btn-warning">Suspend tenant</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  function openSuspendModal(tenantId, tenantName) {
+    const modal = document.getElementById('platformSuspendModal');
+    const form = document.getElementById('platformSuspendForm');
+    const lead = document.getElementById('platformSuspendLead');
+    if (!modal || !form) return;
+    form.action = '/platform/tenants/' + tenantId + '/suspend';
+    if (lead) lead.textContent = 'This will block sign-in for all users at ' + tenantName + '. You can reactivate later from the tenant detail page.';
+    modal.style.display = 'flex';
+  }
+  function closeSuspendModal() {
+    const modal = document.getElementById('platformSuspendModal');
+    if (modal) modal.style.display = 'none';
+  }
+</script>

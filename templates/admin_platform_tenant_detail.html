@@ -1,4 +1,4 @@
-{% extends 'admin_base.html' %}
+{% extends 'platform_base.html' %}
 {% block title %}{{ detail.tenant.name }} — Platform{% endblock %}
 {% block breadcrumb %}
   <a href="{{ url_for('platform_routes.platform_dashboard') }}">Platform</a>
@@ -58,7 +58,7 @@
   <div class="tiq-card">
     <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-sliders-h me-2"></i>Plan &amp; limits</h3></div>
     <div class="tiq-card-body">
-      <form action="{{ url_for('platform_routes.update_tenant_plan', tenant_id=t.id) }}" method="POST" style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end;">
+      <form id="tenantPlanForm" action="{{ url_for('platform_routes.update_tenant_plan', tenant_id=t.id) }}" method="POST" style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end;" onsubmit="event.preventDefault(); openPlanConfirmModal(this);">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div><label class="tiq-label">Plan</label>
           <select class="tiq-input" name="plan">
@@ -77,6 +77,7 @@
         <div><label class="tiq-label">Max users</label><input class="tiq-input" name="max_users" type="number" value="{{ t.max_users or 10 }}"></div>
         <div><label class="tiq-label">Storage MB</label><input class="tiq-input" name="max_storage_mb" type="number" value="{{ t.max_storage_mb or 2048 }}"></div>
         <div><label class="tiq-label">Billing email</label><input class="tiq-input" name="billing_email" value="{{ t.billing_email or '' }}"></div>
+        <div><label class="tiq-label">Custom MRR (¢)</label><input class="tiq-input" name="custom_mrr_cents" type="number" min="0" value="{{ t.custom_mrr_cents or '' }}" placeholder="Enterprise override"></div>
         <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">Save</button>
       </form>
       {% if t.trial_ends_at %}<p style="font-size:0.8rem;color:var(--tiq-text-3);margin:0.75rem 0 0;">Trial ends: {{ t.trial_ends_at.strftime('%Y-%m-%d %H:%M UTC') }}</p>{% endif %}
@@ -84,7 +85,7 @@
         {% if t.status == 'suspended' %}
         <form action="{{ url_for('platform_routes.activate_tenant', tenant_id=t.id) }}" method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="tiq-btn tiq-btn-success tiq-btn-sm">Reactivate</button></form>
         {% else %}
-        <form action="{{ url_for('platform_routes.suspend_tenant', tenant_id=t.id) }}" method="POST" onsubmit="return confirm('Suspend this tenant?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="reason" value="Suspended from tenant detail"><button class="tiq-btn tiq-btn-warning tiq-btn-sm">Suspend</button></form>
+        <button type="button" class="tiq-btn tiq-btn-warning tiq-btn-sm" onclick="openSuspendModal({{ t.id }}, '{{ t.name|e }}')">Suspend</button>
         {% endif %}
       </div>
     </div>
@@ -181,4 +182,6 @@
   </div>
 </div>
 {% endif %}
+{% include 'partials/platform_suspend_modal.html' %}
+{% include 'partials/platform_plan_modal.html' %}
 {% endblock %}

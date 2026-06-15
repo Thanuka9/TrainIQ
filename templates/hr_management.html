@@ -79,7 +79,7 @@
 </div>
 
 <!-- Access Denied Modal Overlay -->
-{% if not (session.get('is_super_admin') or session.get('role_id') == 2) %}
+{% if not can_access_portal %}
 <div class="tiq-modal-backdrop show" id="accessDeniedModal">
   <div class="tiq-modal" style="max-width:400px">
     <div class="tiq-modal-header">

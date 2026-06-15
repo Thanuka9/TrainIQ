@@ -83,6 +83,10 @@ class Tenant(db.Model):
     billing_email = Column(String(120), nullable=True)
     billing_cycle = Column(String(20), nullable=False, default="monthly")
     stripe_customer_id = Column(String(120), nullable=True)
+    stripe_subscription_id = Column(String(120), nullable=True)
+    billing_period_start = Column(DateTime, nullable=True)
+    billing_period_end = Column(DateTime, nullable=True)
+    custom_mrr_cents = Column(Integer, nullable=True)  # CEO override for enterprise MRR (USD cents)
     enable_invite_only = Column(Boolean, nullable=False, default=False)
     suspended_at = Column(DateTime, nullable=True)
     suspended_reason = Column(Text, nullable=True)
@@ -209,6 +213,8 @@ class StudyMaterial(db.Model):
     total_pages = Column(Integer, nullable=True, default=0)
     # store file IDs as a list of strings
     files = Column(ARRAY(String), default=[])
+    # Unified media catalog: documents, uploaded videos, YouTube/Drive links, transcripts
+    media_assets = Column(JSONB, default=list)
 
     # minimum_level now a simple integer gate (default = 1)
     minimum_level = Column(Integer, nullable=False, default=1)
@@ -227,16 +233,9 @@ class StudyMaterial(db.Model):
     exams         = relationship("Exam", back_populates="course", cascade="all, delete-orphan")
 
     def is_accessible(self, user):
-        """
-        Returns True if the user's current level meets or exceeds
-        this material's minimum_level requirement.
-        """
-        try:
-            user_level = int(user.get_current_level() or 1)
-        except (TypeError, ValueError):
-            user_level = 1
-
-        return user_level >= self.minimum_level
+        """Delegate to shared level access helper."""
+        from utils.level_access import can_access_study_material
+        return can_access_study_material(user, self)
 
     def __repr__(self):
         return f"<StudyMaterial(id={self.id}, title='{self.title}')>"
@@ -275,6 +274,7 @@ class UserProgress(db.Model):
     start_date = db.Column(db.DateTime, default=datetime.utcnow)  # Automatic start date
     completion_date = db.Column(db.DateTime, nullable=True)
     completed = db.Column(db.Boolean, default=False)  # New field for completion status
+    asset_progress = db.Column(JSONB, default=dict)  # per-asset completion % keyed by asset id
 
     # New Addition: Link Progress to Levels
     level_id = db.Column(db.Integer, db.ForeignKey('levels.id'), nullable=True, index=True)
@@ -299,6 +299,37 @@ class UserProgress(db.Model):
         return (f"<UserProgress(id={self.id}, user_id={self.user_id}, "
                 f"progress_percentage={self.progress_percentage}, time_spent={self.time_spent}, "
                 f"completed={self.completed})>")
+
+
+# -------------------------------------
+# CourseNote Model — learner notes per asset/page
+# -------------------------------------
+class CourseNote(db.Model):
+    __tablename__ = 'course_notes'
+    __table_args__ = (
+        UniqueConstraint(
+            'user_id', 'study_material_id', 'asset_id', 'page_num',
+            name='uq_course_note_scope',
+        ),
+        Index('ix_course_notes_user_material', 'user_id', 'study_material_id'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    study_material_id = db.Column(db.Integer, db.ForeignKey('study_materials.id', ondelete='CASCADE'), nullable=False, index=True)
+    asset_id = db.Column(db.String(255), nullable=False, default='')
+    page_num = db.Column(db.Integer, nullable=False, default=0)
+    content = db.Column(db.Text, nullable=False, default='')
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    user = db.relationship('User', backref=db.backref('course_notes', lazy='dynamic', passive_deletes=True))
+    study_material = db.relationship('StudyMaterial', backref=db.backref('course_notes', lazy='dynamic'))
+
+    def __repr__(self):
+        return f"<CourseNote user={self.user_id} material={self.study_material_id} asset={self.asset_id} page={self.page_num}>"
+
 
 # -------------------------------------
 # Level Model
@@ -383,6 +414,8 @@ class User(db.Model, UserMixin):
         nullable=True,
         index=True
     )
+    user_agreement_version = Column(String(20), nullable=True, index=True)
+    user_agreement_at = Column(DateTime(timezone=True), nullable=True, index=True)
 
     # Using a relationship to link to the Department model
     departments = relationship(
@@ -392,9 +425,11 @@ class User(db.Model, UserMixin):
     )
 
     is_super_admin = Column(Boolean, default=False)  # Super admin privileges
+    is_platform_staff = Column(Boolean, default=False, nullable=False)
+    platform_staff_role = Column(String(30), nullable=True)  # support, ops, admin, ceo
     admin_permissions = Column(JSON, nullable=True)  # {grants:[], denies:[], preset:str}
     trial_checklist_dismissed = Column(Boolean, default=False, nullable=False)
-    current_level = Column(Integer, default=0)  # Tracks the user's current active level
+    current_level = Column(Integer, default=1)  # Tracks the user's current active level
 
     # ---------------------------------
     # Foreign Key Relationships
@@ -554,12 +589,11 @@ class User(db.Model, UserMixin):
     def can_skip_level(self, target_level: int) -> bool:
         """
         Check if the user can skip a level based on their designation.
-        :param target_level: Target level to be skipped
-        :return: Boolean indicating if skipping is allowed
+        Higher ``starting_level`` designations may skip lower curriculum levels.
         """
         if not self.designation:
             return False
-        return self.designation.starting_level <= target_level
+        return self.designation.can_skip_level(target_level)
 
     def can_skip_exam(self, exam) -> bool:
         """
@@ -641,9 +675,10 @@ class Exam(db.Model):
 
     # New Additions
     minimum_level = Column(Integer, nullable=True)             # Minimum level required for this exam
-    minimum_designation_level = Column(Integer, nullable=True) # Designation level required for skipping
+    minimum_designation_id = Column(Integer, nullable=True)  # Designation PK for exam skip threshold
     tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
     passing_score = Column(Float, nullable=False, default=70.0)
+    retry_cooldown_days = Column(Integer, nullable=True)  # days between attempts; default 30 in code
 
     # Relationships
     tenant = relationship("Tenant", backref=db.backref("exams", lazy=True))
@@ -670,20 +705,30 @@ class Exam(db.Model):
         return f"<Exam(id={self.id}, title='{self.title}', level='{level_num}', area='{area_name}')>"
 
     def is_accessible(self, user):
-        """
-        Check if the user meets the minimum level requirement.
-        """
-        return user.get_current_level() >= (int(self.minimum_level) if self.minimum_level is not None else 1)
+        """Check if the user meets the level requirement (progression or designation skip)."""
+        from utils.level_access import can_access_exam_level
+        return can_access_exam_level(user, self)
 
     def is_skippable(self, user):
         """
-        Check if the user can skip this exam based on their designation level.
+        Check if the user can skip this exam based on their designation.
+        ``minimum_designation_id`` stores a Designation primary key.
         """
-        if not self.minimum_designation_level:
+        if not self.minimum_designation_id or not user.designation:
             return False
-        if user.designation:
-            return user.designation.starting_level >= self.minimum_designation_level
-        return False
+        required = Designation.query.get(self.minimum_designation_id)
+        if not required:
+            return False
+        return user.designation.starting_level >= required.starting_level
+
+    @property
+    def minimum_designation_level(self):
+        """Deprecated alias — column renamed to ``minimum_designation_id``."""
+        return self.minimum_designation_id
+
+    @minimum_designation_level.setter
+    def minimum_designation_level(self, value):
+        self.minimum_designation_id = value
 
     incorrect_answers = relationship('IncorrectAnswer', back_populates='exam', cascade='all, delete-orphan')
 # -------------------------------
@@ -1108,6 +1153,32 @@ class IncorrectAnswer(db.Model):
 # -------------------------------------
 # TenantInvite Model
 # -------------------------------------
+class PlatformStaffInvite(db.Model):
+    __tablename__ = "platform_staff_invites"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String(120), nullable=False, index=True)
+    first_name = Column(String(50), nullable=False)
+    last_name = Column(String(50), nullable=False)
+    role = Column(String(30), nullable=False, default="support")
+    token = Column(String(128), nullable=False, unique=True, index=True)
+    invited_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    expires_at = Column(DateTime, nullable=False)
+    accepted_at = Column(DateTime, nullable=True)
+    status = Column(String(20), nullable=False, default="pending")  # pending, accepted, revoked
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    invited_by = relationship("User", foreign_keys=[invited_by_user_id])
+
+    @property
+    def is_valid(self):
+        return (
+            self.status == "pending"
+            and self.accepted_at is None
+            and self.expires_at > datetime.utcnow()
+        )
+
+
 class TenantInvite(db.Model):
     __tablename__ = "tenant_invites"
 
@@ -1116,6 +1187,7 @@ class TenantInvite(db.Model):
     email = Column(String(120), nullable=False, index=True)
     token = Column(String(128), nullable=False, unique=True, index=True)
     invited_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    role = Column(String(32), nullable=True, default="learner")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     used_at = Column(DateTime, nullable=True)
@@ -1128,6 +1200,29 @@ class TenantInvite(db.Model):
     @property
     def is_valid(self):
         return self.used_at is None and self.expires_at > datetime.utcnow()
+
+
+class BillingEvent(db.Model):
+    """Idempotent record of subscription payments and plan changes."""
+    __tablename__ = "billing_events"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    idempotency_key = Column(String(180), nullable=False, unique=True, index=True)
+    source = Column(String(40), nullable=False)  # stripe_webhook, manual_upgrade, checkout_pending
+    status = Column(String(30), nullable=False, default="applied")  # applied, duplicate, skipped, pending
+    plan_id = Column(String(50), nullable=False)
+    billing_cycle = Column(String(20), nullable=False, default="monthly")
+    amount_cents = Column(Integer, nullable=True)
+    stripe_event_id = Column(String(120), nullable=True, unique=True, index=True)
+    stripe_session_id = Column(String(120), nullable=True, unique=True, index=True)
+    stripe_subscription_id = Column(String(120), nullable=True)
+    billing_period_start = Column(DateTime, nullable=True)
+    billing_period_end = Column(DateTime, nullable=True)
+    details = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    tenant = relationship("Tenant", backref=db.backref("billing_events", lazy="dynamic"))
 
 
 # -------------------------------------
@@ -1301,6 +1396,7 @@ class Notification(db.Model):
     icon = Column(String(40), nullable=True)
     link_url = Column(String(500), nullable=True)
     is_read = Column(Boolean, nullable=False, default=False, index=True)
+    read_at = Column(DateTime, nullable=True)
     dedupe_key = Column(String(120), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
@@ -1315,6 +1411,7 @@ class Notification(db.Model):
             'icon': self.icon or 'bell',
             'link_url': self.link_url,
             'is_read': self.is_read,
+            'read_at': self.read_at.isoformat() if self.read_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'time_ago': _notification_time_ago(self.created_at),
         }
@@ -1334,6 +1431,24 @@ def _notification_time_ago(dt):
         return f'{hrs}h ago'
     days = hrs // 24
     return f'{days}d ago'
+
+
+# -------------------------------------
+# User Agreement Acceptance Audit
+# -------------------------------------
+class UserAgreementAcceptance(db.Model):
+    """Immutable audit trail of platform User Agreement acceptances."""
+    __tablename__ = 'user_agreement_acceptances'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    agreement_version = Column(String(20), nullable=False, index=True)
+    document_hash = Column(String(64), nullable=False)
+    accepted_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(String(500), nullable=True)
+
+    user = relationship('User', backref=db.backref('agreement_acceptances', lazy='dynamic'))
 
 
 # -------------------------------------

@@ -25,26 +25,33 @@ def has_finished_study(user_id: int, level_id: int, area_id: int) -> bool:
         return True
 
     # 2) All StudyMaterial IDs in those categories + level
-    subq = (
-        db.session.query(StudyMaterial.id)
+    material_ids = [
+        mid
+        for (mid,) in db.session.query(StudyMaterial.id)
         .filter(
             StudyMaterial.level_id == level_id,
             StudyMaterial.category_id.in_(category_ids),
         )
-        .subquery()
-    )
+        .all()
+    ]
+    if not material_ids:
+        return True
 
-    # 3) Any unfinished PDFs?
-    unfinished = (
-        db.session.query(UserProgress)
+    # 3) Every required material must have a completed progress row
+    completed = (
+        db.session.query(UserProgress.study_material_id)
         .filter(
             UserProgress.user_id == user_id,
-            UserProgress.study_material_id.in_(subq),
-            UserProgress.progress_percentage < 100,
+            UserProgress.study_material_id.in_(material_ids),
+            db.or_(
+                UserProgress.completed.is_(True),
+                UserProgress.progress_percentage >= 100,
+            ),
         )
+        .distinct()
         .count()
     )
-    return unfinished == 0
+    return completed >= len(material_ids)
 
 
 # ---------------------------------------------------------------------
@@ -60,10 +67,10 @@ def has_passed_exam(user_id: int, level_id: int, area_id: int) -> bool:
 
     best_attempt = (
         UserScore.query
-    .filter_by(user_id=user_id, level_id=level_id, area_id=area_id)
-    .order_by(UserScore.created_at.desc())    # ← switched from .score.desc()
-    .first()
-)
+        .filter_by(user_id=user_id, level_id=level_id, area_id=area_id)
+        .order_by(UserScore.score.desc())
+        .first()
+    )
 
     return bool(best_attempt and best_attempt.score >= (
         get_passing_score(Exam.query.get(best_attempt.exam_id))

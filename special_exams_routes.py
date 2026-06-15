@@ -1,23 +1,32 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_required, current_user
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 import logging
 from extensions import db
 from models import SpecialExamRecord, ExamAccessRequest, IncorrectAnswer
 from utils.special_exams import special_paper_id, is_special_exam_id, special_paper_ids
 from utils.tenant_utils import user_tenant_id
 from utils.exam_timer import exam_timer_context
+from utils.exam_retry import special_exam_retry_period
 
 special_exams_routes = Blueprint('special_exams_routes', __name__, url_prefix='/special_exams')
 
-def can_attempt_again(completed_at):
+
+def _utc(completed_at):
+    if completed_at.tzinfo is None:
+        return completed_at.replace(tzinfo=timezone.utc)
+    return completed_at
+
+
+def can_attempt_again(completed_at, tenant_id, paper_num):
     if not completed_at:
         return True
-    # Ensure completed_at is timezone-aware UTC
-    if completed_at.tzinfo is None:
-        completed_at = completed_at.replace(tzinfo=timezone.utc)
-    next_allowed = completed_at + timedelta(days=30)
-    return datetime.now(timezone.utc) >= next_allowed
+    completed_at = _utc(completed_at)
+    return datetime.now(timezone.utc) >= completed_at + special_exam_retry_period(tenant_id, paper_num)
+
+
+def next_retry_date(completed_at, tenant_id, paper_num):
+    return (_utc(completed_at) + special_exam_retry_period(tenant_id, paper_num)).strftime('%Y-%m-%d')
 
 @special_exams_routes.route('/paper1', methods=['GET'])
 @login_required
@@ -57,10 +66,9 @@ def exam_paper1():
                 return redirect(url_for('exams_routes.list_exams'))
 
             # Cooldown check for Paper 1
-            if record and record.paper1_completed_at and not can_attempt_again(record.paper1_completed_at):
-                retry_date = (
-                    record.paper1_completed_at.replace(tzinfo=timezone.utc) + timedelta(days=30)
-                ).strftime('%Y-%m-%d')
+            tid = user_tenant_id()
+            if record and record.paper1_completed_at and not can_attempt_again(record.paper1_completed_at, tid, 1):
+                retry_date = next_retry_date(record.paper1_completed_at, tid, 1)
                 flash(f"You can re-attempt Paper 1 after {retry_date}.", "info")
                 return redirect(url_for('exams_routes.list_exams'))
 
@@ -196,11 +204,9 @@ def submit_paper1():
                 ))
 
         # cooldown re-check
-        if record.paper1_completed_at and not can_attempt_again(record.paper1_completed_at):
-            retry_date = (
-                record.paper1_completed_at.replace(tzinfo=timezone.utc)
-                + timedelta(days=30)
-            ).strftime('%Y-%m-%d')
+        tid = user_tenant_id()
+        if record.paper1_completed_at and not can_attempt_again(record.paper1_completed_at, tid, 1):
+            retry_date = next_retry_date(record.paper1_completed_at, tid, 1)
             flash(f"You can re-attempt Paper 1 after {retry_date}.", "info")
             return redirect(url_for('exams_routes.list_exams'))
 
@@ -265,10 +271,9 @@ def exam_paper2():
                 return redirect(url_for('exams_routes.list_exams'))
 
             # Cooldown check for Paper 2
-            if record and record.paper2_completed_at and not can_attempt_again(record.paper2_completed_at):
-                retry_date = (
-                    record.paper2_completed_at.replace(tzinfo=timezone.utc) + timedelta(days=30)
-                ).strftime('%Y-%m-%d')
+            tid = user_tenant_id()
+            if record and record.paper2_completed_at and not can_attempt_again(record.paper2_completed_at, tid, 2):
+                retry_date = next_retry_date(record.paper2_completed_at, tid, 2)
                 flash(f"You can re-attempt Paper 2 after {retry_date}.", "info")
                 return redirect(url_for('exams_routes.list_exams'))
 
@@ -405,11 +410,9 @@ def submit_paper2():
                 ))
 
         # cooldown re-check
-        if record.paper2_completed_at and not can_attempt_again(record.paper2_completed_at):
-            retry_date = (
-                record.paper2_completed_at.replace(tzinfo=timezone.utc)
-                + timedelta(days=30)
-            ).strftime('%Y-%m-%d')
+        tid = user_tenant_id()
+        if record.paper2_completed_at and not can_attempt_again(record.paper2_completed_at, tid, 2):
+            retry_date = next_retry_date(record.paper2_completed_at, tid, 2)
             flash(f"You can re-attempt Paper 2 after {retry_date}.", "info")
             return redirect(url_for('exams_routes.list_exams'))
 

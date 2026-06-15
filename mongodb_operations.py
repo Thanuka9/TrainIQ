@@ -32,17 +32,21 @@ global_client = None
 global_db = None
 global_grid_fs = None
 
-def get_mongo_connection() -> Tuple[MongoClient, Database, GridFS]:
+def get_mongo_connection() -> Tuple[Optional[MongoClient], Optional[Database], Optional[GridFS]]:
     global global_client, global_db, global_grid_fs
     if not global_client:
         try:
             global_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+            global_client.server_info()
             global_db = global_client[DB_NAME]
             global_grid_fs = GridFS(global_db)
             logging.info(f"Connected to MongoDB database '{DB_NAME}'.")
         except errors.ServerSelectionTimeoutError as e:
-            logging.critical(f"Failed to connect to MongoDB: {e}")
-            raise SystemExit(f"Critical error: {e}")
+            logging.warning(f"MongoDB unavailable: {e}")
+            return None, None, None
+        except Exception as e:
+            logging.warning(f"MongoDB connection failed: {e}")
+            return None, None, None
     return global_client, global_db, global_grid_fs
 
 # -------------------------------
@@ -51,27 +55,31 @@ def get_mongo_connection() -> Tuple[MongoClient, Database, GridFS]:
 def initialize_mongodb(uri: str = MONGO_URI, db_name: str = DB_NAME):
     """
     Initialize MongoDB connection and return client and database instance.
+    Returns (None, None) when MongoDB is unavailable (app may run without GridFS).
     """
     try:
         client = MongoClient(uri, serverSelectionTimeoutMS=5000)
-        client.server_info()  # Test connection to MongoDB server
+        client.server_info()
         database = client.get_database(db_name)
         if database is None:
             raise ValueError(f"Failed to retrieve database object for '{db_name}'.")
         logging.info(f"MongoDB initialized and connected to database: {db_name}")
         return client, database
     except errors.ServerSelectionTimeoutError as e:
-        logging.critical(f"Failed to connect to MongoDB: {e}")
-        raise SystemExit(f"Critical error: {e}")
+        logging.warning(f"MongoDB unavailable (file uploads disabled): {e}")
+        return None, None
     except Exception as e:
-        logging.critical(f"Unexpected error during MongoDB initialization: {e}")
-        raise SystemExit(f"Critical error: {e}")
+        logging.warning(f"MongoDB initialization skipped: {e}")
+        return None, None
 # -------------------------------
 # File Management for Study Materials
 # -------------------------------
 def save_file_to_gridfs(file_name: str, file_data: bytes, metadata: Optional[dict] = None) -> Optional[str]:
     try:
         _, _, grid_fs = get_mongo_connection()
+        if not grid_fs:
+            logging.error("MongoDB unavailable — cannot save file to GridFS")
+            return None
         file_id = grid_fs.put(file_data, filename=file_name, metadata=metadata)
         logging.info(f"File '{file_name}' saved to GridFS with ID: {file_id}")
         return str(file_id)

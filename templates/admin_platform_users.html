@@ -1,11 +1,16 @@
-{% extends 'admin_base.html' %}
+{% extends 'platform_base.html' %}
 {% block title %}Platform Users{% endblock %}
 {% block breadcrumb %}Platform / All Users{% endblock %}
 
 {% block content %}
 <div class="tiq-page-header" style="margin-bottom:1rem;">
-  <h1>Global User Directory</h1>
-  <p class="tiq-lead">Search and manage users across every organization.</p>
+  <div class="tiq-flex-between" style="flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1>Global User Directory</h1>
+      <p class="tiq-lead">Search and manage users across every organization.</p>
+    </div>
+    <a href="{{ url_for('platform_routes.export_users_csv', q=q, tenant_id=tenant_id, status=status) }}" class="tiq-btn tiq-btn-secondary"><i class="fas fa-file-csv"></i> Export CSV</a>
+  </div>
 </div>
 {% include 'partials/platform_subnav.html' %}
 
@@ -41,6 +46,19 @@
 </div>
 
 <div class="tiq-card">
+  <div class="tiq-card-header">
+    <h3 class="tiq-card-title">
+      <i class="fas fa-users me-2"></i>
+      {% if total_matches > rows|length %}
+        Showing {{ rows|length }} of {{ total_matches }} matching users
+      {% else %}
+        {{ rows|length }} user{{ 's' if rows|length != 1 else '' }}
+      {% endif %}
+    </h3>
+    {% if total_matches > rows|length %}
+    <a href="{{ url_for('platform_routes.platform_users', q=q, tenant_id=tenant_id, status=status, limit=1000) }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">Show up to 1000</a>
+    {% endif %}
+  </div>
   <div class="tiq-card-body" style="padding:0;">
     <div class="tiq-table-wrapper">
       <table class="tiq-table">
@@ -76,6 +94,21 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="target" value="users">
                 <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm" title="Enter org → Users">Manage</button>
+              </form>
+              {% if not u.is_verified %}
+              <form action="{{ url_for('platform_routes.platform_resend_verification', user_id=u.id) }}" method="POST" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="tiq-btn tiq-btn-secondary tiq-btn-sm" title="Resend verification email">Verify</button>
+              </form>
+              {% endif %}
+              <form action="{{ url_for('platform_routes.platform_unlock_user_level', user_id=u.id) }}" method="POST" style="display:inline-flex;gap:4px;align-items:center;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="number" name="level" class="tiq-input tiq-btn-sm" value="{{ u.get_current_level() }}" min="1" max="20" style="width:56px;padding:0.25rem 0.35rem;">
+                <button type="submit" class="tiq-btn tiq-btn-warning tiq-btn-sm" title="Set user level">Level</button>
+              </form>
+              <form action="{{ url_for('platform_routes.platform_force_password_reset', user_id=u.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Send a password reset email to {{ u.employee_email }}?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="tiq-btn tiq-btn-secondary tiq-btn-sm" title="Force password reset email">Reset PW</button>
               </form>
               {% endif %}
             </td>

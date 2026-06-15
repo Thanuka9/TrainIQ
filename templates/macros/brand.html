@@ -32,6 +32,9 @@
   {% endif %}
 {% endmacro %}
 
-{% macro copyright(year=2026) %}{{ display_org_name }}© {{ year }}{% endmacro %}
+{% macro copyright(year=none) %}
+  {%- set yr = year or current_year|default(2026) -%}
+  Powered by <a href="{{ trainiq_website_url|default('https://trainiq.com') }}" target="_blank" rel="noopener noreferrer" style="font-weight:700;color:inherit;">Train<span style="color:var(--tiq-secondary,#06b6d4);">IQ</span></a> © {{ yr }}
+{% endmacro %}
 
 {% macro title_suffix(page) %}{{ page }} — {{ display_org_name }}{% endmacro %}

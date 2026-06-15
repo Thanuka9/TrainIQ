@@ -9,14 +9,14 @@
 
 {% block content %}
 <div class="tiq-page-header">
-  <h1>🛠️ Manage Seed Data</h1>
+  <h1>Manage Seed Data</h1>
   <p class="tiq-lead">Directly configure core taxonomic entities, lookup tables, and seed classifications for the organization.</p>
 </div>
 
 {# Flash messages #}
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
-    <div class="mb-4">
+    <div style="margin-bottom:1.5rem;">
       {% for category, msg in messages %}
         <div class="tiq-alert tiq-alert-{{ 'success' if category == 'success' else ('danger' if category == 'error' else 'warning') }}">
           <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
@@ -28,8 +28,8 @@
 {% endwith %}
 
 <!-- Dropdown to pick which seed-section to show -->
-<div class="tiq-card mb-4" style="max-width: 400px;">
-  <div class="tiq-card-body d-flex align-items-center justify-content-between gap-3">
+<div class="tiq-card" style="max-width: 400px; margin-bottom: 1.5rem;">
+  <div class="tiq-card-body" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
     <div style="flex: 1;">
       <label for="seedSelect" class="tiq-label mb-1">Choose Seed Type</label>
       <select id="seedSelect" class="tiq-select" style="font-weight: 600;">

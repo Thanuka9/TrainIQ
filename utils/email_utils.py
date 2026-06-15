@@ -45,6 +45,15 @@ def init_scheduler(scheduler):
         hours=6,
         replace_existing=True,
     )
+    scheduler.add_job(
+        id='weekly_email_digests',
+        func=weekly_email_digests_job,
+        trigger='cron',
+        day_of_week='mon',
+        hour=8,
+        minute=0,
+        replace_existing=True,
+    )
 
 
 def expire_saas_trials_job():
@@ -87,6 +96,22 @@ def onboarding_drip_emails_job():
         stats = process_onboarding_drip_emails()
         if any(stats.values()):
             app.logger.info("[onboarding] Drip emails sent: %s", stats)
+
+
+def weekly_email_digests_job():
+    """Background job: weekly learner and admin email digests (Mondays 08:00 UTC)."""
+    from extensions import scheduler
+    from utils.email_digests import process_email_digests
+
+    app = scheduler.app
+    with app.app_context():
+        stats = process_email_digests()
+        if stats.get("learner") or stats.get("admin"):
+            app.logger.info(
+                "[digests] Weekly emails sent: learner=%s admin=%s",
+                stats.get("learner", 0),
+                stats.get("admin", 0),
+            )
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helper for attaching files safely

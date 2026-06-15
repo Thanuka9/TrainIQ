@@ -41,4 +41,10 @@ def notification_mark_read(notification_id):
 @login_required
 def notifications_mark_all_read():
     count = mark_all_read(current_user.id)
-    return jsonify({"ok": True, "marked": count, "unread_count": 0})
+    items = recent_for_user(current_user.id, limit=30)
+    return jsonify({
+        "ok": True,
+        "marked": count,
+        "unread_count": unread_count(current_user.id),
+        "items": [n.to_dict() for n in items],
+    })

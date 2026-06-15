@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>User Agreement — TrainIQ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/trainiq.css') }}"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/legal.css') }}?v=2"/>
+</head>
+<body class="legal-page legal-page--public">
+
+<div class="legal-progress" aria-hidden="true"><div class="legal-progress__bar" id="legalProgressBar"></div></div>
+
+<div class="legal-layout">
+  <aside class="legal-sidebar" id="legalSidebar">
+    <a href="{{ url_for('general_routes.home') }}" class="legal-brand-link">
+      <div class="legal-brand">
+        <div class="legal-brand-icon"><i class="fas fa-brain"></i></div>
+        <div class="legal-brand-name">Train<span>IQ</span></div>
+      </div>
+    </a>
+
+    <div class="legal-owner-card">
+      <div class="legal-owner-card__label">Platform owner</div>
+      <div class="legal-owner-card__name">{{ owner_name }}</div>
+      <a href="{{ owner_url }}" target="_blank" rel="noopener noreferrer" class="legal-owner-card__link">
+        {{ owner_url }}
+      </a>
+    </div>
+
+    <div class="legal-meta-pills">
+      <span class="legal-pill">v{{ agreement_version }}</span>
+      <span class="legal-pill">{{ agreement_effective_date }}</span>
+    </div>
+
+    <div class="legal-sidebar-title">Contents</div>
+    {% include 'legal/legal_toc.html' %}
+
+    <p style="margin-top:1.25rem;">
+      <a href="{{ url_for('general_routes.home') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm tiq-w-full" style="justify-content:center;">
+        <i class="fas fa-arrow-left"></i> Back to Home
+      </a>
+    </p>
+  </aside>
+
+  <div class="legal-main">
+    <div class="legal-back-bar">
+      {% include 'partials/public_back_link.html' %}
+    </div>
+    <header class="legal-main-header">
+      <h1><i class="fas fa-scale-balanced" style="color:#6366f1;margin-right:8px;"></i> TrainIQ Platform User Agreement</h1>
+      <p class="legal-main-lead">
+        Operated by {{ owner_organization }} · {{ owner_name }} · Version {{ agreement_version }} · Effective {{ agreement_effective_date }}
+      </p>
+    </header>
+
+    <div class="legal-document">
+      {% include 'legal/platform_user_agreement_body.html' %}
+    </div>
+  </div>
+</div>
+
+<button type="button" class="legal-mobile-toc-toggle" id="legalTocToggle" aria-label="Table of contents">
+  <i class="fas fa-list"></i>
+</button>
+
+<script>
+  (function () {
+    const progressBar = document.getElementById('legalProgressBar');
+    const tocLinks = document.querySelectorAll('.legal-toc a[data-section]');
+    const sidebar = document.getElementById('legalSidebar');
+    document.getElementById('legalTocToggle')?.addEventListener('click', () => sidebar?.classList.toggle('is-open'));
+    window.addEventListener('scroll', () => {
+      const pct = Math.min(100, (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100);
+      if (progressBar) progressBar.style.width = pct + '%';
+    }, { passive: true });
+    tocLinks.forEach((link) => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById(link.getAttribute('data-section'))?.scrollIntoView({ behavior: 'smooth' });
+        sidebar?.classList.remove('is-open');
+      });
+    });
+  })();
+</script>
+
+<div class="legal-public-footer">
+  {% with footer_variant='compact' %}
+  {% include 'partials/trainiq_footer.html' %}
+  {% endwith %}
+</div>
+</body>
+</html>

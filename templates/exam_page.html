@@ -803,9 +803,9 @@
       </div>
     </div>
 
-    <footer style="background: rgba(9,13,22,0.95); border-top: 1px solid rgba(255,255,255,0.08); text-align: center; padding: 1.5rem; font-size: 0.875rem; font-weight: 500; color: #94a3b8; margin-top: auto;">
-      &copy; 2026 {{ display_org_name }}. All rights reserved.
-    </footer>
+    {% with footer_variant='dark' %}
+    {% include 'partials/trainiq_footer.html' %}
+    {% endwith %}
 
     <!-- RULES INSTRUCTION OVERLAY -->
     <div id="instructionOverlay">

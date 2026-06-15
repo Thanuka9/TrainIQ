@@ -65,6 +65,9 @@
     <p style="font-size:0.8rem;color:var(--tiq-text-3);margin:0.5rem 0 0;">
       {{ usage.remaining_seats }} seat{{ 's' if usage.remaining_seats != 1 else '' }} remaining on {{ current_plan.name }}.
       {% if usage.at_limit %}Upgrade to add more users.{% endif %}
+      {% if tenant.billing_period_end and tenant.plan != 'trial' %}
+      <br>Billing period active through <strong>{{ tenant.billing_period_end.strftime('%b %d, %Y') }}</strong>.
+      {% endif %}
     </p>
   </div>
 </div>
@@ -101,8 +104,44 @@
       </a>
       {% elif tenant.plan == plan.id %}
       <button type="button" class="tiq-btn tiq-btn-secondary" style="width:100%;" disabled>Current plan</button>
+      {% elif stripe_enabled %}
+      <label style="display:flex;gap:0.5rem;align-items:flex-start;font-size:0.78rem;color:var(--tiq-text-2);margin-bottom:0.75rem;cursor:pointer;">
+        <input type="checkbox" name="accept_billing_terms" value="1" required form="checkout-form-{{ plan.id }}" style="margin-top:3px;accent-color:var(--tiq-primary);">
+        <span>
+          I confirm our organization completed the {{ trial_days }}-day free trial (or waived evaluation period) and agree to
+          <strong>non-refundable</strong> subscription fees, automatic renewal, and
+          <a href="{{ url_for('general_routes.user_agreement_view') }}#legal-section-9" target="_blank" rel="noopener">Section 9 (Billing &amp; Refunds)</a>
+          of the TrainIQ Agreement operated by {{ owner_organization }}.
+        </span>
+      </label>
+      <form method="post" action="{{ url_for('billing_routes.billing_checkout') }}" id="checkout-form-{{ plan.id }}" style="margin-bottom:0.5rem;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="plan_id" value="{{ plan.id }}">
+        <input type="hidden" name="billing_cycle" value="monthly">
+        <button type="submit" class="tiq-btn tiq-btn-primary" style="width:100%;">
+          <i class="fab fa-stripe"></i> Pay with Stripe
+        </button>
+      </form>
+      <form method="post" action="{{ url_for('billing_routes.billing_upgrade') }}" id="manual-form-{{ plan.id }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="accept_billing_terms" value="1" id="manual-terms-{{ plan.id }}">
+        <input type="hidden" name="plan_id" value="{{ plan.id }}">
+        <input type="hidden" name="billing_cycle" value="monthly" id="cycle-{{ plan.id }}">
+        <button type="submit" class="tiq-btn tiq-btn-secondary tiq-btn-sm" style="width:100%;"
+          onclick="var c=document.querySelector('[form=checkout-form-{{ plan.id }}]'); if(!c||!c.checked){alert('Accept billing terms first.');return false;} document.getElementById('manual-terms-{{ plan.id }}').value='1';">
+          Manual upgrade (no payment)
+        </button>
+      </form>
       {% else %}
-      <form method="post" action="{{ url_for('billing_routes.billing_upgrade') }}">
+      <label style="display:flex;gap:0.5rem;align-items:flex-start;font-size:0.78rem;color:var(--tiq-text-2);margin-bottom:0.75rem;cursor:pointer;">
+        <input type="checkbox" name="accept_billing_terms" value="1" required form="upgrade-form-{{ plan.id }}" style="margin-top:3px;accent-color:var(--tiq-primary);">
+        <span>
+          I agree to non-refundable subscription terms and
+          <a href="{{ url_for('general_routes.user_agreement_view') }}#legal-section-9" target="_blank" rel="noopener">Section 9</a>
+          ({{ owner_organization }}).
+        </span>
+      </label>
+      <form method="post" action="{{ url_for('billing_routes.billing_upgrade') }}" id="upgrade-form-{{ plan.id }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="plan_id" value="{{ plan.id }}">
         <input type="hidden" name="billing_cycle" value="monthly" id="cycle-{{ plan.id }}">
@@ -116,12 +155,35 @@
   {% endfor %}
 </div>
 
+<div class="tiq-card" style="margin-bottom:1.25rem;border-left:4px solid #6366F1;">
+  <div class="tiq-card-header">
+    <h3 class="tiq-card-title"><i class="fas fa-file-contract" style="margin-right:8px;"></i>Subscription &amp; refund policy</h3>
+  </div>
+  <div class="tiq-card-body" style="font-size:0.875rem;color:var(--tiq-text-2);line-height:1.7;">
+    <p style="margin:0 0 0.75rem;">
+      TrainIQ is operated by <strong>{{ owner_organization }}</strong> ({{ owner_name }}).
+      Every new organization receives a <strong>{{ trial_days }}-day free trial</strong> with full features — use it to evaluate the platform before paying.
+    </p>
+    <ul style="margin:0 0 0.75rem;padding-left:1.25rem;">
+      <li><strong>All paid subscription fees are non-refundable</strong> once charged, including unused seats and mid-cycle cancellations.</li>
+      <li>Subscriptions renew automatically unless cancelled before the renewal date.</li>
+      <li>You may cancel anytime; access continues until the end of the paid period.</li>
+      <li>Refunds are only provided for duplicate/erroneous charges (report within 30 days) or where required by law.</li>
+    </ul>
+    <p style="margin:0;font-size:0.8rem;">
+      Full terms: <a href="{{ url_for('general_routes.user_agreement_view') }}#legal-section-9">User Agreement §9</a> ·
+      Questions: <a href="mailto:{{ legal_email }}">{{ legal_email }}</a>
+    </p>
+  </div>
+</div>
+
 <div class="tiq-card">
   <div class="tiq-card-body" style="font-size:0.875rem;color:var(--tiq-text-2);line-height:1.7;">
     <strong>How billing works:</strong> TrainIQ charges by organization size (registered users).
-    Your first {{ usage.max_users if tenant.plan == 'trial' else '10' }}-user trial lasts 30 days with full features.
+    Your first {{ trial_days }}-user trial lasts {{ trial_days }} days with full features.
     When you hit your seat cap, invites and new sign-ups are blocked until you upgrade.
-    Payment processing (Stripe) will be connected at deployment — plan upgrades apply immediately for now.
+    Payment processing uses Stripe when configured (see STRIPE_* env vars).
+    Manual upgrades apply immediately without payment for testing or invoiced customers.
     Questions? Email <a href="mailto:{{ sales_email }}">{{ sales_email }}</a>.
   </div>
 </div>

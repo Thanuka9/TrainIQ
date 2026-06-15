@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import os
 
+from utils.media_links import EMBED_FRAME_CSP
+
 
 def validate_production_config(app) -> None:
     """Fail fast when critical secrets are missing in production."""
@@ -25,6 +27,7 @@ def apply_security_headers(response, *, is_production: bool):
     if is_production:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     # CSP: allow CDNs + inline scripts used by templates; tighten over time.
+    frame_src = " ".join(EMBED_FRAME_CSP)
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'unsafe-inline'; "
@@ -32,6 +35,7 @@ def apply_security_headers(response, *, is_production: bool):
         "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
         "img-src 'self' data: blob: https:; "
         "connect-src 'self'; "
+        f"frame-src {frame_src}; "
         "frame-ancestors 'none'; "
         "base-uri 'self'; "
         "form-action 'self'"
