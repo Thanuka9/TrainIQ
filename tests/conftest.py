@@ -2,8 +2,15 @@ import os
 
 import pytest
 
-# Force in-memory rate limiter before app import (avoids Redis dependency in tests).
+# CI / local test defaults — must be set before app import in test modules.
 os.environ.setdefault("REDIS_URI", "memory://")
+os.environ.setdefault("FLASK_ENV", "development")
+os.environ.setdefault("SECRET_KEY", "test-secret-key")
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:5432/collectivercm_test",
+)
+os.environ.setdefault("TRAINIQ_CEO_DEFAULT_PASSWORD", "test-ceo-password")
 
 
 @pytest.fixture

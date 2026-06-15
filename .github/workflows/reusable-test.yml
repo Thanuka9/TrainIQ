@@ -1,0 +1,182 @@
+name: Reusable Test Suite
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    name: Pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: collectivercm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d collectivercm_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      FLASK_ENV: development
+      SECRET_KEY: ci-test-secret-key-not-for-production
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/collectivercm_test
+      REDIS_URI: memory://
+      TRAINIQ_CEO_EMAIL: thanuka.ellepola@gmail.com
+      TRAINIQ_CEO_DEFAULT_PASSWORD: ci-test-ceo-password
+      TRAINIQ_PLATFORM_OFFICE_KEY: TRAINIQ
+      PYTHONDONTWRITEBYTECODE: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in $(seq 1 30); do
+            python - <<'PY'
+          import os, sys
+          import psycopg2
+          try:
+              psycopg2.connect(os.environ["DATABASE_URL"]).close()
+              sys.exit(0)
+          except Exception:
+              sys.exit(1)
+          PY
+            if [ $? -eq 0 ]; then
+              echo "PostgreSQL is ready"
+              exit 0
+            fi
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+          echo "PostgreSQL did not become ready in time"
+          exit 1
+
+      - name: Run tests (with one flake retry)
+        id: pytest
+        run: |
+          set -o pipefail
+          run_pytest() {
+            python -m pytest tests/ -q --tb=short --junit-xml="$1" 2>&1 | tee "$2"
+          }
+          if run_pytest test-results.xml pytest.log; then
+            echo "result=passed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::warning::First pytest run failed — retrying once in case of flake..."
+          sleep 3
+          if run_pytest test-results-retry.xml pytest-retry.log; then
+            echo "result=passed_after_retry" >> "$GITHUB_OUTPUT"
+            echo "::notice::Tests passed on retry (possible flaky test)."
+            exit 0
+          fi
+          echo "result=failed" >> "$GITHUB_OUTPUT"
+          exit 1
+
+      - name: Upload pytest results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results-${{ github.run_id }}
+          path: |
+            test-results.xml
+            test-results-retry.xml
+            pytest.log
+            pytest-retry.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Write job summary
+        if: always()
+        run: |
+          {
+            echo "### Test suite"
+            echo "- Branch: \`${{ github.ref_name }}\`"
+            echo "- Commit: \`${{ github.sha }}\`"
+            echo "- Result: \`${{ steps.pytest.outputs.result || 'unknown' }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -f pytest-retry.log ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "<details><summary>Failed run log (last 60 lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 60 pytest-retry.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          elif [ -f pytest.log ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "<details><summary>Test log (last 40 lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 40 pytest.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Comment on PR when tests fail
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const readTail = (file, lines = 50) => {
+              try {
+                const content = fs.readFileSync(file, 'utf8');
+                return content.split('\n').slice(-lines).join('\n');
+              } catch {
+                return '(log not available)';
+              }
+            };
+            const log = fs.existsSync('pytest-retry.log')
+              ? readTail('pytest-retry.log', 60)
+              : readTail('pytest.log', 60);
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              '## CI tests failed',
+              '',
+              'Deploy/merge is blocked until this is fixed. **CI does not auto-fix code** — review the log, fix the test or app, and push again.',
+              '',
+              '**Quick fix in Cursor:** paste this prompt:',
+              '```',
+              `Fix the failing pytest tests from CI run ${runUrl}`,
+              '```',
+              '',
+              '<details><summary>Pytest output (last 60 lines)</summary>',
+              '',
+              '```',
+              log,
+              '```',
+              '',
+              '</details>',
+              '',
+              `[View full workflow run](${runUrl}) · Download \`pytest-results-${context.runId}\` artifact for complete logs.`,
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body,
+            });
