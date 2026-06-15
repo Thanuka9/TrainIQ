@@ -493,6 +493,8 @@ app.before_request(check_afk_timeout)
 
 def enforce_user_agreement():
     """Block platform use until the current User Agreement version is accepted."""
+    if app.config.get('TESTING') and not app.config.get('ENFORCE_AGREEMENT_IN_TESTS'):
+        return
     from flask_login import current_user
     from utils.user_agreement import is_agreement_exempt_endpoint, user_needs_agreement
 

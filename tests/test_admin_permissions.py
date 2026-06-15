@@ -103,9 +103,9 @@ def test_user_with_permissions_manage_can_open_access_page(app_ctx):
 
     flask_app.config["WTF_CSRF_ENABLED"] = False
     manager = User.query.filter_by(is_super_admin=False).first()
-    target = User.query.filter(User.id != manager.id, User.is_super_admin.is_(False)).first()
+    target = User.query.filter(User.id != manager.id, User.is_super_admin.is_(False), User.tenant_id == manager.tenant_id).first()
     if not manager or not target:
-        pytest.skip("Need two non-super users")
+        pytest.skip("Need two non-super users in the same tenant")
 
     manager.is_super_admin = False
     manager.admin_permissions = {

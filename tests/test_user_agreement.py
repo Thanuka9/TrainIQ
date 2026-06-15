@@ -25,6 +25,7 @@ _setup_patcher.stop()
 def auth_client():
     flask_app.config["TESTING"] = True
     flask_app.config["WTF_CSRF_ENABLED"] = False
+    flask_app.config["ENFORCE_AGREEMENT_IN_TESTS"] = True
     from models import User
 
     with flask_app.app_context():
@@ -72,6 +73,7 @@ def test_accept_agreement_grants_access(auth_client):
 
 def test_public_user_agreement_page():
     flask_app.config["TESTING"] = True
+    flask_app.config["ENFORCE_AGREEMENT_IN_TESTS"] = True
     client = flask_app.test_client()
     resp = client.get("/user-agreement")
     assert resp.status_code == 200
