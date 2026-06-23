@@ -29,7 +29,9 @@
     </div>
 
     <a href="{{ url_for('platform_routes.platform_users') }}" class="tiq-btn tiq-btn-secondary"><i class="fas fa-users"></i> All platform users</a>
+    {% if has_platform_perm('exports.data') %}
     <a href="{{ url_for('platform_routes.export_tenants_csv', q=q, plan=plan, status=status, sort=sort) }}" class="tiq-btn tiq-btn-secondary"><i class="fas fa-file-csv"></i> Export CSV</a>
+    {% endif %}
 
   </div>
 
@@ -184,6 +186,16 @@
                 {{ t.plan }} / {{ t.status }}
 
               </span>
+              {% if t.plan == 'trial' and t.trial_ends_at %}
+                {% set trial_days = (t.trial_ends_at - utc_now()).days %}
+                {% if trial_days >= 0 and trial_days <= 7 %}
+                  <span class="tiq-badge tiq-badge-warning" title="Trial ending soon" style="margin-left:4px;">
+                    <i class="fas fa-hourglass-half"></i> {{ trial_days }}d left
+                  </span>
+                {% elif trial_days < 0 %}
+                  <span class="tiq-badge tiq-badge-danger" style="margin-left:4px;">Trial expired</span>
+                {% endif %}
+              {% endif %}
 
             </td>
 
@@ -199,6 +211,7 @@
 
               <a href="{{ url_for('platform_routes.platform_users', tenant_id=t.id) }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm" title="Users"><i class="fas fa-users"></i></a>
 
+              {% if has_platform_perm('tenants.enter') %}
               <form action="{{ url_for('platform_routes.enter_tenant', tenant_id=t.id) }}" method="POST" style="display:inline;">
 
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -206,7 +219,9 @@
                 <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm" title="Enter support mode"><i class="fas fa-sign-in-alt"></i></button>
 
               </form>
+              {% endif %}
 
+              {% if has_platform_perm('tenants.manage') %}
               {% if t.status == 'suspended' %}
 
               <form action="{{ url_for('platform_routes.activate_tenant', tenant_id=t.id) }}" method="POST" style="display:inline;">
@@ -224,11 +239,13 @@
               {% endif %}
 
               <button type="button" class="tiq-btn tiq-btn-secondary tiq-btn-sm" onclick="document.getElementById('plan-{{ t.id }}').style.display='table-row'"><i class="fas fa-sliders-h"></i></button>
+              {% endif %}
 
             </td>
 
           </tr>
 
+          {% if has_platform_perm('tenants.manage') %}
           <tr id="plan-{{ t.id }}" style="display:none;background:var(--tiq-surface-2);">
 
             <td colspan="9">
@@ -290,6 +307,7 @@
             </td>
 
           </tr>
+          {% endif %}
 
           {% else %}
 

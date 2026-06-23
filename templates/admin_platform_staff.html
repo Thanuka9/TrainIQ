@@ -6,7 +6,7 @@
 <div class="tiq-page-header" style="margin-bottom:1rem;">
   <h1>Platform Staff Hub</h1>
   <p class="tiq-lead">
-    {% if is_platform_ceo() %}
+    {% if has_platform_perm('staff.manage') %}
     Invite TrainIQ operators, assign roles, and review what each role can access.
     {% else %}
     Quick links for your role ({{ platform_staff_role|title if platform_staff_role else 'Staff' }}).
@@ -46,9 +46,21 @@
     <div style="font-size:0.85rem;color:var(--tiq-text-3);margin-top:0.35rem;">Audit feed &amp; export</div>
   </a>
   {% endif %}
+  {% if has_platform_perm('revenue.view') %}
+  <a href="{{ url_for('platform_routes.platform_revenue') }}" class="tiq-stat-card" style="text-decoration:none;color:inherit;">
+    <div class="stat-label"><i class="fas fa-dollar-sign"></i> Revenue</div>
+    <div style="font-size:0.85rem;color:var(--tiq-text-3);margin-top:0.35rem;">MRR &amp; billing analytics</div>
+  </a>
+  {% endif %}
+  {% if has_platform_perm('operations.view') %}
+  <a href="{{ url_for('platform_routes.platform_operations') }}" class="tiq-stat-card" style="text-decoration:none;color:inherit;">
+    <div class="stat-label"><i class="fas fa-server"></i> Operations</div>
+    <div style="font-size:0.85rem;color:var(--tiq-text-3);margin-top:0.35rem;">DB, Mongo, AI health</div>
+  </a>
+  {% endif %}
 </div>
 
-{% if is_platform_ceo() %}
+{% if has_platform_perm('staff.manage') %}
 <div class="tiq-card" id="invite-staff" style="margin-bottom:1.25rem;border:2px solid rgba(99,102,241,0.35);">
   <div class="tiq-card-header">
     <h3 class="tiq-card-title"><i class="fas fa-user-plus me-2"></i>Invite platform staff</h3>
@@ -122,7 +134,7 @@
   <div class="tiq-card-body" style="padding:0;">
     <table class="tiq-table">
       <thead>
-        <tr><th>Name</th><th>Email</th><th>Role</th>{% if is_platform_ceo() %}<th>Actions</th>{% endif %}</tr>
+        <tr><th>Name</th><th>Email</th><th>Role</th>{% if has_platform_perm('staff.manage') %}<th>Actions</th>{% endif %}</tr>
       </thead>
       <tbody>
         {% for member in staff %}
@@ -130,9 +142,9 @@
           <td>{{ member.first_name }} {{ member.last_name }}</td>
           <td>{{ member.employee_email }}</td>
           <td><span class="tiq-badge">{{ member.platform_staff_role or 'staff' }}</span></td>
-          {% if is_platform_ceo() %}
+          {% if has_platform_perm('staff.manage') %}
           <td>
-            {% if member.platform_staff_role != 'ceo' %}
+            {% if not is_platform_ceo(member) %}
             <form method="post" action="{{ url_for('platform_routes.platform_staff_update_role', staff_id=member.id) }}" style="display:inline-flex;gap:0.35rem;align-items:center;margin-right:0.5rem;">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
               <select name="role" class="tiq-input" style="width:auto;padding:0.25rem 0.5rem;font-size:0.8rem;">
@@ -153,14 +165,14 @@
           {% endif %}
         </tr>
         {% else %}
-        <tr><td colspan="{% if is_platform_ceo() %}4{% else %}3{% endif %}" style="text-align:center;padding:2rem;color:var(--tiq-text-3);">No platform staff yet.</td></tr>
+        <tr><td colspan="{% if has_platform_perm('staff.manage') %}4{% else %}3{% endif %}" style="text-align:center;padding:2rem;color:var(--tiq-text-3);">No platform staff yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
 
-{% if is_platform_ceo() and invites %}
+{% if has_platform_perm('staff.manage') and invites %}
 <div class="tiq-card">
   <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-envelope me-2"></i>Pending invites</h3></div>
   <div class="tiq-card-body" style="padding:0;">

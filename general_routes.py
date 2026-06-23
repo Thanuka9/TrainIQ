@@ -423,6 +423,10 @@ def request_support():
         if uploaded_file and uploaded_file.filename:
             filename  = secure_filename(uploaded_file.filename)
             file_data = uploaded_file.read()
+            max_bytes = 8 * 1024 * 1024
+            if len(file_data) > max_bytes:
+                flash("Attachment is too large. Maximum size is 8 MB.", "error")
+                return render_template('submit_support.html', form=form)
             mimetype  = uploaded_file.mimetype or 'application/octet-stream'
 
             attachment = SupportAttachment(

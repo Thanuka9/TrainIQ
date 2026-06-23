@@ -19,6 +19,7 @@ PERMISSION_LABELS = {
     "exports.data": "Export tenants and users CSV",
     "staff.view": "Staff hub page",
     "staff.manage": "Invite, deactivate, and change staff roles (CEO only)",
+    "operations.view": "Platform operations console (CEO only)",
 }
 
 ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
@@ -75,6 +76,7 @@ SUBNAV_PERMISSIONS = {
     "security": "security.view",
     "activity": "activity.view",
     "revenue": "revenue.view",
+    "operations": "operations.view",
 }
 
 
@@ -96,8 +98,6 @@ def staff_has_permission(user, permission: str) -> bool:
     if not getattr(user, "is_platform_staff", False):
         return False
     role = effective_staff_role(user)
-    if role == "ceo":
-        return True
     perms = ROLE_PERMISSIONS.get(role or "", frozenset())
     return permission in perms
 

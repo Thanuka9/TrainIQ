@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply PostgreSQL migrations and ensure MongoDB indexes."""
+"""Apply PostgreSQL migrations and ensure MongoDB indexes — delegates to db_platform."""
 import os
 import sys
 
@@ -9,37 +9,23 @@ if ROOT not in sys.path:
 
 
 def main():
-    from app import app, db, run_tenant_backfill, run_catalog_backfill
-    from mongodb_operations import initialize_mongodb, setup_collections
+    from app import app
 
-    print("=== PostgreSQL: running Alembic migrations ===")
+    print("=== TrainIQ DB Platform bootstrap ===")
     with app.app_context():
-        from flask_migrate import upgrade as migrate_upgrade
-        migrate_upgrade()
-        print("Migrations applied.")
+        from utils.db_platform import bootstrap_database, ensure_database_healthy
 
-        print("=== PostgreSQL: backfill tenant/catalog data ===")
-        run_tenant_backfill()
-        run_catalog_backfill()
-        from utils.billing_plans import backfill_missing_trial_dates
-        backfill_missing_trial_dates()
-        from utils.platform_ceo import ensure_platform_ceo
-        ensure_platform_ceo()
-        db.session.commit()
-        print("Backfill complete.")
+        result = bootstrap_database(include_mongo=True)
+        print("Bootstrap:", result.get('status'))
+        for step in result.get('steps', []):
+            mark = "OK" if step.get('ok') else "FAIL"
+            print(f"  [{mark}] {step.get('step')}: {step.get('message')}")
 
-    print("=== MongoDB: ensure collections and indexes ===")
-    from models import Tenant
-    from utils.mongo_tenant import provision_tenant_mongo
+        print("=== Health scan + safe indexes ===")
+        health = ensure_database_healthy(apply_safe=True)
+        print(health)
 
-    _, mongo_db = initialize_mongodb()
-    setup_collections(mongo_db)
-    with app.app_context():
-        for tenant in Tenant.query.all():
-            provision_tenant_mongo(tenant.id)
-    print("MongoDB indexes ready (legacy + per-tenant databases).")
-
-    print("=== Done ===")
+    print("=== Done — no manual SQL required ===")
     return 0
 
 

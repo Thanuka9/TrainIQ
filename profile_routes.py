@@ -8,6 +8,7 @@ from utils.tenant_utils import (
     tenant_clients_query,
     tenant_designations_query,
     assert_user_in_tenant,
+    user_tenant_id,
 )
 from utils.profile_utils import performance_for_level, tenant_levels_for_user
 from mongodb_operations import get_profile_picture, save_profile_picture, delete_profile_picture
@@ -137,7 +138,15 @@ def edit_profile():
                     if ext not in ('jpg', 'jpeg', 'png'):
                         flash("Only JPEG and PNG images are allowed.", "danger")
                         return redirect(url_for('profile_routes.edit_profile'))
+                    from models import Tenant
+                    from utils.tenant_storage import assert_storage_allowed, invalidate_tenant_storage_cache
+
+                    tenant = current_user.tenant or Tenant.query.get(user_tenant_id())
+                    if tenant and not assert_storage_allowed(tenant, len(data)):
+                        return redirect(url_for('profile_routes.edit_profile'))
                     save_profile_picture(user.id, data)
+                    if tenant:
+                        invalidate_tenant_storage_cache(tenant.id)
 
             db.session.commit()
             flash('Profile updated successfully!', 'success')
@@ -145,7 +154,8 @@ def edit_profile():
 
         except Exception as e:
             db.session.rollback()
-            flash(f"An error occurred: {e}", 'danger')
+            logging.exception("Profile update failed for user %s", current_user.id)
+            flash("Could not save your profile. Please try again or contact support.", 'danger')
             return redirect(url_for('profile_routes.edit_profile'))
 
     # GET request: fetch lists for dropdowns
@@ -177,7 +187,8 @@ def delete_profile_picture_handler():
         else:
             flash(result.get('message', "Error deleting profile picture"), "info")
     except Exception as e:
-        flash(f"Error deleting profile picture: {str(e)}", "danger")
+        logging.exception("Profile picture delete failed for user %s", current_user.id)
+        flash("Could not delete profile picture. Please try again.", "danger")
     return redirect(url_for('profile_routes.profile'))
 
 @profile_routes.route('/add_event', methods=['POST'])

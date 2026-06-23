@@ -50,6 +50,10 @@ def compare_users():
             flash("Please select two users to compare.", "warning")
             return redirect(url_for('management_routes.compare_users'))
 
+        if user1_id == user2_id:
+            flash("Select two different users to compare.", "warning")
+            return redirect(url_for('management_routes.compare_users'))
+
         user1 = User.query.get(user1_id)
         user2 = User.query.get(user2_id)
 

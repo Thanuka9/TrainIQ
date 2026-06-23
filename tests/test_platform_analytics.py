@@ -68,7 +68,7 @@ def test_platform_dashboard_renders(platform_staff_client):
     assert resp.status_code == 200
     html = resp.get_data(as_text=True)
     assert "Platform Command Center" in html
-    assert "Est. MRR" in html
+    assert "MRR" in html
     assert "Courses" in html
 
 

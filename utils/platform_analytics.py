@@ -8,7 +8,41 @@ from sqlalchemy import func
 from utils.billing_plans import PLANS, TRIAL_DAYS
 
 
+def _ro(model):
+    """Read-only ORM queries — routed to analytics replica when configured."""
+    from utils.db_replica import using_analytics_bind
+
+    return using_analytics_bind(model.query)
+
+
+def _stripe_mrr(tenant) -> float | None:
+    """Prefer latest Stripe billing event amount when subscription is active."""
+    if not getattr(tenant, 'stripe_subscription_id', None):
+        return None
+    from models import BillingEvent
+
+    cutoff = datetime.utcnow() - timedelta(days=40)
+    ev = (
+        _ro(BillingEvent).filter_by(tenant_id=tenant.id, status='applied')
+        .filter(BillingEvent.created_at >= cutoff)
+        .filter(BillingEvent.amount_cents.isnot(None))
+        .filter(BillingEvent.source.in_(('stripe_webhook', 'stripe_invoice')))
+        .order_by(BillingEvent.created_at.desc())
+        .first()
+    )
+    if not ev or not ev.amount_cents:
+        return None
+    cycle = (ev.billing_cycle or getattr(tenant, 'billing_cycle', None) or 'monthly').lower()
+    cents = int(ev.amount_cents)
+    if cycle == 'yearly':
+        return max(0.0, cents / 12.0 / 100.0)
+    return max(0.0, cents / 100.0)
+
+
 def _plan_mrr(tenant) -> float:
+    synced = _stripe_mrr(tenant)
+    if synced is not None:
+        return synced
     plan_id = (getattr(tenant, "plan", "") or "trial").lower()
     custom_cents = getattr(tenant, "custom_mrr_cents", None)
     if plan_id == "enterprise" and custom_cents is not None:
@@ -29,9 +63,10 @@ def _plan_mrr(tenant) -> float:
 
 def _count_by_tenant(model, tenant_id_field="tenant_id"):
     from extensions import db
+    from utils.db_replica import using_analytics_bind
 
     col = getattr(model, tenant_id_field)
-    rows = db.session.query(col, func.count()).group_by(col).all()
+    rows = using_analytics_bind(db.session.query(col, func.count())).group_by(col).all()
     return {tid: cnt for tid, cnt in rows if tid is not None}
 
 
@@ -42,7 +77,7 @@ def get_platform_alerts() -> list[dict]:
     now = datetime.utcnow()
     alerts: list[dict] = []
 
-    expiring = Tenant.query.filter(
+    expiring = _ro(Tenant).filter(
         Tenant.plan == "trial",
         Tenant.trial_ends_at.isnot(None),
         Tenant.trial_ends_at <= now + timedelta(days=7),
@@ -60,7 +95,7 @@ def get_platform_alerts() -> list[dict]:
             }
         )
 
-    for t in Tenant.query.filter_by(status="suspended").limit(5):
+    for t in _ro(Tenant).filter_by(status="suspended").limit(5):
         alerts.append(
             {
                 "level": "danger",
@@ -72,7 +107,7 @@ def get_platform_alerts() -> list[dict]:
         )
 
     open_tickets = (
-        SupportTicket.query.filter(SupportTicket.status.in_(("Open", "In Progress")))
+        _ro(SupportTicket).filter(SupportTicket.status.in_(("Open", "In Progress")))
         .order_by(SupportTicket.created_at.desc())
         .limit(5)
         .all()
@@ -93,7 +128,7 @@ def get_platform_alerts() -> list[dict]:
             }
         )
 
-    locked = User.query.filter_by(is_locked=True).count()
+    locked = _ro(User).filter_by(is_locked=True).count()
     if locked:
         alerts.append(
             {
@@ -128,7 +163,7 @@ def get_platform_analytics() -> dict:
         UserScore,
     )
 
-    tenants = Tenant.query.order_by(Tenant.created_at.desc()).all()
+    tenants = _ro(Tenant).order_by(Tenant.created_at.desc()).all()
     now = datetime.utcnow()
     week_ago = now - timedelta(days=7)
     month_ago = now - timedelta(days=30)
@@ -138,12 +173,12 @@ def get_platform_analytics() -> dict:
     exam_by_tenant = _count_by_tenant(Exam)
     task_by_tenant = _count_by_tenant(Task)
 
-    total_users = User.query.filter(User.deleted_at.is_(None)).count()
-    active_users = User.query.filter_by(is_verified=True).filter(User.deleted_at.is_(None)).count()
-    new_users_7d = User.query.filter(User.join_date >= week_ago.date()).count()
-    new_users_30d = User.query.filter(User.join_date >= month_ago.date()).count()
-    locked_users = User.query.filter_by(is_locked=True).count()
-    super_admins = User.query.filter_by(is_super_admin=True).count()
+    total_users = _ro(User).filter(User.deleted_at.is_(None)).count()
+    active_users = _ro(User).filter_by(is_verified=True).filter(User.deleted_at.is_(None)).count()
+    new_users_7d = _ro(User).filter(User.join_date >= week_ago.date()).count()
+    new_users_30d = _ro(User).filter(User.join_date >= month_ago.date()).count()
+    locked_users = _ro(User).filter_by(is_locked=True).count()
+    super_admins = _ro(User).filter_by(is_super_admin=True).count()
 
     by_plan: dict[str, int] = {}
     by_status: dict[str, int] = {}
@@ -151,6 +186,7 @@ def get_platform_analytics() -> dict:
     paid_count = 0
     mrr = 0.0
     revenue_by_plan: dict[str, float] = {}
+    stripe_synced_tenants = 0
 
     tenant_rows = []
     for t in tenants:
@@ -159,6 +195,8 @@ def get_platform_analytics() -> dict:
         by_plan[pid] = by_plan.get(pid, 0) + 1
         by_status[st] = by_status.get(st, 0) + 1
         tmrr = _plan_mrr(t)
+        if _stripe_mrr(t) is not None:
+            stripe_synced_tenants += 1
         if pid == "trial":
             trial_count += 1
         elif st == "active" and tmrr > 0:
@@ -177,26 +215,26 @@ def get_platform_analytics() -> dict:
             }
         )
 
-    expiring_trials = Tenant.query.filter(
+    expiring_trials = _ro(Tenant).filter(
         Tenant.plan == "trial",
         Tenant.trial_ends_at.isnot(None),
         Tenant.trial_ends_at <= now + timedelta(days=7),
         Tenant.trial_ends_at > now,
     ).count()
 
-    open_support = SupportTicket.query.filter(
+    open_support = _ro(SupportTicket).filter(
         SupportTicket.status.in_(("Open", "In Progress"))
     ).count()
-    total_support = SupportTicket.query.count()
+    total_support = _ro(SupportTicket).count()
 
-    pending_invites = TenantInvite.query.filter(TenantInvite.used_at.is_(None)).count()
-    pending_exam_requests = ExamAccessRequest.query.filter_by(status="pending").count()
+    pending_invites = _ro(TenantInvite).filter(TenantInvite.used_at.is_(None)).count()
+    pending_exam_requests = _ro(ExamAccessRequest).filter_by(status="pending").count()
 
-    failed_logins_7d = AuditLog.query.filter(
+    failed_logins_7d = _ro(AuditLog).filter(
         AuditLog.event_type == "FAILED_LOGIN",
         AuditLog.created_at >= week_ago,
     ).count()
-    audit_today = AuditLog.query.filter(
+    audit_today = _ro(AuditLog).filter(
         AuditLog.created_at >= datetime.combine(now.date(), datetime.min.time())
     ).count()
 
@@ -210,7 +248,7 @@ def get_platform_analytics() -> dict:
         else:
             month_end = month_start.replace(month=month_start.month + 1)
         label = month_start.strftime("%b %Y")
-        cnt = User.query.filter(
+        cnt = _ro(User).filter(
             User.join_date >= month_start.date(),
             User.join_date < month_end.date(),
         ).count()
@@ -218,7 +256,7 @@ def get_platform_analytics() -> dict:
         growth_values.append(cnt)
 
     recent_activity = (
-        AuditLog.query.order_by(AuditLog.created_at.desc()).limit(20).all()
+        _ro(AuditLog).order_by(AuditLog.created_at.desc()).limit(20).all()
     )
 
     return {
@@ -236,20 +274,22 @@ def get_platform_analytics() -> dict:
         "expiring_trials_7d": expiring_trials,
         "estimated_mrr": round(mrr, 2),
         "estimated_arr": round(mrr * 12, 2),
+        "stripe_synced_tenants": stripe_synced_tenants,
+        "mrr_stripe_backed": stripe_synced_tenants > 0,
         "revenue_by_plan": revenue_by_plan,
         "by_plan": by_plan,
         "by_status": by_status,
         "tenant_rows": tenant_rows,
         "trial_days": TRIAL_DAYS,
         # Content & operations
-        "total_courses": StudyMaterial.query.count(),
-        "total_exams": Exam.query.count(),
-        "total_questions": Question.query.count(),
-        "total_tasks": Task.query.count(),
-        "total_clients": Client.query.count(),
-        "total_departments": Department.query.count(),
-        "exam_attempts": UserScore.query.count(),
-        "special_exam_records": SpecialExamRecord.query.count(),
+        "total_courses": _ro(StudyMaterial).count(),
+        "total_exams": _ro(Exam).count(),
+        "total_questions": _ro(Question).count(),
+        "total_tasks": _ro(Task).count(),
+        "total_clients": _ro(Client).count(),
+        "total_departments": _ro(Department).count(),
+        "exam_attempts": _ro(UserScore).count(),
+        "special_exam_records": _ro(SpecialExamRecord).count(),
         "open_support": open_support,
         "total_support": total_support,
         "pending_invites": pending_invites,
@@ -337,7 +377,7 @@ def get_platform_chart_series(stats: dict) -> dict:
             month_end = month_start.replace(month=month_start.month + 1)
         tenant_growth_labels.append(month_start.strftime("%b %Y"))
         tenant_growth_values.append(
-            Tenant.query.filter(
+            _ro(Tenant).filter(
                 Tenant.created_at >= month_start,
                 Tenant.created_at < month_end,
             ).count()
@@ -415,7 +455,17 @@ def get_revenue_analytics() -> dict:
         )},
         "paying_rows": rows,
         "plan_totals": plan_totals,
+        "stripe_reconcile": _safe_stripe_reconcile(),
     }
+
+
+def _safe_stripe_reconcile() -> dict:
+    try:
+        from utils.billing_reconcile import get_cached_stripe_reconcile
+
+        return get_cached_stripe_reconcile()
+    except Exception:
+        return {"available": False, "checked": 0, "mismatches": []}
 
 
 def get_tenant_detail(tenant_id: int) -> dict | None:
@@ -436,15 +486,15 @@ def get_tenant_detail(tenant_id: int) -> dict | None:
         UserScore,
     )
 
-    tenant = Tenant.query.get(tenant_id)
+    tenant = _ro(Tenant).get(tenant_id)
     if not tenant:
         return None
 
-    users = User.query.filter_by(tenant_id=tenant_id).filter(User.deleted_at.is_(None))
+    users = _ro(User).filter_by(tenant_id=tenant_id).filter(User.deleted_at.is_(None))
     user_list = users.order_by(User.join_date.desc()).limit(50).all()
 
     open_tickets = (
-        SupportTicket.query.join(User, SupportTicket.user_id == User.id)
+        _ro(SupportTicket).join(User, SupportTicket.user_id == User.id)
         .filter(User.tenant_id == tenant_id)
         .filter(SupportTicket.status.in_(("Open", "In Progress")))
         .order_by(SupportTicket.created_at.desc())
@@ -453,7 +503,7 @@ def get_tenant_detail(tenant_id: int) -> dict | None:
     )
 
     recent_audit = (
-        AuditLog.query.join(User, AuditLog.actor_user_id == User.id)
+        _ro(AuditLog).join(User, AuditLog.actor_user_id == User.id)
         .filter(User.tenant_id == tenant_id)
         .order_by(AuditLog.created_at.desc())
         .limit(15)
@@ -461,14 +511,14 @@ def get_tenant_detail(tenant_id: int) -> dict | None:
     )
 
     pending_invites = (
-        TenantInvite.query.filter_by(tenant_id=tenant_id)
+        _ro(TenantInvite).filter_by(tenant_id=tenant_id)
         .filter(TenantInvite.used_at.is_(None))
         .order_by(TenantInvite.created_at.desc())
         .limit(10)
         .all()
     )
 
-    return {
+    detail = {
         "tenant": tenant,
         "mrr": _plan_mrr(tenant),
         "stats": {
@@ -476,15 +526,15 @@ def get_tenant_detail(tenant_id: int) -> dict | None:
             "verified": users.filter_by(is_verified=True).count(),
             "locked": users.filter_by(is_locked=True).count(),
             "super_admins": users.filter_by(is_super_admin=True).count(),
-            "courses": StudyMaterial.query.filter_by(tenant_id=tenant_id).count(),
-            "exams": Exam.query.filter_by(tenant_id=tenant_id).count(),
-            "tasks": Task.query.filter_by(tenant_id=tenant_id).count(),
-            "clients": Client.query.filter_by(tenant_id=tenant_id).count(),
-            "departments": Department.query.filter_by(tenant_id=tenant_id).count(),
-            "designations": Designation.query.filter_by(tenant_id=tenant_id).count(),
-            "exam_attempts": UserScore.query.join(User).filter(User.tenant_id == tenant_id).count(),
+            "courses": _ro(StudyMaterial).filter_by(tenant_id=tenant_id).count(),
+            "exams": _ro(Exam).filter_by(tenant_id=tenant_id).count(),
+            "tasks": _ro(Task).filter_by(tenant_id=tenant_id).count(),
+            "clients": _ro(Client).filter_by(tenant_id=tenant_id).count(),
+            "departments": _ro(Department).filter_by(tenant_id=tenant_id).count(),
+            "designations": _ro(Designation).filter_by(tenant_id=tenant_id).count(),
+            "exam_attempts": _ro(UserScore).join(User).filter(User.tenant_id == tenant_id).count(),
             "open_support": len(open_tickets),
-            "pending_exam_requests": ExamAccessRequest.query.join(User).filter(
+            "pending_exam_requests": _ro(ExamAccessRequest).join(User).filter(
                 User.tenant_id == tenant_id, ExamAccessRequest.status == "pending"
             ).count(),
         },
@@ -494,6 +544,15 @@ def get_tenant_detail(tenant_id: int) -> dict | None:
         "pending_invites": pending_invites,
         "plan_info": PLANS.get((tenant.plan or "trial").lower(), {}),
     }
+
+    try:
+        from utils.tenant_storage import get_tenant_storage_usage
+
+        detail["storage"] = get_tenant_storage_usage(tenant_id, tenant=tenant)
+    except Exception:
+        detail["storage"] = None
+
+    return detail
 
 
 def search_platform_users(
@@ -506,7 +565,7 @@ def search_platform_users(
     from extensions import db
     from models import Tenant, User
 
-    query = User.query.filter(User.deleted_at.is_(None))
+    query = _ro(User).filter(User.deleted_at.is_(None))
     if tenant_id:
         query = query.filter_by(tenant_id=tenant_id)
     if status == "verified":
@@ -537,7 +596,7 @@ def search_platform_users(
         user_query = user_query.limit(limit)
     for u in user_query.all():
         if u.tenant_id not in tenant_cache:
-            tenant_cache[u.tenant_id] = Tenant.query.get(u.tenant_id) if u.tenant_id else None
+            tenant_cache[u.tenant_id] = _ro(Tenant).get(u.tenant_id) if u.tenant_id else None
         rows.append({"user": u, "tenant": tenant_cache[u.tenant_id]})
     return rows, total
 
@@ -545,7 +604,7 @@ def search_platform_users(
 def get_platform_support_queue(status: str = "open", limit: int = 100) -> list[dict]:
     from models import SupportTicket, User
 
-    query = SupportTicket.query.join(User, SupportTicket.user_id == User.id)
+    query = _ro(SupportTicket).join(User, SupportTicket.user_id == User.id)
     if status == "open":
         query = query.filter(SupportTicket.status.in_(("Open", "In Progress")))
     elif status and status != "all":
@@ -561,7 +620,7 @@ def get_platform_security_feed(limit: int = 100, event_type: str = "") -> dict:
     from models import AuditLog, User
 
     week_ago = datetime.utcnow() - timedelta(days=7)
-    base = AuditLog.query
+    base = _ro(AuditLog)
     if event_type:
         base = base.filter(AuditLog.event_type == event_type)
 
@@ -573,12 +632,12 @@ def get_platform_security_feed(limit: int = 100, event_type: str = "") -> dict:
     )
     counts = {}
     for et in security_types:
-        counts[et] = AuditLog.query.filter(
+        counts[et] = _ro(AuditLog).filter(
             AuditLog.event_type == et,
             AuditLog.created_at >= week_ago,
         ).count()
 
-    locked_users = User.query.filter_by(is_locked=True).limit(20).all()
+    locked_users = _ro(User).filter_by(is_locked=True).limit(20).all()
 
     return {
         "events": events,
@@ -603,13 +662,17 @@ def get_platform_activity_feed(
         "PLATFORM_SUSPEND_TENANT",
         "PLATFORM_ACTIVATE_TENANT",
         "PLATFORM_UPDATE_TENANT",
+        "PLATFORM_SUPPORT_ACTION",
+        "PLATFORM_SUPPORT_WRITE_ELEVATE",
+        "PLATFORM_DB_MAINTENANCE",
+        "PLATFORM_FULL_OPS",
         "PLAN_UPGRADE",
         "USER_REGISTER",
         "TENANT_CREATED",
         "FAILED_LOGIN",
         "USER_LOGIN",
     )
-    query = AuditLog.query.filter(AuditLog.event_type.in_(platform_types))
+    query = _ro(AuditLog).filter(AuditLog.event_type.in_(platform_types))
     if start:
         query = query.filter(AuditLog.created_at >= start)
     if end:
@@ -617,7 +680,7 @@ def get_platform_activity_feed(
     events = query.order_by(AuditLog.created_at.desc()).limit(limit).all()
     rows = []
     for ev in events:
-        actor = User.query.get(ev.actor_user_id) if ev.actor_user_id else None
+        actor = _ro(User).get(ev.actor_user_id) if ev.actor_user_id else None
         desc = ev.description or {}
         rows.append(
             {
@@ -642,6 +705,18 @@ def _activity_summary(ev, actor, desc) -> str:
         return f"{email} reactivated tenant — {desc.get('tenant_id', '')}"
     if et == "PLATFORM_UPDATE_TENANT":
         return f"{email} updated tenant plan/status — {desc.get('plan', '')}"
+    if et == "PLATFORM_SUPPORT_ACTION":
+        action = desc.get('action', 'action')
+        tenant = desc.get('tenant_name') or desc.get('tenant_id', '')
+        allowed = desc.get('allowed', True)
+        state = 'allowed' if allowed else 'blocked'
+        return f"{email} support {state}: {action} on {tenant} ({desc.get('method', '')} {desc.get('path', '')})"
+    if et == "PLATFORM_SUPPORT_WRITE_ELEVATE":
+        return f"{email} enabled write access in support mode → {desc.get('tenant_name', 'org')}"
+    if et == "PLATFORM_DB_MAINTENANCE":
+        return f"{email} ran DB maintenance — {desc.get('status', '')}"
+    if et == "PLATFORM_FULL_OPS":
+        return f"{email} ran full platform maintenance — {desc.get('status', '')}"
     if et == "PLAN_UPGRADE":
         return f"{email} changed plan — {desc.get('details', '')}"
     if et == "USER_REGISTER":

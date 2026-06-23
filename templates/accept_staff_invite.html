@@ -17,6 +17,11 @@
 </head>
 <body>
   <div class="invite-card">
+    <p style="margin:0 0 1rem;">
+      <a href="{{ url_for('auth_routes.login') }}" class="tiq-btn-back" style="display:inline-flex;text-decoration:none;">
+        <i class="fas fa-arrow-left"></i> Back to Sign In
+      </a>
+    </p>
     <h1><i class="fas fa-shield-halved" style="color: var(--tiq-primary);"></i> TrainIQ Platform Staff</h1>
     <p>Hi {{ invite.first_name }}, set your password to activate your {{ invite.role }} platform account.</p>
 

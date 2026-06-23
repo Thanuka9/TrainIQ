@@ -35,6 +35,14 @@
       <span class="legal-pill">{{ agreement_effective_date }}</span>
     </div>
 
+    {% if is_trainiq_staff() %}
+    <div style="padding:0 0 1rem;">
+      <a href="{{ url_for('platform_routes.platform_dashboard') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm tiq-w-full" style="justify-content:center;">
+        <i class="fas fa-globe"></i> Platform Command Center
+      </a>
+    </div>
+    {% endif %}
+
     <div class="legal-sidebar-title">Contents</div>
     {% include 'legal/legal_toc.html' %}
   </aside>

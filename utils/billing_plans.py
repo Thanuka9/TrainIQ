@@ -124,6 +124,15 @@ UPGRADEABLE_PLAN_IDS = ("starter", "growth", "business", "enterprise")
 SALES_EMAIL = os.getenv("TRAINIQ_SALES_EMAIL", "support@trainiq.com")
 
 
+def stripe_price_id(plan_id: str, billing_cycle: str) -> str | None:
+    """Optional stable Stripe Price ID from env (e.g. STRIPE_PRICE_STARTER_MONTHLY)."""
+    pid = (plan_id or "").strip().lower()
+    cycle = (billing_cycle or "monthly").strip().lower()
+    env_key = f"STRIPE_PRICE_{pid.upper()}_{cycle.upper()}"
+    val = (os.getenv(env_key) or "").strip()
+    return val or None
+
+
 def get_plan(plan_id: str | None) -> dict[str, Any]:
     key = (plan_id or "trial").strip().lower()
     return PLANS.get(key, PLANS["trial"]).copy()
@@ -253,6 +262,19 @@ def tenant_usage(tenant) -> dict[str, Any]:
     remaining = max(0, max_users - users)
     at_limit = users >= max_users
     pct = min(100, int((users / max_users) * 100)) if max_users else 0
+    storage = {}
+    if tenant:
+        try:
+            from utils.tenant_storage import get_tenant_storage_usage
+
+            storage = get_tenant_storage_usage(tenant.id, tenant=tenant)
+        except Exception:
+            storage = {
+                "used_mb": 0,
+                "max_storage_mb": getattr(tenant, "max_storage_mb", None) or plan.get("max_storage_mb", 2048),
+                "usage_percent": 0,
+                "at_limit": False,
+            }
     return {
         "users": users,
         "max_users": max_users,
@@ -262,6 +284,10 @@ def tenant_usage(tenant) -> dict[str, Any]:
         "plan": plan,
         "trial_days_left": trial_days_remaining(tenant),
         "trial_expired": is_trial_expired(tenant),
+        "storage_used_mb": storage.get("used_mb", 0),
+        "storage_max_mb": storage.get("max_storage_mb", getattr(tenant, "max_storage_mb", 2048)),
+        "storage_usage_percent": storage.get("usage_percent", 0),
+        "storage_at_limit": storage.get("at_limit", False),
     }
 
 

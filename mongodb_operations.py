@@ -21,6 +21,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # MongoDB Configuration
 # -------------------------------
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+MONGO_READ_URI = (os.getenv("MONGO_READ_URI") or "").strip() or MONGO_URI
+MONGO_READ_PREFERENCE = (os.getenv("MONGO_READ_PREFERENCE") or "primary").strip()
 DB_NAME = os.getenv("MONGO_DB_NAME", "collective_rcm")
 FILES_COLLECTION = "file_metadata"
 PROFILE_PICTURES_COLLECTION = "profile_pictures"
@@ -31,6 +33,47 @@ PROFILE_PICTURES_COLLECTION = "profile_pictures"
 global_client = None
 global_db = None
 global_grid_fs = None
+global_read_client = None
+global_read_db = None
+global_read_grid_fs = None
+
+
+def _mongo_read_preference():
+    from pymongo import ReadPreference
+
+    mapping = {
+        "primary": ReadPreference.PRIMARY,
+        "secondary": ReadPreference.SECONDARY,
+        "secondaryPreferred": ReadPreference.SECONDARY_PREFERRED,
+        "nearest": ReadPreference.NEAREST,
+    }
+    return mapping.get(MONGO_READ_PREFERENCE, ReadPreference.PRIMARY)
+
+
+def get_mongo_read_connection() -> Tuple[Optional[MongoClient], Optional[Database], Optional[GridFS]]:
+    """Read-optimized Mongo connection (secondary URI / read preference when configured)."""
+    global global_read_client, global_read_db, global_read_grid_fs
+    if not global_read_client:
+        try:
+            kwargs = {"serverSelectionTimeoutMS": 5000}
+            if MONGO_READ_URI != MONGO_URI or MONGO_READ_PREFERENCE != "primary":
+                kwargs["readPreference"] = _mongo_read_preference()
+            global_read_client = MongoClient(MONGO_READ_URI, **kwargs)
+            global_read_client.server_info()
+            global_read_db = global_read_client[DB_NAME]
+            global_read_grid_fs = GridFS(global_read_db)
+            logging.info(
+                "MongoDB read connection ready (uri=%s, preference=%s).",
+                "replica" if MONGO_READ_URI != MONGO_URI else "primary",
+                MONGO_READ_PREFERENCE,
+            )
+        except errors.ServerSelectionTimeoutError as e:
+            logging.warning(f"MongoDB read replica unavailable: {e}")
+            return get_mongo_connection()
+        except Exception as e:
+            logging.warning(f"MongoDB read connection failed: {e}")
+            return get_mongo_connection()
+    return global_read_client, global_read_db, global_read_grid_fs
 
 def get_mongo_connection() -> Tuple[Optional[MongoClient], Optional[Database], Optional[GridFS]]:
     global global_client, global_db, global_grid_fs
@@ -89,7 +132,7 @@ def save_file_to_gridfs(file_name: str, file_data: bytes, metadata: Optional[dic
 
 def retrieve_file_from_gridfs(file_id: str) -> Optional[dict]:
     try:
-        _, _, grid_fs = get_mongo_connection()
+        _, _, grid_fs = get_mongo_read_connection()
         grid_file = grid_fs.get(ObjectId(file_id))
         return {
             "filename": grid_file.filename,
@@ -131,7 +174,7 @@ def save_subtopic_metadata(study_material_id: int, title: str, file_id: str, fil
 
 def retrieve_subtopics_for_material(study_material_id: int) -> List[dict]:
     try:
-        _, db, _ = get_mongo_connection()
+        _, db, _ = get_mongo_read_connection()
         return list(db[FILES_COLLECTION].find({"study_material_id": study_material_id}))
     except errors.PyMongoError as e:
         logging.error(f"Error retrieving subtopics: {e}")
@@ -187,20 +230,18 @@ def setup_collections(database: Database):
         database (Database): MongoDB Database instance.
     """
     try:
-        # Validate the database instance
         if not isinstance(database, Database):
             raise ValueError("A valid MongoDB Database instance is required for setup_collections.")
 
-        # Profile Pictures Collection
-        profile_pictures_collection = database[PROFILE_PICTURES_COLLECTION]
-        profile_pictures_collection.create_index("user_id", unique=True)
-        logging.info("Index on 'user_id' created for collection 'profile_pictures'.")
+        from utils.mongo_catalog import apply_catalog_indexes
 
-        file_meta = database[FILES_COLLECTION]
-        file_meta.create_index("study_material_id")
-        file_meta.create_index("tenant_id")
-        file_meta.create_index("file_id")
-        logging.info("Indexes created for collection 'file_metadata'.")
+        result = apply_catalog_indexes(database)
+        logging.info(
+            "MongoDB indexes on '%s': %s applied, %s failed.",
+            database.name,
+            result.get('applied', 0),
+            result.get('failed', 0),
+        )
 
     except Exception as e:
         logging.error(f"Error setting up MongoDB collections: {e}", exc_info=True)
@@ -226,7 +267,7 @@ def save_profile_picture(user_id: Union[int, str], image_data: bytes) -> dict:
 
 def get_profile_picture(user_id: Union[int, str]) -> Optional[bytes]:
     try:
-        _, db, _ = get_mongo_connection()
+        _, db, _ = get_mongo_read_connection()
         record = db[PROFILE_PICTURES_COLLECTION].find_one({"user_id": str(user_id)})
         return record.get("image_data") if record else None
     except errors.PyMongoError as e:

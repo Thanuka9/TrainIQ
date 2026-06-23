@@ -1,6 +1,6 @@
 {# Trial onboarding checklist — Super Admins on free trial (dismissible) #}
 
-{% if trial_checklist and current_user.is_super_admin and not trial_checklist.all_done %}
+{% if trial_checklist and effective_is_super_admin and not trial_checklist.all_done %}
 
 <div id="trialChecklistCard" class="tiq-card tiq-animate-fade-up" style="margin-bottom:1.5rem;border:1px solid rgba(79,70,229,0.2);">
 
@@ -76,7 +76,7 @@
 
 </div>
 
-{% elif trial_checklist and current_user.is_super_admin and trial_checklist.all_done %}
+{% elif trial_checklist and effective_is_super_admin and trial_checklist.all_done %}
 
 <div id="trialChecklistDone" class="tiq-alert tiq-alert-success" style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
 

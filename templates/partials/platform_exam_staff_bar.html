@@ -1,0 +1,6 @@
+{# Compact platform escape hatch for fullscreen exam / course viewers #}
+{% if is_trainiq_staff() %}
+<div class="platform-exam-staff-bar" style="padding:0.35rem 0.75rem;background:{% if dark|default(false) %}rgba(15,23,42,0.85);border-bottom:1px solid rgba(255,255,255,0.08){% else %}var(--tiq-surface-2);border-bottom:1px solid var(--tiq-border){% endif %};display:flex;justify-content:flex-end;">
+  {% include 'partials/platform_topbar_links.html' %}
+</div>
+{% endif %}

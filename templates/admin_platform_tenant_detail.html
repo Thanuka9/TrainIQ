@@ -23,6 +23,12 @@
       </p>
     </div>
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      {% if has_platform_perm('exports.data') %}
+      <a href="{{ url_for('platform_routes.export_tenant_json', tenant_id=t.id) }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm" target="_blank" rel="noopener">
+        <i class="fas fa-download"></i> Export JSON
+      </a>
+      {% endif %}
+      {% if has_platform_perm('tenants.enter') %}
       {% for label, target in [
         ('Admin', 'admin'), ('Users', 'users'), ('Support', 'support'),
         ('Billing', 'billing'), ('Settings', 'settings')
@@ -33,6 +39,7 @@
         <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">Enter → {{ label }}</button>
       </form>
       {% endfor %}
+      {% endif %}
     </div>
   </div>
 </div>
@@ -46,6 +53,9 @@
   <div class="tiq-stat-card"><div class="stat-label">Exams</div><div class="stat-value">{{ s.exams }}</div></div>
   <div class="tiq-stat-card"><div class="stat-label">Exam attempts</div><div class="stat-value">{{ s.exam_attempts }}</div></div>
   <div class="tiq-stat-card"><div class="stat-label">Tasks</div><div class="stat-value">{{ s.tasks }}</div></div>
+  {% if detail.storage %}
+  <div class="tiq-stat-card"><div class="stat-label">Storage</div><div class="stat-value">{{ detail.storage.used_mb }}<span style="font-size:0.65rem;"> MB</span></div><div style="font-size:0.7rem;color:var(--tiq-muted);">of {{ detail.storage.max_storage_mb }} MB</div></div>
+  {% endif %}
   <div class="tiq-stat-card"><div class="stat-label">Clients</div><div class="stat-value">{{ s.clients }}</div></div>
   <div class="tiq-stat-card"><div class="stat-label">Departments</div><div class="stat-value">{{ s.departments }}</div></div>
   <div class="tiq-stat-card"><div class="stat-label">Open support</div><div class="stat-value">{{ s.open_support }}</div></div>
@@ -54,6 +64,7 @@
 </div>
 
 <div class="tiq-grid tiq-grid-2 tiq-gap" style="margin-bottom:1.25rem;">
+  {% if has_platform_perm('tenants.manage') %}
   <!-- Plan management -->
   <div class="tiq-card">
     <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-sliders-h me-2"></i>Plan &amp; limits</h3></div>
@@ -90,6 +101,7 @@
       </div>
     </div>
   </div>
+  {% endif %}
 
   <!-- Org config snapshot -->
   <div class="tiq-card">
@@ -179,6 +191,29 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+</div>
+{% endif %}
+{% if has_platform_perm('tenants.manage') and t.status != 'anonymized' %}
+<div class="tiq-card" style="margin-top:1.25rem;border-left:4px solid #EF4444;">
+  <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-user-slash me-2"></i>GDPR / data deletion</h3></div>
+  <div class="tiq-card-body">
+    <p style="font-size:0.9rem;color:var(--tiq-text-2);margin:0 0 1rem;">
+      Anonymizes all users and locks the organization. Export JSON first.
+      Optionally purge course files and tenant database (irreversible).
+    </p>
+    <form method="post" action="{{ url_for('platform_routes.anonymize_tenant_route', tenant_id=t.id) }}" onsubmit="return confirm('Permanently anonymize this organization? This cannot be undone.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="tiq-form-group" style="max-width:320px;">
+        <label class="tiq-label">Type organization name to confirm</label>
+        <input class="tiq-input" name="confirm_name" required placeholder="{{ t.name }}">
+      </div>
+      <label style="display:flex;gap:0.5rem;align-items:flex-start;font-size:0.85rem;margin-bottom:0.75rem;">
+        <input type="checkbox" name="purge_storage" value="1" style="margin-top:3px;">
+        Also purge MongoDB tenant DB and delete courses/exams/tasks (hard delete).
+      </label>
+      <button type="submit" class="tiq-btn tiq-btn-danger tiq-btn-sm">Anonymize organization</button>
+    </form>
   </div>
 </div>
 {% endif %}

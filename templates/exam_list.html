@@ -127,7 +127,11 @@
           {% else %}
             <tr>
               <td colspan="7" class="tiq-text-center" style="padding: 3rem; color: var(--tiq-text-3);">
-                No regular course exams available.
+                <div class="tiq-empty-icon" style="font-size:2rem;margin-bottom:0.75rem;opacity:0.35;"><i class="fas fa-file-circle-question"></i></div>
+                <strong style="display:block;color:var(--tiq-text);margin-bottom:0.35rem;">No exams available yet</strong>
+                Complete your assigned courses in the
+                <a href="{{ url_for('general_routes.study_materials') }}">Knowledge Base</a>
+                to unlock evaluations here.
               </td>
             </tr>
           {% endfor %}

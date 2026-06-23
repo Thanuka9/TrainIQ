@@ -20,7 +20,12 @@ from utils.billing_plans import (
     tenant_usage,
 )
 from utils.billing_guard import apply_plan_upgrade, mark_checkout_pending, validate_checkout_start
-from utils.stripe_billing import create_checkout_session, handle_webhook_payload, stripe_available
+from utils.stripe_billing import (
+    create_billing_portal_session,
+    create_checkout_session,
+    handle_webhook_payload,
+    stripe_available,
+)
 from utils.tenant_utils import user_tenant_id
 from utils.user_agreement import agreement_context
 
@@ -43,8 +48,9 @@ def super_admin_required(func):
 
 
 def _current_tenant() -> Tenant | None:
-    tid = user_tenant_id()
-    return Tenant.query.get(tid) if tid else None
+    from utils.tenant_db import load_tenant_by_id
+
+    return load_tenant_by_id(user_tenant_id(), label='billing_routes')
 
 
 def _billing_terms_accepted() -> bool:
@@ -70,6 +76,12 @@ def billing_home():
         flash("No organization context.", "error")
         return redirect(url_for("general_routes.dashboard"))
 
+    checkout_status = (request.args.get("checkout") or "").strip().lower()
+    if checkout_status == "success":
+        flash("Payment received. Your plan upgrade is being applied.", "success")
+    elif checkout_status == "cancelled":
+        flash("Checkout was cancelled. No charge was made.", "info")
+
     usage = tenant_usage(tenant)
     plans = get_public_plans()
     upgrade_hint = request.args.get("upgrade")
@@ -85,6 +97,28 @@ def billing_home():
         trial_days=TRIAL_DAYS,
         **agreement_context(),
     )
+
+
+@billing_routes.route("/admin/billing/export-data.json")
+@login_required
+@super_admin_required
+def billing_export_org_data():
+    """JSON export of organization data (portability / GDPR support)."""
+    from flask import jsonify
+
+    tenant = _current_tenant()
+    if not tenant:
+        flash("No organization context.", "error")
+        return redirect(url_for("general_routes.dashboard"))
+
+    from utils.tenant_export import build_tenant_export
+
+    payload = build_tenant_export(tenant.id)
+    if not payload:
+        flash("Could not build export.", "error")
+        return redirect(url_for("billing_routes.billing_home"))
+    log_event("ORG_DATA_EXPORT", user=current_user, tenant_id=tenant.id)
+    return jsonify(payload)
 
 
 @billing_routes.route("/admin/billing/upgrade", methods=["POST"])
@@ -171,8 +205,8 @@ def billing_checkout():
         flash(block_msg, "error")
         return redirect(url_for("billing_routes.billing_home", upgrade=1))
 
-    success_url = url_for("billing_routes.billing_home", _external=True)
-    cancel_url = url_for("billing_routes.billing_home", _external=True)
+    success_url = url_for("billing_routes.billing_home", checkout="success", _external=True)
+    cancel_url = url_for("billing_routes.billing_home", checkout="cancelled", _external=True)
     session_id, checkout_url = create_checkout_session(
         tenant=tenant,
         plan_id=plan_id,
@@ -188,14 +222,43 @@ def billing_checkout():
     return redirect(checkout_url)
 
 
+@billing_routes.route("/admin/billing/portal", methods=["POST"])
+@login_required
+@super_admin_required
+def billing_portal():
+    """Redirect to Stripe Customer Portal when configured."""
+    tenant = _current_tenant()
+    if not tenant:
+        flash("No organization context.", "error")
+        return redirect(url_for("general_routes.dashboard"))
+    if not stripe_available() or not getattr(tenant, "stripe_customer_id", None):
+        flash("Stripe billing portal is not available for this organization.", "info")
+        return redirect(url_for("billing_routes.billing_home"))
+    return_url = url_for("billing_routes.billing_home", _external=True)
+    portal_url = create_billing_portal_session(tenant=tenant, return_url=return_url)
+    if not portal_url:
+        flash("Could not open billing portal. Contact support.", "error")
+        return redirect(url_for("billing_routes.billing_home"))
+    return redirect(portal_url)
+
+
 @billing_routes.route("/webhooks/stripe", methods=["POST"])
 def stripe_webhook():
     """Stripe webhook — apply plan after successful checkout."""
     payload = request.get_data()
     sig_header = request.headers.get("Stripe-Signature", "")
+    try:
+        from utils.prometheus_metrics import inc_stripe_webhook
+    except Exception:
+        inc_stripe_webhook = None  # type: ignore
+
     event = handle_webhook_payload(payload, sig_header)
     if not event:
+        if inc_stripe_webhook:
+            inc_stripe_webhook("unknown", "failed")
         return jsonify({"error": "invalid webhook"}), 400
+
+    event_type = event.get("type") or "unknown"
 
     try:
         event_id = event.get("id") or ""
@@ -235,9 +298,66 @@ def stripe_webhook():
                         "STRIPE_PLAN_UPGRADE",
                         details=f"tenant={tenant.id} plan={plan_id}/{billing_cycle} session={session_id}",
                     )
+                    if inc_stripe_webhook:
+                        inc_stripe_webhook(event_type, "applied")
                 else:
                     db.session.commit()
                     logger.warning("Stripe webhook plan apply skipped: %s", msg)
+                    if inc_stripe_webhook:
+                        inc_stripe_webhook(event_type, "skipped")
+
+        elif event["type"] == "invoice.payment_failed":
+            inv = event["data"]["object"]
+            subscription_id = inv.get("subscription")
+            customer_id = inv.get("customer")
+            tenant = None
+            if subscription_id:
+                tenant = Tenant.query.filter_by(stripe_subscription_id=subscription_id).first()
+            if not tenant and customer_id:
+                tenant = Tenant.query.filter_by(stripe_customer_id=customer_id).first()
+            if tenant:
+                tenant.status = "past_due"
+                db.session.commit()
+                log_event("STRIPE_PAYMENT_FAILED", details=f"tenant={tenant.id} invoice={inv.get('id')}")
+                if inc_stripe_webhook:
+                    inc_stripe_webhook(event_type, "past_due")
+
+        elif event["type"] == "customer.subscription.deleted":
+            sub = event["data"]["object"]
+            subscription_id = sub.get("id")
+            tenant = Tenant.query.filter_by(stripe_subscription_id=subscription_id).first() if subscription_id else None
+            if tenant:
+                tenant.stripe_subscription_id = None
+                tenant.plan = "trial"
+                tenant.status = "expired"
+                tenant.billing_period_end = None
+                db.session.commit()
+                log_event("STRIPE_SUBSCRIPTION_ENDED", details=f"tenant={tenant.id}")
+                if inc_stripe_webhook:
+                    inc_stripe_webhook(event_type, "downgraded")
+
+        elif event["type"] == "customer.subscription.updated":
+            sub = event["data"]["object"]
+            subscription_id = sub.get("id")
+            tenant = (
+                Tenant.query.filter_by(stripe_subscription_id=subscription_id).first()
+                if subscription_id
+                else None
+            )
+            if tenant:
+                stripe_status = (sub.get("status") or "").lower()
+                if stripe_status in ("past_due", "unpaid"):
+                    tenant.status = "past_due"
+                elif stripe_status in ("active", "trialing"):
+                    if (tenant.status or "").lower() == "past_due":
+                        tenant.status = "active"
+                db.session.commit()
+                log_event(
+                    "STRIPE_SUBSCRIPTION_UPDATED",
+                    details=f"tenant={tenant.id} stripe_status={stripe_status}",
+                )
+                if inc_stripe_webhook:
+                    inc_stripe_webhook(event_type, stripe_status or "updated")
 
         elif event["type"] == "invoice.payment_succeeded":
             inv = event["data"]["object"]
@@ -267,6 +387,8 @@ def stripe_webhook():
                 period_end = billing_period_end_for(now, billing_cycle)
                 tenant.billing_period_start = now
                 tenant.billing_period_end = period_end
+                if (tenant.status or "").lower() == "past_due":
+                    tenant.status = "active"
                 record_billing_event(
                     tenant=tenant,
                     plan_id=(tenant.plan or "starter").lower(),
@@ -283,9 +405,13 @@ def stripe_webhook():
                 )
                 db.session.commit()
                 log_event("STRIPE_INVOICE_RENEWAL", details=f"tenant={tenant.id} invoice={invoice_id}")
+                if inc_stripe_webhook:
+                    inc_stripe_webhook(event_type, "renewed")
     except Exception as exc:
         logger.exception("Stripe webhook handler error: %s", exc)
         db.session.rollback()
+        if inc_stripe_webhook:
+            inc_stripe_webhook(event_type, "failed")
         return jsonify({"error": "handler failed"}), 500
 
     return jsonify({"received": True}), 200

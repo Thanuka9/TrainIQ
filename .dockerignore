@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+instance/ai_cache/*.json
+
+# Git / IDE
+.git/
+.cursor/
+.vscode/
+
+# Tests / caches
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Large / local
+*.pyc
+migrations/versions/__pycache__/

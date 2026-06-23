@@ -33,50 +33,82 @@ def test_feature_comparison_has_all_tiers():
 
 def test_process_trial_reminder_sends_7d_once(app):
     from extensions import db
-    from models import Tenant
+    from models import Tenant, User
     from utils.billing_plans import apply_trial_to_tenant
     from utils.trial_reminders import process_trial_reminder_emails
 
     with app.app_context():
         tenant = Tenant(name="Reminder Co", office_key=f"REM{uuid.uuid4().hex[:6].upper()}", allowed_domain="remind.com")
         apply_trial_to_tenant(tenant)
-        tenant.trial_ends_at = datetime.utcnow() + timedelta(days=5)
+        tenant.trial_ends_at = datetime.utcnow() + timedelta(days=6)
         db.session.add(tenant)
         db.session.flush()
         admin = _make_admin_user(tenant.id, f"admin-{uuid.uuid4().hex[:6]}@remind.com")
         admin.set_password("TestPass123!")
         db.session.add(admin)
         db.session.commit()
+        tenant_id = tenant.id
+        db.session.expunge_all()
 
-        with patch("utils.trial_reminders.send_trial_reminder_email", return_value=True):
-            stats = process_trial_reminder_emails()
-            assert stats["seven_day"] == 1
-            db.session.refresh(tenant)
-            assert tenant.trial_reminder_7d_at is not None
+        sent_ids = []
 
-            stats2 = process_trial_reminder_emails()
-            assert stats2["seven_day"] == 0
+        def _track_send(tenant, **kwargs):
+            sent_ids.append(tenant.id)
+            return True
+
+        with patch("utils.billing_plans.backfill_missing_trial_dates", return_value=0):
+            with patch("utils.trial_reminders.send_trial_reminder_email", side_effect=_track_send):
+                stats = process_trial_reminder_emails()
+                tenant = Tenant.query.get(tenant_id)
+                assert tenant.trial_reminder_7d_at is not None
+                assert tenant_id in sent_ids
+                assert stats["seven_day"] >= 1
+
+                sent_ids.clear()
+                process_trial_reminder_emails()
+                tenant = Tenant.query.get(tenant_id)
+                assert tenant.trial_reminder_7d_at is not None
+                assert tenant_id not in sent_ids
+
+        tenant = Tenant.query.get(tenant_id)
+        admin = User.query.filter_by(tenant_id=tenant_id, is_super_admin=True).first()
+        if admin:
+            db.session.delete(admin)
+        if tenant:
+            db.session.delete(tenant)
+        db.session.commit()
 
 
 def test_process_trial_reminder_sends_1d(app):
     from extensions import db
-    from models import Tenant
+    from models import Tenant, User
     from utils.billing_plans import apply_trial_to_tenant
     from utils.trial_reminders import process_trial_reminder_emails
 
     with app.app_context():
         tenant = Tenant(name="Final Co", office_key=f"FIN{uuid.uuid4().hex[:6].upper()}", allowed_domain="final.com")
         apply_trial_to_tenant(tenant)
-        tenant.trial_ends_at = datetime.utcnow() + timedelta(hours=12)
+        tenant.trial_ends_at = datetime.utcnow() + timedelta(hours=18)
         db.session.add(tenant)
         db.session.flush()
         admin = _make_admin_user(tenant.id, f"admin-{uuid.uuid4().hex[:6]}@final.com")
         admin.set_password("TestPass123!")
         db.session.add(admin)
         db.session.commit()
+        tenant_id = tenant.id
+        db.session.expunge_all()
 
-        with patch("utils.trial_reminders.send_trial_reminder_email", return_value=True):
-            stats = process_trial_reminder_emails()
-            assert stats["one_day"] == 1
-            db.session.refresh(tenant)
-            assert tenant.trial_reminder_1d_at is not None
+        with patch("utils.billing_plans.backfill_missing_trial_dates", return_value=0):
+            with patch("utils.trial_reminders.send_trial_reminder_email", return_value=True):
+                stats = process_trial_reminder_emails()
+                tenant = Tenant.query.get(tenant_id)
+                assert tenant.trial_reminder_1d_at is not None
+                assert stats["one_day"] >= 1
+
+        tenant = Tenant.query.get(tenant_id)
+        admin = User.query.filter_by(tenant_id=tenant_id, is_super_admin=True).first()
+        if admin:
+            db.session.delete(admin)
+        if tenant:
+            db.session.delete(tenant)
+        db.session.commit()

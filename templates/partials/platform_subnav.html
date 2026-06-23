@@ -19,4 +19,11 @@
   </a>
   {% endif %}
   {% endfor %}
+  {% if has_platform_perm('operations.view') %}
+  <a href="{{ url_for('platform_routes.platform_operations') }}"
+     class="tiq-btn tiq-btn-sm {% if active_platform == 'operations' %}tiq-btn-primary{% else %}tiq-btn-secondary{% endif %}"
+     style="border:none;">
+    <i class="fas fa-server"></i> Operations
+  </a>
+  {% endif %}
 </nav>

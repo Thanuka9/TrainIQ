@@ -36,7 +36,14 @@ def apply_course_media_edits(course, form, files) -> None:
     """
     Mutate course.media_assets and course.files from admin edit_course POST.
     """
+    from models import Tenant
     from utils.course_assets import assets_from_study_material
+    from utils.tenant_storage import assert_storage_allowed, invalidate_tenant_storage_cache, sum_upload_file_sizes
+
+    tenant = Tenant.query.get(course.tenant_id) if course.tenant_id else None
+    pending = sum_upload_file_sizes(files.getlist("new_files")) + sum_upload_file_sizes(files.getlist("new_videos"))
+    if tenant and pending and not assert_storage_allowed(tenant, pending):
+        raise ValueError("storage_quota_exceeded")
 
     assets = assets_from_study_material(course)
     delete_ids = set(form.getlist("delete_assets"))
@@ -105,6 +112,9 @@ def apply_course_media_edits(course, form, files) -> None:
 
     course.media_assets = kept
     course.files = sync_files_from_media_assets(kept)
+
+    if tenant and pending:
+        invalidate_tenant_storage_cache(course.tenant_id)
 
     # Legacy delete_files / replace still handled in edit_course for backward compat;
     # remove deleted mongo ids from media_assets if legacy path deleted them

@@ -29,6 +29,9 @@ from utils.admin_permissions import (  # noqa: E402
 _mongo_patcher.stop()
 _setup_patcher.stop()
 
+for _lim in flask_app.extensions.get("limiter") or ():
+    _lim.enabled = False
+
 
 @pytest.fixture
 def app_ctx():

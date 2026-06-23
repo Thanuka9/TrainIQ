@@ -1,0 +1,1860 @@
+{% extends 'platform_base.html' %}
+{% block title %}Operations Console{% endblock %}
+{% block breadcrumb %}Infrastructure / Operations Console{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ═══════════════════════════════════════
+   PLATFORM OPERATIONS CONSOLE — DARK OPS
+   ═══════════════════════════════════════ */
+.ops-root {
+  --ops-green:    #10B981;
+  --ops-yellow:   #F59E0B;
+  --ops-red:      #EF4444;
+  --ops-blue:     #3B82F6;
+  --ops-indigo:   #6366F1;
+  --ops-cyan:     #06B6D4;
+  --ops-surface:  rgba(15, 23, 42, 0.55);
+  --ops-border:   rgba(99, 102, 241, 0.22);
+  --ops-glass:    rgba(30, 41, 59, 0.7);
+}
+
+/* ── Page wrapper dark tint ────────────── */
+.ops-root { padding: 0 0 3rem; }
+
+/* ── Hero banner ───────────────────────── */
+.ops-hero {
+  position: relative;
+  background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 50%, #0F172A 100%);
+  border-radius: 16px;
+  padding: 2rem 2rem 1.75rem;
+  margin-bottom: 1.75rem;
+  overflow: hidden;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  box-shadow: 0 20px 60px -20px rgba(99, 102, 241, 0.4);
+}
+.ops-hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 80% at 80% 50%, rgba(99,102,241,0.18) 0%, transparent 60%);
+  pointer-events: none;
+}
+.ops-hero-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1.5rem;
+  align-items: center;
+  position: relative; z-index: 1;
+}
+.ops-hero-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #E2E8F0;
+  margin: 0 0 0.35rem;
+  letter-spacing: -0.02em;
+}
+.ops-hero-sub {
+  color: #94A3B8;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  max-width: 560px;
+  margin: 0;
+}
+
+/* ── System status pills ───────────────── */
+.ops-status-row {
+  display: flex; flex-wrap: wrap; gap: 0.65rem;
+  margin-top: 1.25rem; position: relative; z-index: 1;
+}
+.ops-status-pill {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; border: 1px solid;
+}
+.ops-status-pill.ok    { color: #6EE7B7; border-color: rgba(16,185,129,0.35); background: rgba(16,185,129,0.12); }
+.ops-status-pill.warn  { color: #FCD34D; border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.12); }
+.ops-status-pill.error { color: #FCA5A5; border-color: rgba(239,68,68,0.35);  background: rgba(239,68,68,0.12);  }
+.ops-status-pill.off   { color: #94A3B8; border-color: rgba(148,163,184,0.25); background: rgba(148,163,184,0.08); }
+.ops-status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+}
+.ops-status-dot.pulse { animation: statusPulse 2s ease-in-out infinite; }
+@keyframes statusPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* ── Tab navigation ────────────────────── */
+.ops-tab-nav {
+  display: flex; flex-wrap: wrap; gap: 0.4rem;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 12px;
+  padding: 0.4rem;
+  margin-bottom: 1.5rem;
+}
+.ops-tab-btn {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  font-size: 0.82rem; font-weight: 600;
+  color: #94A3B8;
+  text-decoration: none;
+  transition: all 0.18s ease;
+  border: 1px solid transparent;
+  position: relative;
+}
+.ops-tab-btn:hover {
+  color: #CBD5E1;
+  background: rgba(99,102,241,0.1);
+  border-color: rgba(99,102,241,0.2);
+}
+.ops-tab-btn.active {
+  color: #E0E7FF;
+  background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(6,182,212,0.15));
+  border-color: rgba(99,102,241,0.45);
+  box-shadow: 0 0 0 1px rgba(99,102,241,0.2) inset;
+}
+.ops-tab-btn .tab-icon { font-size: 0.8rem; }
+.ops-tab-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; font-size: 0.65rem; font-weight: 700;
+}
+.ops-tab-badge.ok    { background: rgba(16,185,129,0.25); color: #6EE7B7; }
+.ops-tab-badge.warn  { background: rgba(245,158,11,0.25);  color: #FCD34D; }
+.ops-tab-badge.error { background: rgba(239,68,68,0.25);   color: #FCA5A5; }
+
+/* ── Section cards ─────────────────────── */
+.ops-section {
+  background: var(--ops-glass);
+  border: 1px solid var(--ops-border);
+  border-radius: 14px;
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  transition: border-color 0.2s ease;
+}
+.ops-section:hover { border-color: rgba(99,102,241,0.4); }
+
+.ops-section-header {
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1.1rem 1.35rem;
+  border-bottom: 1px solid rgba(99,102,241,0.15);
+  background: rgba(15,23,42,0.4);
+}
+.ops-section-title {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-size: 1rem; font-weight: 700; color: #E2E8F0; margin: 0;
+}
+.ops-section-title .section-icon {
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+.icon-postgres  { background: rgba(59,130,246,0.2); color: #60A5FA; }
+.icon-mongo     { background: rgba(16,185,129,0.2); color: #34D399; }
+.icon-ai        { background: rgba(139,92,246,0.2); color: #A78BFA; }
+.icon-plug      { background: rgba(245,158,11,0.2); color: #FCD34D; }
+.icon-rocket    { background: rgba(99,102,241,0.2); color: #818CF8; }
+
+.ops-section-actions {
+  display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;
+}
+.ops-section-body { padding: 1.35rem; }
+
+/* ── Description blocks ────────────────── */
+.ops-description {
+  background: rgba(30, 41, 59, 0.5);
+  border-left: 3px solid rgba(99,102,241,0.5);
+  border-radius: 0 8px 8px 0;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.83rem;
+  color: #94A3B8;
+  line-height: 1.6;
+}
+.ops-description strong { color: #CBD5E1; }
+
+/* ── Stat mini-cards ───────────────────── */
+.ops-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.ops-stat-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(99,102,241,0.18);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  transition: border-color 0.18s ease, transform 0.18s ease;
+}
+.ops-stat-card:hover { border-color: rgba(99,102,241,0.4); transform: translateY(-2px); }
+.ops-stat-label {
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #64748B; margin-bottom: 0.3rem;
+}
+.ops-stat-value {
+  font-size: 1.15rem; font-weight: 800; color: #E2E8F0;
+  line-height: 1.1;
+}
+.ops-stat-value.text-sm { font-size: 0.85rem; }
+.ops-stat-sub {
+  font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;
+}
+
+/* ── Action buttons ────────────────────── */
+.ops-btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.82rem; font-weight: 600;
+  border: 1px solid;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+.ops-btn-primary {
+  background: linear-gradient(135deg, #6366F1, #4F46E5);
+  border-color: rgba(99,102,241,0.5);
+  color: white;
+  box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+}
+.ops-btn-primary:hover {
+  background: linear-gradient(135deg, #818CF8, #6366F1);
+  box-shadow: 0 6px 20px rgba(99,102,241,0.45);
+  transform: translateY(-1px);
+}
+.ops-btn-secondary {
+  background: rgba(30,41,59,0.8);
+  border-color: rgba(99,102,241,0.3);
+  color: #CBD5E1;
+}
+.ops-btn-secondary:hover {
+  background: rgba(99,102,241,0.15);
+  border-color: rgba(99,102,241,0.5);
+  color: #E2E8F0;
+}
+.ops-btn-danger {
+  background: rgba(239,68,68,0.15);
+  border-color: rgba(239,68,68,0.4);
+  color: #FCA5A5;
+}
+.ops-btn-danger:hover {
+  background: rgba(239,68,68,0.25);
+  border-color: rgba(239,68,68,0.6);
+}
+.ops-btn-success {
+  background: rgba(16,185,129,0.15);
+  border-color: rgba(16,185,129,0.4);
+  color: #6EE7B7;
+}
+.ops-btn-success:hover {
+  background: rgba(16,185,129,0.25);
+  border-color: rgba(16,185,129,0.6);
+}
+
+/* ── Action cards (for "Run Everything") ─ */
+.ops-action-card {
+  background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(6,182,212,0.05));
+  border: 2px solid rgba(99,102,241,0.4);
+  border-radius: 14px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  position: relative; overflow: hidden;
+}
+.ops-action-card::before {
+  content: '';
+  position: absolute; top: -30px; right: -30px;
+  width: 120px; height: 120px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(99,102,241,0.2), transparent 70%);
+  pointer-events: none;
+}
+.ops-action-title {
+  font-size: 1rem; font-weight: 700; color: #C7D2FE;
+  margin: 0 0 0.35rem;
+}
+.ops-action-desc {
+  font-size: 0.83rem; color: #94A3B8; line-height: 1.55; margin: 0 0 1.25rem;
+}
+.ops-action-form-row {
+  display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end;
+}
+.ops-input-group { display: flex; flex-direction: column; gap: 0.3rem; min-width: 180px; }
+.ops-input-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #64748B; }
+.ops-input {
+  background: rgba(15,23,42,0.8); border: 1px solid rgba(99,102,241,0.3);
+  border-radius: 8px; padding: 0.55rem 0.85rem;
+  color: #E2E8F0; font-family: monospace; font-size: 0.85rem;
+  transition: border-color 0.18s ease;
+}
+.ops-input:focus { outline: none; border-color: rgba(99,102,241,0.6); }
+.ops-input::placeholder { color: #475569; }
+.ops-checkbox-group {
+  display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: center;
+  flex: 1;
+}
+.ops-checkbox-label {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-size: 0.82rem; color: #94A3B8; cursor: pointer;
+  padding: 0.4rem 0.75rem;
+  background: rgba(30,41,59,0.5);
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+.ops-checkbox-label:hover { background: rgba(99,102,241,0.1); color: #CBD5E1; border-color: rgba(99,102,241,0.4); }
+.ops-checkbox-label input[type=checkbox] { accent-color: #6366F1; }
+
+/* ── Tables ────────────────────────────── */
+.ops-table-wrapper {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(99,102,241,0.18);
+}
+.ops-table {
+  width: 100%; border-collapse: collapse; font-size: 0.82rem;
+}
+.ops-table thead th {
+  background: rgba(15,23,42,0.7);
+  color: #64748B; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; font-size: 0.7rem;
+  padding: 0.65rem 1rem; text-align: left;
+  border-bottom: 1px solid rgba(99,102,241,0.2);
+}
+.ops-table tbody tr {
+  border-bottom: 1px solid rgba(99,102,241,0.1);
+  transition: background 0.15s ease;
+}
+.ops-table tbody tr:last-child { border-bottom: none; }
+.ops-table tbody tr:hover { background: rgba(99,102,241,0.05); }
+.ops-table td { padding: 0.7rem 1rem; color: #CBD5E1; vertical-align: middle; }
+
+/* ── Status badges ─────────────────────── */
+.ops-badge {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.2rem 0.6rem; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.ops-badge-ok      { background: rgba(16,185,129,0.2); color: #6EE7B7; }
+.ops-badge-warn    { background: rgba(245,158,11,0.2);  color: #FCD34D; }
+.ops-badge-error   { background: rgba(239,68,68,0.2);   color: #FCA5A5; }
+.ops-badge-pending { background: rgba(99,102,241,0.2);  color: #A5B4FC; }
+.ops-badge-off     { background: rgba(100,116,139,0.2); color: #94A3B8; }
+
+/* ── Progress bar ──────────────────────── */
+.ops-progress-bar {
+  height: 6px; background: rgba(30,41,59,0.8);
+  border-radius: 999px; overflow: hidden; margin-top: 0.35rem;
+}
+.ops-progress-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #6366F1, #06B6D4);
+  transition: width 0.5s ease;
+}
+
+/* ── Integration card ──────────────────── */
+.ops-integration-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.85rem;
+}
+.ops-integration-card {
+  background: rgba(15,23,42,0.6);
+  border: 1px solid rgba(99,102,241,0.18);
+  border-left-width: 4px;
+  border-radius: 10px;
+  padding: 1rem;
+  transition: transform 0.18s ease;
+}
+.ops-integration-card:hover { transform: translateY(-2px); }
+.ops-integration-card.ok    { border-left-color: #10B981; }
+.ops-integration-card.warn  { border-left-color: #F59E0B; }
+.ops-integration-card.error { border-left-color: #EF4444; }
+.ops-int-name { font-weight: 700; font-size: 0.85rem; color: #E2E8F0; margin-bottom: 0.3rem; text-transform: capitalize; }
+.ops-int-status { font-size: 0.78rem; margin-bottom: 0.3rem; }
+.ops-int-detail { font-size: 0.73rem; color: #64748B; line-height: 1.5; }
+.ops-int-metric { font-size: 0.7rem; color: #475569; margin-top: 0.3rem; }
+
+/* ── Alert strip ───────────────────────── */
+.ops-alert {
+  display: flex; align-items: flex-start; gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  font-size: 0.83rem;
+  margin-bottom: 1rem;
+}
+.ops-alert-warn   { background: rgba(245,158,11,0.1);  border: 1px solid rgba(245,158,11,0.3);  color: #FCD34D; }
+.ops-alert-error  { background: rgba(239,68,68,0.1);   border: 1px solid rgba(239,68,68,0.3);   color: #FCA5A5; }
+.ops-alert-info   { background: rgba(59,130,246,0.1);  border: 1px solid rgba(59,130,246,0.3);  color: #93C5FD; }
+.ops-alert-ok     { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.3);  color: #6EE7B7; }
+.ops-alert-icon   { flex-shrink: 0; font-size: 0.9rem; margin-top: 0.05rem; }
+.ops-alert strong { color: inherit; }
+
+/* ── Mongo DB item ─────────────────────── */
+.ops-db-item {
+  background: rgba(15,23,42,0.5);
+  border: 1px solid rgba(99,102,241,0.15);
+  border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem;
+}
+.ops-db-item-header {
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.ops-db-name { font-weight: 700; color: #E2E8F0; font-size: 0.88rem; }
+.ops-db-code { font-family: monospace; font-size: 0.78rem; color: #94A3B8; }
+.ops-db-stats { font-size: 0.78rem; color: #64748B; display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+/* ── Tooltip ───────────────────────────── */
+.ops-tooltip-wrap { position: relative; display: inline-flex; }
+.ops-tooltip-wrap:hover .ops-tooltip { opacity: 1; pointer-events: auto; transform: translateY(0); }
+.ops-tooltip {
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%) translateY(4px);
+  background: #0F172A; border: 1px solid rgba(99,102,241,0.4);
+  color: #CBD5E1; font-size: 0.73rem; line-height: 1.5;
+  padding: 0.5rem 0.75rem; border-radius: 8px;
+  white-space: nowrap; max-width: 260px; white-space: normal; text-align: left;
+  opacity: 0; pointer-events: none; transition: all 0.18s ease;
+  z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+/* ── Code inline ───────────────────────── */
+.ops-code {
+  font-family: monospace; font-size: 0.8rem;
+  background: rgba(15,23,42,0.7); border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 4px; padding: 0.1em 0.45em; color: #A5B4FC;
+}
+
+/* ── History entry ─────────────────────── */
+.ops-history-item {
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid rgba(99,102,241,0.1);
+  font-size: 0.82rem;
+}
+.ops-history-item:last-child { border-bottom: none; }
+
+/* ── Divider ───────────────────────────── */
+.ops-divider { border: none; border-top: 1px solid rgba(99,102,241,0.15); margin: 1.25rem 0; }
+
+/* ── Ops AI agent panel ─────────────────── */
+.ops-agent-panel {
+  margin-bottom: 1.5rem;
+  border-radius: 14px;
+  border: 1px solid rgba(99,102,241,0.28);
+  background: linear-gradient(135deg, rgba(15,23,42,0.85) 0%, rgba(30,27,75,0.55) 100%);
+  box-shadow: 0 12px 40px -16px rgba(99,102,241,0.45);
+  overflow: hidden;
+}
+.ops-agent-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid rgba(99,102,241,0.15);
+  flex-wrap: wrap;
+}
+.ops-agent-identity { display: flex; gap: 0.85rem; align-items: flex-start; }
+.ops-agent-avatar {
+  width: 42px; height: 42px; border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(99,102,241,0.2); color: #A5B4FC; font-size: 1rem;
+  border: 1px solid rgba(99,102,241,0.35);
+}
+.ops-agent-avatar--healthy { background: rgba(16,185,129,0.15); color: #6EE7B7; border-color: rgba(16,185,129,0.35); }
+.ops-agent-avatar--warning { background: rgba(245,158,11,0.15); color: #FCD34D; border-color: rgba(245,158,11,0.35); }
+.ops-agent-avatar--critical, .ops-agent-avatar--degraded { background: rgba(239,68,68,0.15); color: #FCA5A5; border-color: rgba(239,68,68,0.35); }
+.ops-agent-name { margin: 0 0 0.35rem; font-size: 1rem; font-weight: 800; color: #E2E8F0; }
+.ops-agent-meta { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; font-size: 0.72rem; }
+.ops-agent-status {
+  text-transform: uppercase; font-weight: 700; letter-spacing: 0.06em;
+  padding: 0.15rem 0.5rem; border-radius: 999px; border: 1px solid;
+}
+.ops-agent-status--healthy { color: #6EE7B7; border-color: rgba(16,185,129,0.35); background: rgba(16,185,129,0.1); }
+.ops-agent-status--warning { color: #FCD34D; border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.1); }
+.ops-agent-status--critical, .ops-agent-status--degraded { color: #FCA5A5; border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.1); }
+.ops-agent-score, .ops-agent-updated { color: #64748B; }
+.ops-agent-ai-badge { color: #C4B5FD; font-weight: 700; }
+.ops-agent-body { padding: 1rem 1.15rem 1.15rem; }
+.ops-agent-summary { margin: 0 0 0.85rem; color: #CBD5E1; font-size: 0.88rem; line-height: 1.55; }
+.ops-agent-narrative {
+  margin-bottom: 0.85rem; padding: 0.85rem 1rem;
+  background: rgba(99,102,241,0.08); border-radius: 10px;
+  border: 1px solid rgba(99,102,241,0.18);
+}
+.ops-agent-narrative-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #818CF8; margin-bottom: 0.4rem; }
+.ops-agent-narrative-text { color: #E2E8F0; font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap; }
+.ops-agent-findings { list-style: none; margin: 0 0 0.85rem; padding: 0; display: grid; gap: 0.45rem; }
+.ops-agent-finding {
+  display: flex; gap: 0.6rem; align-items: flex-start;
+  padding: 0.55rem 0.7rem; border-radius: 8px; font-size: 0.8rem;
+  background: rgba(15,23,42,0.45); border: 1px solid rgba(99,102,241,0.12);
+}
+.ops-agent-finding strong { display: block; color: #E2E8F0; margin-bottom: 0.15rem; }
+.ops-agent-finding span { color: #94A3B8; line-height: 1.45; }
+.ops-agent-finding--critical .ops-agent-finding-icon { color: #FCA5A5; }
+.ops-agent-finding--warning .ops-agent-finding-icon { color: #FCD34D; }
+.ops-agent-finding--info .ops-agent-finding-icon { color: #93C5FD; }
+.ops-agent-actions-label { display: block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748B; margin-bottom: 0.45rem; }
+.ops-agent-actions-row { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.ops-agent-panel--empty .ops-agent-header { align-items: center; }
+
+/* ── Responsive ────────────────────────── */
+@media (max-width: 640px) {
+  .ops-hero-grid { grid-template-columns: 1fr; }
+  .ops-hero-title { font-size: 1.25rem; }
+  .ops-tab-nav { gap: 0.25rem; }
+  .ops-tab-btn { padding: 0.45rem 0.75rem; font-size: 0.75rem; }
+  .ops-action-form-row { flex-direction: column; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ops-root" style="margin-bottom:1rem;">
+{% include 'partials/platform_subnav.html' %}
+</div>
+<div class="ops-root">
+
+{# ═══════════════ HERO ═══════════════ #}
+<div class="ops-hero">
+  <div class="ops-hero-grid">
+    <div>
+      <div style="display:inline-flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;
+                  background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.35);
+                  border-radius:999px;padding:0.3rem 0.9rem;">
+        <i class="fas fa-server" style="font-size:0.7rem;color:#818CF8;"></i>
+        <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:#A5B4FC;text-transform:uppercase;">Infrastructure</span>
+      </div>
+      <h1 class="ops-hero-title">Platform Operations Console</h1>
+      <p class="ops-hero-sub">
+        Manage <strong style="color:#93C5FD;">PostgreSQL</strong>, 
+        <strong style="color:#6EE7B7;">MongoDB</strong>,
+        <strong style="color:#C4B5FD;">LearnIQ AI</strong>, and 
+        <strong style="color:#FCD34D;">Integrations</strong> from one console.
+        Dedicated <strong style="color:#A5B4FC;">AI ops agents</strong> monitor each area, provide briefings, and recommend fixes.
+      </p>
+    </div>
+    <div style="text-align:right;flex-shrink:0;">
+      <div style="font-size:0.7rem;color:#475569;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.08em;">Overall status</div>
+      {% if ops.status == 'healthy' %}
+      <div class="ops-status-pill ok" style="font-size:0.9rem;padding:0.5rem 1rem;">
+        <span class="ops-status-dot pulse"></span> All Systems Operational
+      </div>
+      {% elif ops.status == 'degraded' %}
+      <div class="ops-status-pill warn" style="font-size:0.9rem;padding:0.5rem 1rem;">
+        <span class="ops-status-dot pulse"></span> Degraded
+      </div>
+      {% else %}
+      <div class="ops-status-pill error" style="font-size:0.9rem;padding:0.5rem 1rem;">
+        <span class="ops-status-dot pulse"></span> {{ ops.status|title }}
+      </div>
+      {% endif %}
+      <div style="display:flex;align-items:center;gap:0.75rem;justify-content:flex-end;margin-top:0.6rem;">
+        <label class="ops-checkbox-label" style="margin:0;padding:0.25rem 0.6rem;font-size:0.72rem;border-color:rgba(6,182,212,0.35);background:rgba(6,182,212,0.08);color:#22D3EE;display:inline-flex;align-items:center;gap:0.35rem;cursor:pointer;" title="Fetch metrics dynamically every 10 seconds">
+          <input type="checkbox" id="live-update-toggle" style="accent-color:#06B6D4;cursor:pointer;">
+          <i class="fas fa-arrows-rotate" id="live-update-icon" style="transition:transform 0.5s ease;"></i> Live Update
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="ops-status-row">
+    {# PostgreSQL pill #}
+    <div class="ops-status-pill {% if migration_status.pending %}warn{% else %}ok{% endif %}">
+      <span class="ops-status-dot {% if not migration_status.pending %}pulse{% endif %}"></span>
+      <i class="fas fa-database" style="font-size:0.65rem;"></i>
+      PostgreSQL — {% if migration_status.pending %}Migrations Pending{% else %}Up to Date{% endif %}
+    </div>
+    {# MongoDB pill #}
+    <div class="ops-status-pill {% if mongo.available %}ok{% else %}error{% endif %}">
+      <span class="ops-status-dot {% if mongo.available %}pulse{% endif %}"></span>
+      <i class="fas fa-leaf" style="font-size:0.65rem;"></i>
+      MongoDB — {% if mongo.available %}{{ mongo.tenant_db_count }} Tenant DB(s){% else %}Unavailable{% endif %}
+    </div>
+    {# AI pill #}
+    <div class="ops-status-pill {% if ai.model_ready %}ok{% elif ai.available %}warn{% else %}off{% endif %}">
+      <span class="ops-status-dot {% if ai.model_ready %}pulse{% endif %}"></span>
+      <i class="fas fa-brain" style="font-size:0.65rem;"></i>
+      LearnIQ AI — {% if ai.model_ready %}{{ ai.resolved_model }}{% elif ai.available %}No Model{% else %}Offline{% endif %}
+    </div>
+    {# Integrations pill #}
+    {% set int_ok = integrations.checks | selectattr('ok', 'equalto', true) | list | length %}
+    {% set int_total = integrations.checks | length %}
+    <div class="ops-status-pill {% if int_ok == int_total %}ok{% elif int_ok > 0 %}warn{% else %}error{% endif %}">
+      <span class="ops-status-dot"></span>
+      <i class="fas fa-plug" style="font-size:0.65rem;"></i>
+      Integrations — {{ int_ok }}/{{ int_total }} OK
+    </div>
+  </div>
+</div>
+
+{# ═══════════════ TAB NAV ═══════════════ #}
+<nav class="ops-tab-nav">
+  {% for tab_id, tab_label, tab_icon, tab_status in [
+    ('overview',     'Overview',      'gauge',         ops.status),
+    ('postgres',     'PostgreSQL',    'database',      'pending' if migration_status.pending else 'ok'),
+    ('mongo',        'MongoDB',       'leaf',          'error' if not mongo.available else 'ok'),
+    ('ai',           'LearnIQ / AI',  'brain',         'ok' if ai.model_ready else ('warn' if ai.available else 'off')),
+    ('integrations', 'Integrations',  'plug',          'ok' if int_ok == int_total else 'warn'),
+    ('audit',        'Audit Logs',    'shield-halved', 'ok'),
+    ('system',       'System Info',   'gears',         'ok'),
+  ] %}
+  <a href="{{ url_for('platform_routes.platform_operations', tab=tab_id) }}"
+     class="ops-tab-btn {% if active_tab == tab_id %}active{% endif %}">
+    <span class="tab-icon"><i class="fas fa-{{ tab_icon }}"></i></span>
+    {{ tab_label }}
+    <span class="ops-tab-badge {% if tab_status == 'ok' or tab_status == 'healthy' %}ok{% elif tab_status in ('pending','warn','degraded') %}warn{% elif tab_status in ('error','off') %}error{% else %}ok{% endif %}">
+      {% if tab_status in ('ok','healthy') %}✓{% elif tab_status in ('pending','warn','degraded') %}!{% else %}✗{% endif %}
+    </span>
+  </a>
+  {% endfor %}
+</nav>
+
+{% set agent_domain = active_tab %}
+{% if agent_domain not in ['overview','postgres','mongo','ai','integrations','system','audit'] %}
+  {% set agent_domain = 'overview' %}
+{% endif %}
+{% with agent=ops_agents.get(agent_domain) %}
+  {% include 'partials/ops_agent_panel.html' %}
+{% endwith %}
+
+{# ══════════════════════════════════════════
+   OVERVIEW TAB
+══════════════════════════════════════════ #}
+{% if active_tab == 'overview' %}
+
+{# ── Run Everything card ── #}
+<div class="ops-action-card">
+  <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.4rem;">
+    <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#6366F1,#06B6D4);
+                display:inline-flex;align-items:center;justify-content:center;">
+      <i class="fas fa-rocket" style="color:white;font-size:0.9rem;"></i>
+    </div>
+    <h2 class="ops-action-title" style="margin:0;">Run Full Platform Maintenance</h2>
+  </div>
+  <p class="ops-action-desc">
+    Executes all maintenance tasks in the correct sequence: 
+    <strong style="color:#C7D2FE;">Alembic DB migrations</strong> → 
+    <strong style="color:#6EE7B7;">MongoDB tenant provisioning + index sync</strong> → 
+    <strong style="color:#C4B5FD;">AI cache cleanup</strong> → 
+    <strong style="color:#FCD34D;">system health scan</strong>.
+    Confirm by typing <code class="ops-code">MAINTAIN</code>.
+  </p>
+  {% if peak_hours_warning %}
+  <div class="ops-alert ops-alert-warn" style="margin-bottom:1rem;">
+    <i class="fas fa-clock ops-alert-icon"></i>
+    <div>
+      <strong>Peak traffic hours are active.</strong>
+      Full maintenance can add load during business hours. Schedule off-peak when possible, or proceed only if urgent.
+    </div>
+  </div>
+  {% endif %}
+  <form method="post" action="{{ url_for('platform_routes.platform_operations_run_full') }}"
+        onsubmit="return confirm('Start full platform maintenance? This may take 30–120 seconds.');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="ops-action-form-row">
+      <div class="ops-input-group">
+        <label class="ops-input-label">Confirmation phrase</label>
+        <input type="text" name="confirm" class="ops-input" placeholder="Type MAINTAIN here" required style="min-width:220px;">
+      </div>
+      <div class="ops-checkbox-group">
+        <label class="ops-checkbox-label" title="Runs pg_trgm and full-text search extensions">
+          <input type="checkbox" name="apply_manual" value="1">
+          <i class="fas fa-text-width"></i> FTS + pg_trgm
+        </label>
+        <label class="ops-checkbox-label" title="Deletes all cached AI generation responses">
+          <input type="checkbox" name="clear_ai_cache" value="1">
+          <i class="fas fa-brain"></i> Clear AI Cache
+        </label>
+        <label class="ops-checkbox-label" title="Triggers a graceful app restart after maintenance">
+          <input type="checkbox" name="restart" value="1" {% if restart_configured %}checked{% endif %}>
+          <i class="fas fa-rotate"></i> Restart App
+          {% if not restart_configured %}<span style="color:#475569;font-size:0.68rem;">(not configured)</span>{% endif %}
+        </label>
+      </div>
+      <button type="submit" class="ops-btn ops-btn-primary" style="height:fit-content;">
+        <i class="fas fa-play"></i> Run Full Maintenance
+      </button>
+    </div>
+  </form>
+</div>
+
+{# ── Overview KPI grid ── #}
+<div class="ops-stat-grid">
+  <div class="ops-stat-card">
+    <div class="ops-stat-label">Overall Health</div>
+    <div class="ops-stat-value text-sm" style="text-transform:capitalize;color:{% if ops.status=='healthy' %}#6EE7B7{% elif ops.status=='degraded' %}#FCD34D{% else %}#FCA5A5{% endif %}">
+      {{ ops.status }}
+    </div>
+    <div class="ops-stat-sub">Across all services</div>
+  </div>
+  <div class="ops-stat-card">
+    <div class="ops-stat-label">PostgreSQL</div>
+    <div class="ops-stat-value text-sm" style="color:{% if migration_status.pending %}#FCD34D{% else %}#6EE7B7{% endif %}">
+      {% if migration_status.pending %}Migrations Pending{% else %}Up to Date{% endif %}
+    </div>
+    <div class="ops-stat-sub">Head: <span style="color:#94A3B8;">{{ migration_status.heads[0][:8] if migration_status.heads else '—' }}</span></div>
+  </div>
+  <div class="ops-stat-card">
+    <div class="ops-stat-label">MongoDB</div>
+    <div class="ops-stat-value text-sm" style="color:{% if mongo.available %}#6EE7B7{% else %}#FCA5A5{% endif %}">
+      {% if mongo.available %}{{ mongo.tenant_db_count }} Tenant DB(s){% else %}Offline{% endif %}
+    </div>
+    <div class="ops-stat-sub">{% if mongo.available %}{{ mongo.database_count }} total DB(s){% else %}Check MONGO_URI{% endif %}</div>
+  </div>
+  <div class="ops-stat-card">
+    <div class="ops-stat-label">LearnIQ AI</div>
+    <div class="ops-stat-value text-sm" style="color:{% if ai.model_ready %}#6EE7B7{% elif ai.available %}#FCD34D{% else %}#FCA5A5{% endif %}">
+      {% if ai.model_ready %}Ready{% elif ai.available %}No Model{% else %}Offline{% endif %}
+    </div>
+    <div class="ops-stat-sub">{{ ai.engine }} · {{ ai.cache.files }} cache files</div>
+  </div>
+  <div class="ops-stat-card">
+    <div class="ops-stat-label">Integrations</div>
+    <div class="ops-stat-value">{{ int_ok }}<span style="font-size:0.7rem;color:#64748B;">/{{ int_total }}</span></div>
+    <div class="ops-stat-sub">Services connected</div>
+  </div>
+  {% if snapshot %}
+  <div class="ops-stat-card">
+    <div class="ops-stat-label">Last DB Scan</div>
+    <div class="ops-stat-value text-sm" style="color:{% if snapshot.issue_count == 0 %}#6EE7B7{% else %}#FCD34D{% endif %}">
+      {{ snapshot.issue_count }} Issue(s)
+    </div>
+    <div class="ops-stat-sub">{{ snapshot.recommendation_count }} recommendation(s)</div>
+  </div>
+  {% endif %}
+</div>
+
+{# Quick-action row #}
+<div class="ops-section" style="margin-bottom:1.25rem;">
+  <div class="ops-section-header">
+    <h3 class="ops-section-title">
+      <span class="section-icon icon-rocket"><i class="fas fa-bolt"></i></span>
+      Quick Actions
+    </h3>
+  </div>
+  <div class="ops-section-body">
+    <p style="font-size:0.83rem;color:#64748B;margin:0 0 1rem;">
+      Run individual maintenance tasks without a full sweep. Each action is isolated.
+    </p>
+    <div style="display:flex;flex-wrap:wrap;gap:0.65rem;">
+      <div class="ops-tooltip-wrap">
+        <form method="post" action="{{ url_for('platform_routes.platform_operations_run') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="ops-btn ops-btn-secondary" type="submit">
+            <i class="fas fa-magnifying-glass-chart"></i> Scan DB Health
+          </button>
+        </form>
+        <div class="ops-tooltip">Runs the DB optimizer agent — analyzes table sizes, slow queries, missing indexes, and records a health snapshot.</div>
+      </div>
+      <div class="ops-tooltip-wrap">
+        <form method="post" action="{{ url_for('platform_routes.platform_operations_apply_safe') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="ops-btn ops-btn-success" type="submit">
+            <i class="fas fa-shield-check"></i> Apply Safe Fixes
+          </button>
+        </form>
+        <div class="ops-tooltip">Applies all safe/non-destructive recommendations: index creation, statistics updates. No data risk.</div>
+      </div>
+      <div class="ops-tooltip-wrap">
+        <form method="post" action="{{ url_for('platform_routes.platform_operations_apply_manual') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="ops-btn ops-btn-secondary" type="submit">
+            <i class="fas fa-gears"></i> Apply Manual (FTS)
+          </button>
+        </form>
+        <div class="ops-tooltip">Installs pg_trgm and full-text search extensions. Requires superuser access on the DB server.</div>
+      </div>
+      <div class="ops-tooltip-wrap">
+        <form method="post" action="{{ url_for('platform_routes.platform_ops_mongo_run') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="ops-btn ops-btn-secondary" type="submit">
+            <i class="fas fa-leaf"></i> Sync MongoDB
+          </button>
+        </form>
+        <div class="ops-tooltip">Re-provisions all tenant MongoDB databases and ensures all GridFS/file-store indexes are in place.</div>
+      </div>
+      <div class="ops-tooltip-wrap">
+        <form method="post" action="{{ url_for('platform_routes.platform_ops_ai_refresh') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="ops-btn ops-btn-secondary" type="submit">
+            <i class="fas fa-brain"></i> Refresh AI Status
+          </button>
+        </form>
+        <div class="ops-tooltip">Pings the Ollama AI engine and refreshes the model availability status without restarting anything.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Maintenance history #}
+{% if last_maintenance %}
+<div class="ops-section">
+  <div class="ops-section-header">
+    <h3 class="ops-section-title">
+      <span class="section-icon icon-plug"><i class="fas fa-history"></i></span>
+      Last Maintenance Run
+    </h3>
+  </div>
+  <div class="ops-section-body" style="padding:0;">
+    <div class="ops-history-item">
+      <span class="ops-badge ops-badge-{% if last_maintenance.status == 'success' %}ok{% elif last_maintenance.status == 'warning' %}warn{% else %}error{% endif %}">
+        {{ last_maintenance.status }}
+      </span>
+      <span style="color:#94A3B8;font-size:0.8rem;">
+        <i class="fas fa-clock" style="margin-right:0.35rem;"></i>
+        {{ last_maintenance.started_at[:16].replace('T', ' ') if last_maintenance.started_at else 'Unknown time' }}
+      </span>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endif %}{# end overview #}
+
+{# ══════════════════════════════════════════
+   POSTGRESQL TAB
+══════════════════════════════════════════ #}
+{% if active_tab in ('postgres',) %}
+
+<div class="ops-section">
+  <div class="ops-section-header">
+    <h3 class="ops-section-title">
+      <span class="section-icon icon-postgres"><i class="fas fa-database"></i></span>
+      PostgreSQL — Database Engine
+    </h3>
+    <div class="ops-section-actions">
+      <div class="ops-tooltip-wrap">
+        <form method="post" action="{{ url_for('platform_routes.platform_operations_run') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="ops-btn ops-btn-secondary" type="submit">
+            <i class="fas fa-magnifying-glass-chart"></i> Scan Now
+          </button>
+        </form>
+        <div class="ops-tooltip">Analyzes query performance, table bloat, missing indexes, and generates actionable recommendations. Read-only — safe at any time.</div>
+      </div>
+      <div class="ops-tooltip-wrap">
+        <form method="post" action="{{ url_for('platform_routes.platform_operations_apply_safe') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="ops-btn ops-btn-success" type="submit">
+            <i class="fas fa-shield-check"></i> Apply Safe Fixes
+          </button>
+        </form>
+        <div class="ops-tooltip">Automatically applies all low-risk recommendations (index creation, ANALYZE, pg_stat_statements setup). No data modification.</div>
+      </div>
+      <div class="ops-tooltip-wrap">
+        <form method="post" action="{{ url_for('platform_routes.platform_operations_apply_manual') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="ops-btn ops-btn-secondary" type="submit">
+            <i class="fas fa-gears"></i> Apply Manual
+          </button>
+        </form>
+        <div class="ops-tooltip">Installs pg_trgm (fuzzy search) and tsvector-based full-text search. Requires DB superuser. Run once after first deployment.</div>
+      </div>
+    </div>
+  </div>
+  <div class="ops-section-body">
+
+    <div class="ops-description">
+      <strong>What this does:</strong> Monitors the PostgreSQL relational database storing all user, course, exam, tenant, and billing records. 
+      The optimizer agent runs scheduled scans to detect slow queries, table bloat, and missing indexes — then recommends or automatically applies fixes.
+    </div>
+
+    {# Migration status #}
+    <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:1.25rem;flex-wrap:wrap;">
+      <div>
+        <div class="ops-stat-label">Schema revision (head)</div>
+        <div style="font-family:monospace;font-size:0.88rem;color:#A5B4FC;">{{ migration_status.heads[0] if migration_status.heads else '—' }}</div>
+      </div>
+      <div>
+        <div class="ops-stat-label">Currently applied</div>
+        <div style="font-family:monospace;font-size:0.88rem;color:{% if migration_status.pending %}#FCD34D{% else %}#6EE7B7{% endif %}">{{ migration_status.current or 'None' }}</div>
+      </div>
+      <div>
+        <div class="ops-stat-label">Pending migrations</div>
+        <div>
+          {% if migration_status.pending %}
+          <span class="ops-badge ops-badge-warn"><i class="fas fa-triangle-exclamation"></i> Yes — run maintenance</span>
+          {% else %}
+          <span class="ops-badge ops-badge-ok"><i class="fas fa-check"></i> None</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if not tables_ready %}
+    <div class="ops-alert ops-alert-warn">
+      <i class="fas fa-triangle-exclamation ops-alert-icon"></i>
+      <div><strong>Monitor tables not yet created.</strong> Run "Full Maintenance" from the Overview tab to initialize DB monitoring tables via Alembic.</div>
+    </div>
+    {% endif %}
+
+    {# Capacity stats #}
+    {% set cap = postgres_stats.capacity if postgres_stats else {} %}
+    {% if cap %}
+    <div class="ops-stat-grid" style="margin-bottom:1.25rem;">
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">Database Size</div>
+        <div class="ops-stat-value">{{ cap.database_size_mb or '—' }}<span style="font-size:0.7rem;color:#64748B;"> MB</span></div>
+        <div class="ops-stat-sub">Total on-disk footprint</div>
+      </div>
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">Cache Hit Ratio</div>
+        <div class="ops-stat-value" style="color:{% if cap.cache_hit_ratio and cap.cache_hit_ratio > 0.95 %}#6EE7B7{% elif cap.cache_hit_ratio and cap.cache_hit_ratio > 0.85 %}#FCD34D{% else %}#FCA5A5{% endif %}">
+          {% if cap.cache_hit_ratio %}{{ '%.1f'|format(cap.cache_hit_ratio * 100) }}%{% else %}—{% endif %}
+        </div>
+        <div class="ops-stat-sub">Target: &gt;95% optimal</div>
+        {% if cap.cache_hit_ratio %}
+        <div class="ops-progress-bar"><div class="ops-progress-fill" style="width:{{ (cap.cache_hit_ratio * 100)|round(1) }}%;"></div></div>
+        {% endif %}
+      </div>
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">Connections</div>
+        <div class="ops-stat-value">
+          {{ cap.connections.active if cap.connections else '—' }}<span style="font-size:0.7rem;color:#64748B;">/{{ cap.connections.max if cap.connections else '—' }}</span>
+        </div>
+        <div class="ops-stat-sub">Active / Maximum allowed</div>
+      </div>
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">Slow Queries</div>
+        <div class="ops-stat-value" style="color:{% if (cap.slow_queries or [])|length == 0 %}#6EE7B7{% elif (cap.slow_queries or [])|length < 5 %}#FCD34D{% else %}#FCA5A5{% endif %}">
+          {{ (cap.slow_queries or [])|length }}
+        </div>
+        <div class="ops-stat-sub">Queries taking &gt;500ms</div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if metric_trends %}
+    <div style="margin-bottom:1.5rem;">
+      <div class="ops-stat-label" style="margin-bottom:0.65rem;">Metric trends (last {{ metric_trends['pg.cache_hit_ratio']|length }} samples)</div>
+      <div style="overflow-x:auto;">
+        <table class="ops-table" style="min-width:520px;">
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Latest</th>
+              <th style="width:140px;">Trend</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for key, label, fmt, scale in [
+              ('pg.cache_hit_ratio', 'Cache hit ratio', '%.1f%%', 100),
+              ('pg.database_size_mb', 'Database size', '%.0f MB', 1),
+              ('pg.connections_active', 'Active connections', '%.0f', 1),
+              ('pg.issue_count', 'Open issues', '%.0f', 1),
+            ] %}
+            {% set series = metric_trends.get(key, []) %}
+            {% set latest = series[-1].v if series else none %}
+            <tr>
+              <td>{{ label }}</td>
+              <td style="font-family:monospace;color:#A5B4FC;">
+                {% if latest is not none %}{{ fmt|format(latest * scale) }}{% else %}—{% endif %}
+              </td>
+              <td>
+                {% if series|length > 1 %}
+                {% set values = series | map(attribute='v') | list %}
+                {% set vmin = values | min %}
+                {% set vmax = values | max %}
+                {% set span = (vmax - vmin) if (vmax - vmin) > 0 else 1 %}
+                <svg width="120" height="28" viewBox="0 0 120 28" aria-hidden="true">
+                  <polyline fill="none" stroke="#60A5FA" stroke-width="1.5"
+                    points="{% for pt in series %}{{ ((loop.index0 / (series|length - 1)) * 120)|round(2) }},{{ (28 - (((pt.v - vmin) / span) * 24 + 2))|round(2) }}{% if not loop.last %} {% endif %}{% endfor %}" />
+                </svg>
+                {% else %}
+                <span style="color:#64748B;font-size:0.72rem;">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# Last snapshot summary #}
+    {% if snapshot %}
+    <div class="ops-alert {% if snapshot.issue_count == 0 %}ops-alert-ok{% else %}ops-alert-warn{% endif %}" style="margin-bottom:1.25rem;">
+      <i class="fas fa-{% if snapshot.issue_count == 0 %}circle-check{% else %}triangle-exclamation{% endif %} ops-alert-icon"></i>
+      <div>
+        <strong>Last scan:</strong> Status {{ snapshot.status }} · 
+        {{ snapshot.issue_count }} issue(s) found · 
+        {{ snapshot.recommendation_count }} recommendation(s) generated
+      </div>
+    </div>
+    {% elif tables_ready %}
+    <div class="ops-alert ops-alert-info" style="margin-bottom:1.25rem;">
+      <i class="fas fa-info-circle ops-alert-icon"></i>
+      <div>No scan has been run yet. Click <strong>Scan Now</strong> to analyze the database health.</div>
+    </div>
+    {% endif %}
+
+    {# Recommendations table #}
+    {% if recommendations %}
+    <h4 style="font-size:0.82rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#64748B;margin:0 0 0.75rem;">
+      Recommendations ({{ recommendations|length }})
+    </h4>
+    <div class="ops-table-wrapper">
+      <table class="ops-table">
+        <thead>
+          <tr>
+            <th>Target</th>
+            <th>Tier</th>
+            <th>Action Type</th>
+            <th>Status</th>
+            <th>Apply</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rec in recommendations[:20] %}
+          <tr>
+            <td><code class="ops-code">{{ rec.target_key }}</code></td>
+            <td><span class="ops-badge ops-badge-{% if rec.tier == 'critical' %}error{% elif rec.tier == 'advisory' %}off{% else %}pending{% endif %}">{{ rec.tier }}</span></td>
+            <td style="color:#94A3B8;">{{ rec.action_type or '—' }}</td>
+            <td>
+              <span class="ops-badge ops-badge-{% if rec.status == 'applied' %}ok{% elif rec.status == 'pending' %}pending{% elif rec.status == 'failed' %}error{% else %}off{% endif %}">
+                {{ rec.status }}
+              </span>
+            </td>
+            <td>
+              {% if rec.status in ('pending', 'failed') and rec.action_type != 'advisory' %}
+              <form method="post" action="{{ url_for('platform_routes.platform_operations_apply', rec_id=rec.id) }}" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="ops-btn ops-btn-primary" type="submit" style="padding:0.3rem 0.75rem;font-size:0.75rem;">
+                  <i class="fas fa-play"></i> Apply
+                </button>
+              </form>
+              {% elif rec.status == 'applied' %}
+              <span style="color:#6EE7B7;font-size:0.8rem;"><i class="fas fa-check"></i> Done</span>
+              {% else %}
+              <span style="color:#475569;font-size:0.8rem;">Advisory</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif tables_ready and snapshot %}
+    <div class="ops-alert ops-alert-ok">
+      <i class="fas fa-circle-check ops-alert-icon"></i>
+      <div>No pending recommendations. Database is performing optimally.</div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endif %}
+
+{# ══════════════════════════════════════════
+   MONGODB TAB
+══════════════════════════════════════════ #}
+{% if active_tab in ('mongo',) %}
+
+<div class="ops-section">
+  <div class="ops-section-header">
+    <h3 class="ops-section-title">
+      <span class="section-icon icon-mongo"><i class="fas fa-leaf"></i></span>
+      MongoDB &amp; GridFS File Store
+    </h3>
+    <div class="ops-section-actions">
+      <div class="ops-tooltip-wrap">
+        <form method="post" action="{{ url_for('platform_routes.platform_ops_mongo_run') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="ops-btn ops-btn-primary" type="submit">
+            <i class="fas fa-wrench"></i> Run Mongo Maintenance
+          </button>
+        </form>
+        <div class="ops-tooltip">Provisions any missing tenant databases, creates required indexes, and syncs the GridFS file storage collections for all active organizations.</div>
+      </div>
+    </div>
+  </div>
+  <div class="ops-section-body">
+
+    <div class="ops-description">
+      <strong>What this does:</strong> MongoDB stores all uploaded course files (PDFs, videos, documents) via GridFS — a chunked binary file storage system. 
+      Each tenant organization gets its own isolated MongoDB database prefixed with <code class="ops-code">{{ mongo.tenant_prefix }}</code>. 
+      This panel monitors file storage health and provisions new tenant databases automatically.
+    </div>
+
+    {% if not mongo.available %}
+    <div class="ops-alert ops-alert-error">
+      <i class="fas fa-circle-xmark ops-alert-icon"></i>
+      <div>
+        <strong>MongoDB is offline.</strong> Course file uploads and downloads are disabled until MongoDB is restored.<br>
+        <span style="font-size:0.8rem;margin-top:0.35rem;display:block;opacity:0.8;">Check your <code class="ops-code">MONGO_URI</code> environment variable and ensure the MongoDB container or server is running on port 27017.</span>
+      </div>
+    </div>
+    {% else %}
+
+    {# Mongo overview stats #}
+    <div class="ops-stat-grid" style="margin-bottom:1.25rem;">
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">Server version</div>
+        <div class="ops-stat-value text-sm">{{ mongo.server.version if mongo.server and mongo.server.version else '—' }}</div>
+        <div class="ops-stat-sub">MongoDB engine</div>
+      </div>
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">Total Storage</div>
+        <div class="ops-stat-value text-sm">{{ mongo.server.total_storage_mb if mongo.server and mongo.server.total_storage_mb else '—' }}<span style="font-size:0.7rem;color:#64748B;"> MB</span></div>
+        <div class="ops-stat-sub">All databases combined</div>
+      </div>
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">Connections</div>
+        <div class="ops-stat-value">{{ mongo.server.connections.current if mongo.server and mongo.server.connections else '—' }}</div>
+        <div class="ops-stat-sub">Active / {{ mongo.server.connections.available if mongo.server and mongo.server.connections else '?' }} available</div>
+      </div>
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">Tenant Databases</div>
+        <div class="ops-stat-value">{{ mongo.tenant_db_count }}</div>
+        <div class="ops-stat-sub">Isolated per organization</div>
+      </div>
+      {% if mongo.unprovisioned_tenants %}
+      <div class="ops-stat-card" style="border-color:rgba(245,158,11,0.4);">
+        <div class="ops-stat-label" style="color:#F59E0B;">Unprovisioned</div>
+        <div class="ops-stat-value" style="color:#FCD34D;">{{ mongo.unprovisioned_tenants }}</div>
+        <div class="ops-stat-sub">Need MongoDB DB setup</div>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if mongo.unprovisioned_tenants %}
+    <div class="ops-alert ops-alert-warn" style="margin-bottom:1.25rem;">
+      <i class="fas fa-triangle-exclamation ops-alert-icon"></i>
+      <div><strong>{{ mongo.unprovisioned_tenants }} tenant(s) not provisioned.</strong> Click "Run Mongo Maintenance" above to create their databases and indexes automatically.</div>
+    </div>
+    {% endif %}
+
+    {# Per-database list #}
+    <h4 style="font-size:0.82rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#64748B;margin:0 0 0.85rem;">
+      Databases ({{ mongo.databases|length }})
+    </h4>
+    {% for db in mongo.databases %}
+    <div class="ops-db-item">
+      <div class="ops-db-item-header">
+        <div>
+          <span class="ops-db-name">{% if db.kind == 'tenant' %}{{ db.tenant_name }}{% else %}Legacy Shared DB{% endif %}</span>
+          <code class="ops-code" style="margin-left:0.6rem;">{{ db.name }}</code>
+          {% if db.kind == 'tenant' %}<span style="color:#64748B;font-size:0.72rem;margin-left:0.4rem;">Tenant #{{ db.tenant_id }}</span>{% endif %}
+        </div>
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          {% if not db.provisioned and db.kind == 'tenant' %}
+          <span class="ops-badge ops-badge-warn"><i class="fas fa-circle-exclamation"></i> Not provisioned</span>
+          {% elif db.missing_indexes %}
+          <span class="ops-badge ops-badge-warn"><i class="fas fa-triangle-exclamation"></i> Missing indexes</span>
+          {% else %}
+          <span class="ops-badge ops-badge-ok"><i class="fas fa-check"></i> Healthy</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="ops-db-stats">
+        <span><i class="fas fa-file" style="margin-right:0.3rem;color:#64748B;"></i>GridFS: {{ db.gridfs.files }} file(s)</span>
+        <span><i class="fas fa-puzzle-piece" style="margin-right:0.3rem;color:#64748B;"></i>{{ db.gridfs.chunks }} chunk(s)</span>
+        {% if db.gridfs.total_bytes %}<span><i class="fas fa-weight-hanging" style="margin-right:0.3rem;color:#64748B;"></i>{{ '%.2f'|format(db.gridfs.total_bytes / 1048576) }} MB</span>{% endif %}
+        {% if db.missing_indexes %}
+        <span style="color:#FCD34D;"><i class="fas fa-triangle-exclamation" style="margin-right:0.3rem;"></i>Missing: {% for m in db.missing_indexes %}{{ m.collection }}.{{ m.field }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="ops-alert ops-alert-info">
+      <i class="fas fa-info-circle ops-alert-icon"></i>
+      <div>No databases found. Run Mongo Maintenance to provision tenant databases.</div>
+    </div>
+    {% endfor %}
+
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{# ══════════════════════════════════════════
+   AI / LEARNIQ TAB
+══════════════════════════════════════════ #}
+{% if active_tab in ('ai',) %}
+
+<div class="ops-section">
+  <div class="ops-section-header">
+    <h3 class="ops-section-title">
+      <span class="section-icon icon-ai"><i class="fas fa-brain"></i></span>
+      LearnIQ AI Engine (Ollama)
+    </h3>
+    <div class="ops-section-actions">
+      <div class="ops-tooltip-wrap">
+        <form method="post" action="{{ url_for('platform_routes.platform_ops_ai_refresh') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="ops-btn ops-btn-secondary" type="submit"><i class="fas fa-rotate"></i> Refresh Status</button>
+        </form>
+        <div class="ops-tooltip">Pings the Ollama server and checks which AI models are currently loaded. No data is changed.</div>
+      </div>
+      <div class="ops-tooltip-wrap">
+        <form method="post" action="{{ url_for('platform_routes.platform_ops_ai_clear_cache') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="expired_only" value="1">
+          <button class="ops-btn ops-btn-secondary" type="submit"><i class="fas fa-clock-rotate-left"></i> Clear Expired Cache</button>
+        </form>
+        <div class="ops-tooltip">Removes AI response cache files that have passed their TTL. Safe to run — only cleans up stale entries.</div>
+      </div>
+      <div class="ops-tooltip-wrap">
+        <form method="post" action="{{ url_for('platform_routes.platform_ops_ai_clear_cache') }}" onsubmit="return confirm('This will delete ALL cached AI responses. Users will see slightly slower results until the cache rebuilds. Continue?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="ops-btn ops-btn-danger" type="submit"><i class="fas fa-trash"></i> Clear ALL Cache</button>
+        </form>
+        <div class="ops-tooltip">Deletes the entire AI response cache. Use when AI responses are stale or after a model change. Cache will rebuild automatically on next user request.</div>
+      </div>
+    </div>
+  </div>
+  <div class="ops-section-body">
+
+    <div class="ops-description">
+      <strong>What this does:</strong> LearnIQ AI powers automatic exam grading, course content summarization, and study recommendations. 
+      It connects to a local <strong>Ollama</strong> server running open-source language models — no external API keys or costs. 
+      AI responses are cached on disk to avoid redundant model calls and improve performance.
+    </div>
+
+    {# AI status alert #}
+    {% if not ai.available %}
+    <div class="ops-alert ops-alert-warn" style="margin-bottom:1.25rem;">
+      <i class="fas fa-triangle-exclamation ops-alert-icon"></i>
+      <div>
+        <strong>Ollama AI engine is offline.</strong> AI-powered features (smart grading, summaries) will fall back to keyword-based matching.<br>
+        <span style="font-size:0.8rem;display:block;margin-top:0.4rem;opacity:0.85;">
+          On the server, run: <code class="ops-code">ollama serve</code> then <code class="ops-code">ollama pull {{ ai.configured_model }}</code>
+        </span>
+      </div>
+    </div>
+    {% elif not ai.model_ready %}
+    <div class="ops-alert ops-alert-warn" style="margin-bottom:1.25rem;">
+      <i class="fas fa-triangle-exclamation ops-alert-icon"></i>
+      <div>
+        <strong>Ollama is running but no model is loaded.</strong> Pull the configured model to enable AI grading.<br>
+        <span style="font-size:0.8rem;display:block;margin-top:0.4rem;opacity:0.85;">
+          Run: <code class="ops-code">ollama pull {{ ai.configured_model }}</code>
+        </span>
+      </div>
+    </div>
+    {% else %}
+    <div class="ops-alert ops-alert-ok" style="margin-bottom:1.25rem;">
+      <i class="fas fa-circle-check ops-alert-icon"></i>
+      <div><strong>AI Engine Ready.</strong> {{ ai.resolved_model }} is loaded and responding to inference requests.</div>
+    </div>
+    {% endif %}
+
+    {# AI stat grid #}
+    <div class="ops-stat-grid" style="margin-bottom:1.25rem;">
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">Engine</div>
+        <div class="ops-stat-value text-sm">{{ ai.engine }}</div>
+        <div class="ops-stat-sub">Runtime provider</div>
+      </div>
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">Configured Model</div>
+        <div class="ops-stat-value text-sm">{{ ai.configured_model or '—' }}</div>
+        <div class="ops-stat-sub">Set via OLLAMA_MODEL</div>
+      </div>
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">Active Model</div>
+        <div class="ops-stat-value text-sm" style="color:{% if ai.model_ready %}#6EE7B7{% else %}#FCA5A5{% endif %}">
+          {{ ai.resolved_model or 'Not loaded' }}
+        </div>
+        <div class="ops-stat-sub">Currently responding</div>
+      </div>
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">Response Latency</div>
+        <div class="ops-stat-value text-sm">{% if ai.latency and ai.latency.latency_ms %}{{ ai.latency.latency_ms }} ms{% else %}—{% endif %}</div>
+        <div class="ops-stat-sub">Last ping time</div>
+      </div>
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">Cache Files</div>
+        <div class="ops-stat-value">{{ ai.cache.files }}</div>
+        <div class="ops-stat-sub">{{ ai.cache.total_mb }} MB on disk</div>
+      </div>
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">Active Jobs</div>
+        <div class="ops-stat-value" style="color:{% if ai.jobs.failed > 0 %}#FCA5A5{% else %}#6EE7B7{% endif %}">
+          {{ ai.jobs.running }}
+        </div>
+        <div class="ops-stat-sub">{{ ai.jobs.failed }} failed job(s)</div>
+      </div>
+    </div>
+
+    {% if ai.cache.over_capacity %}
+    <div class="ops-alert ops-alert-warn" style="margin-bottom:1rem;">
+      <i class="fas fa-hard-drive ops-alert-icon"></i>
+      <div><strong>Cache over capacity.</strong> Current {{ ai.cache.total_mb }} MB exceeds the {{ ai.capacity.max_cache_mb }} MB limit. Click "Clear Expired Cache" or "Clear ALL Cache" above.</div>
+    </div>
+    {% endif %}
+
+    {# Cache breakdown #}
+    {% if ai.cache.by_feature %}
+    <h4 style="font-size:0.82rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#64748B;margin:0 0 0.75rem;">Cache by Feature</h4>
+    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1.25rem;">
+      {% for feat, cnt in ai.cache.by_feature.items() %}
+      <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:0.5rem 0.85rem;">
+        <div style="font-size:0.7rem;color:#64748B;text-transform:capitalize;">{{ feat }}</div>
+        <div style="font-size:0.95rem;font-weight:700;color:#A5B4FC;">{{ cnt }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {# Installed models #}
+    {% if ai.installed_models %}
+    <h4 style="font-size:0.82rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#64748B;margin:0 0 0.5rem;">Installed Models on Ollama</h4>
+    <div style="display:flex;flex-wrap:wrap;gap:0.4rem;">
+      {% for model in ai.installed_models %}
+      <span class="ops-badge ops-badge-{% if model == ai.resolved_model %}ok{% else %}off{% endif %}">
+        {% if model == ai.resolved_model %}<i class="fas fa-star"></i>{% endif %} {{ model }}
+      </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <hr class="ops-divider">
+    <div style="font-size:0.83rem;color:#64748B;line-height:1.6;">
+      <strong style="color:#94A3B8;">Status message:</strong> {{ ai.message }}
+    </div>
+
+  </div>
+</div>
+{% endif %}
+
+{# ══════════════════════════════════════════
+   INTEGRATIONS TAB
+══════════════════════════════════════════ #}
+{% if active_tab in ('integrations',) %}
+
+<div class="ops-section">
+  <div class="ops-section-header">
+    <h3 class="ops-section-title">
+      <span class="section-icon icon-plug"><i class="fas fa-plug"></i></span>
+      External Integrations &amp; Services
+    </h3>
+  </div>
+  <div class="ops-section-body">
+
+    <div class="ops-description">
+      <strong>What this shows:</strong> Health status of all third-party and infrastructure services the platform depends on. 
+      Each service is checked live on page load. A <span style="color:#FCD34D;">yellow warning</span> means the service needs configuration — 
+      it's not blocking the app, but the feature it powers won't work until the API key or connection is set up.
+    </div>
+
+    <div class="ops-integration-grid">
+      {% for check in integrations.checks %}
+      <div class="ops-integration-card {% if check.ok %}ok{% else %}warn{% endif %}">
+        <div class="ops-int-name">
+          <i class="fas fa-{% if check.ok %}circle-check{% else %}triangle-exclamation{% endif %}" 
+             style="color:{% if check.ok %}#6EE7B7{% else %}#FCD34D{% endif %};margin-right:0.35rem;"></i>
+          {{ check.name }}
+        </div>
+        <div class="ops-int-status">
+          <span class="ops-badge ops-badge-{% if check.ok %}ok{% else %}warn{% endif %}">
+            {% if check.ok %}Connected{% else %}Needs Config{% endif %}
+          </span>
+        </div>
+        <div class="ops-int-detail">{{ check.detail }}</div>
+        {% if check.latency_ms is defined and check.latency_ms %}
+        <div class="ops-int-metric"><i class="fas fa-stopwatch" style="margin-right:0.3rem;"></i>{{ check.latency_ms }} ms latency</div>
+        {% endif %}
+        {% if check.used_memory_mb %}
+        <div class="ops-int-metric"><i class="fas fa-memory" style="margin-right:0.3rem;"></i>{{ check.used_memory_mb }} MB Redis memory used</div>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="ops-alert ops-alert-info">
+        <i class="fas fa-info-circle ops-alert-icon"></i>
+        <div>No integration checks configured.</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% set failing = integrations.checks | selectattr('ok', 'equalto', false) | list %}
+    {% if failing %}
+    <hr class="ops-divider">
+    <h4 style="font-size:0.82rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#F59E0B;margin:0 0 0.75rem;">
+      <i class="fas fa-triangle-exclamation" style="margin-right:0.4rem;"></i>{{ failing|length }} Service(s) Needing Attention
+    </h4>
+    <div style="font-size:0.83rem;color:#94A3B8;line-height:1.7;">
+      These integrations are not connected. To fix them, add the relevant environment variables in your 
+      <code class="ops-code">.env</code> file and restart the application. None of these failures block core platform functionality — 
+      they only disable the specific feature they power (e.g. email sending, payment processing).
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endif %}
+
+{# ══════════════════════════════════════════
+   AUDIT LOGS TAB
+══════════════════════════════════════════ #}
+{% if active_tab == 'audit' %}
+<div class="ops-section">
+  <div class="ops-section-header">
+    <h3 class="ops-section-title">
+      <span class="section-icon icon-rocket" style="background:rgba(6,182,212,0.2);color:#22D3EE;"><i class="fas fa-shield-halved"></i></span>
+      Platform Security &amp; Activity Audit Logs
+    </h3>
+    <div class="ops-section-actions">
+      <div style="position:relative;">
+        <input type="text" id="audit-search" class="ops-input" placeholder="Search actor/summary..." style="padding:0.4rem 0.75rem;font-size:0.8rem;width:240px;border-color:rgba(99,102,241,0.3);">
+        <i class="fas fa-search" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#475569;font-size:0.8rem;"></i>
+      </div>
+      <select id="audit-filter" class="ops-input" style="padding:0.4rem 0.75rem;font-size:0.8rem;border-color:rgba(99,102,241,0.3);background:rgba(15,23,42,0.9);color:#E2E8F0;">
+        <option value="">All Events</option>
+        <option value="PLATFORM_ENTER_TENANT">Enter Tenant</option>
+        <option value="PLATFORM_EXIT_TENANT">Exit Tenant</option>
+        <option value="USER_LOGIN">User Login</option>
+        <option value="FAILED_LOGIN">Failed Login</option>
+        <option value="PLATFORM_FULL_OPS">Maintenance Runs</option>
+        <option value="PLAN_UPGRADE">Plan Upgrades</option>
+      </select>
+    </div>
+  </div>
+  <div class="ops-section-body">
+    <div class="ops-description">
+      <strong>What this is:</strong> Read-only immutable security log tracking critical platform operations, administrator actions, failed logins, and subscription changes.
+    </div>
+
+    <div class="ops-table-wrapper">
+      <table class="ops-table" id="audit-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Event Type</th>
+            <th>Summary</th>
+            <th>Actor</th>
+            <th>IP Address</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in audit_logs %}
+          <tr class="audit-row" data-event-type="{{ row.event.event_type }}">
+            <td style="white-space:nowrap;color:#94A3B8;">{{ row.event.created_at.strftime('%Y-%m-%d %H:%M:%S') if row.event.created_at else '—' }}</td>
+            <td>
+              <span class="ops-badge {% if 'FAILED' in row.event.event_type or 'SUSPEND' in row.event.event_type %}ops-badge-error{% elif 'ENTER' in row.event.event_type %}ops-badge-warn{% else %}ops-badge-ok{% endif %}">
+                {{ row.event.event_type }}
+              </span>
+            </td>
+            <td class="audit-summary" style="font-weight:500;">{{ row.summary }}</td>
+            <td class="audit-actor" style="color:#A5B4FC;">{{ row.actor.employee_email if row.actor else 'System' }}</td>
+            <td><code class="ops-code">{{ row.event.ip_address or '—' }}</code></td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" style="text-align:center;padding:2rem;color:#64748B;">No recent audit events found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('audit-search');
+  const filterSelect = document.getElementById('audit-filter');
+  const rows = document.querySelectorAll('.audit-row');
+
+  function filterTable() {
+    const query = searchInput && searchInput.value ? searchInput.value.toLowerCase().trim() : '';
+    const filterType = filterSelect ? filterSelect.value : '';
+
+    rows.forEach(row => {
+      const summaryText = row.querySelector('.audit-summary').textContent.toLowerCase();
+      const actorText = row.querySelector('.audit-actor').textContent.toLowerCase();
+      const eventType = row.getAttribute('data-event-type');
+
+      const matchesSearch = summaryText.includes(query) || actorText.includes(query);
+      const matchesType = !filterType || eventType === filterType;
+
+      if (matchesSearch && matchesType) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+
+  if (searchInput) searchInput.addEventListener('input', filterTable);
+  if (filterSelect) filterSelect.addEventListener('change', filterTable);
+});
+</script>
+{% endif %}
+
+{# ══════════════════════════════════════════
+   SYSTEM & SCHEDULER TAB
+══════════════════════════════════════════ #}
+{% if active_tab == 'system' %}
+<div class="ops-section">
+  <div class="ops-section-header">
+    <h3 class="ops-section-title">
+      <span class="section-icon icon-postgres"><i class="fas fa-heart-pulse"></i></span>
+      Health Cycle Run History
+    </h3>
+  </div>
+  <div class="ops-section-body">
+    <div class="ops-description">
+      Unified audit log for DB monitor scans and safe index applies (orchestrator). Production web workers should use <code class="ops-code">RUN_SCHEDULER=false</code> and a dedicated <code class="ops-code">scripts/run_ops_worker.py</code> process.
+    </div>
+    <div class="ops-table-wrapper">
+      <table class="ops-table">
+        <thead>
+          <tr>
+            <th>Started</th>
+            <th>Source</th>
+            <th>Trigger</th>
+            <th>Status</th>
+            <th>Issues</th>
+            <th>Indexes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for run in recent_ops_runs %}
+          <tr>
+            <td style="color:#94A3B8;font-size:0.8rem;">{{ run.started_at or '—' }}</td>
+            <td><code class="ops-code">{{ run.source }}</code></td>
+            <td>{{ run.trigger }}</td>
+            <td>
+              <span class="ops-tab-badge {% if run.status == 'healthy' %}ok{% elif run.status in ('skipped', 'warning') %}warn{% elif run.status == 'running' %}warn{% else %}error{% endif %}">
+                {{ run.status }}
+              </span>
+            </td>
+            <td>{{ run.issue_count if run.issue_count is not none else '—' }}</td>
+            <td>
+              {% if run.indexes_applied %}<span style="color:#34D399;">+{{ run.indexes_applied }}</span>{% endif %}
+              {% if run.indexes_failed %}<span style="color:#F87171;margin-left:0.35rem;">fail {{ run.indexes_failed }}</span>{% endif %}
+              {% if not run.indexes_applied and not run.indexes_failed %}—{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" style="text-align:center;padding:2rem;color:#64748B;">No health cycles recorded yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="ops-section">
+  <div class="ops-section-header">
+    <h3 class="ops-section-title">
+      <span class="section-icon icon-rocket" style="background:rgba(139,92,246,0.2);color:#C084FC;"><i class="fas fa-gears"></i></span>
+      Background Scheduler Tasks
+    </h3>
+  </div>
+  <div class="ops-section-body">
+    <div class="ops-description">
+      <strong>Active Cron &amp; Interval Jobs:</strong> The platform runs background workers to track deadlines, clean trials, send drip campaigns, and monitor performance. Trigger any job immediately using the <strong>Run Now</strong> action.
+    </div>
+
+    <div class="ops-table-wrapper">
+      <table class="ops-table">
+        <thead>
+          <tr>
+            <th>Job Name / ID</th>
+            <th>Interval / Trigger Schedule</th>
+            <th>Next Scheduled Execution</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for job in scheduler_jobs %}
+          <tr>
+            <td>
+              <div style="font-weight:700;color:#E2E8F0;">{{ job.id }}</div>
+            </td>
+            <td><code class="ops-code" style="color:#A5B4FC;">{{ job.trigger }}</code></td>
+            <td style="color:#94A3B8;">
+              <i class="fas fa-clock" style="margin-right:0.35rem;font-size:0.75rem;"></i>
+              {{ job.next_run }}
+            </td>
+            <td>
+              <form method="post" action="{{ url_for('platform_routes.platform_ops_run_scheduler_job', job_id=job.id) }}" style="display:inline;" onsubmit="return confirm('Run scheduler job {{ job.id }} now?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="ops-btn ops-btn-primary" style="padding:0.35rem 0.8rem;font-size:0.75rem;">
+                  <i class="fas fa-play"></i> Run Now
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" style="text-align:center;padding:2rem;color:#64748B;">No registered background jobs.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="ops-section">
+  <div class="ops-section-header">
+    <h3 class="ops-section-title">
+      <span class="section-icon icon-postgres"><i class="fas fa-server"></i></span>
+      System Environment &amp; Utilization
+    </h3>
+  </div>
+  <div class="ops-section-body">
+    {# Utilization meters #}
+    <div class="ops-stat-grid" style="margin-bottom:1.5rem;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));">
+      {% if system_info.cpu_percent is not none %}
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">CPU Utilization</div>
+        <div class="ops-stat-value" id="metrics-cpu-value">{{ system_info.cpu_percent }}%</div>
+        <div class="ops-progress-bar" style="margin-top:0.6rem;">
+          <div class="ops-progress-fill" id="metrics-cpu-bar" style="width:{{ system_info.cpu_percent }}%;background:linear-gradient(90deg,#06B6D4,#10B981);"></div>
+        </div>
+        <div class="ops-stat-sub" style="margin-top:0.4rem;">Platform worker load</div>
+      </div>
+      {% endif %}
+
+      {% if system_info.mem_percent is not none %}
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">System RAM</div>
+        <div class="ops-stat-value" id="metrics-ram-value">{{ system_info.mem_used }} / {{ system_info.mem_total }} MB ({{ system_info.mem_percent }}%)</div>
+        <div class="ops-progress-bar" style="margin-top:0.6rem;">
+          <div class="ops-progress-fill" id="metrics-ram-bar" style="width:{{ system_info.mem_percent }}%;background:linear-gradient(90deg,#6366F1,#06B6D4);"></div>
+        </div>
+        <div class="ops-stat-sub" style="margin-top:0.4rem;">Virtual memory footprint</div>
+      </div>
+      {% endif %}
+
+      {% if system_info.disk_percent is not none %}
+      <div class="ops-stat-card">
+        <div class="ops-stat-label">On-Disk Storage</div>
+        <div class="ops-stat-value">{{ system_info.disk_used }} / {{ system_info.disk_total }} GB ({{ system_info.disk_percent }}%)</div>
+        <div class="ops-progress-bar" style="margin-top:0.6rem;">
+          <div class="ops-progress-fill" style="width:{{ system_info.disk_percent }}%;background:linear-gradient(90deg,#F59E0B,#EF4444);"></div>
+        </div>
+        <div class="ops-stat-sub" style="margin-top:0.4rem;">Storage capacity (root)</div>
+      </div>
+      {% endif %}
+    </div>
+
+    {# Tech Stack table #}
+    <h4 style="font-size:0.82rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#64748B;margin:0 0 0.85rem;">Environment Details</h4>
+    <div class="ops-table-wrapper">
+      <table class="ops-table">
+        <thead>
+          <tr>
+            <th>Setting / Variable</th>
+            <th>Value</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Python Engine</strong></td>
+            <td><code class="ops-code">{{ system_info.python_version }}</code></td>
+            <td style="color:#94A3B8;">Active Python execution environment</td>
+          </tr>
+          <tr>
+            <td><strong>Platform OS</strong></td>
+            <td style="color:#CBD5E1;">{{ system_info.platform }}</td>
+            <td style="color:#94A3B8;">Host operating system</td>
+          </tr>
+          <tr>
+            <td><strong>Database dialect</strong></td>
+            <td><code class="ops-code">PostgreSQL</code></td>
+            <td style="color:#94A3B8;">Primary SQL storage engine dialect</td>
+          </tr>
+          <tr>
+            <td><strong>AI engine configured</strong></td>
+            <td><code class="ops-code">{{ ai.engine or 'Ollama' }}</code></td>
+            <td style="color:#94A3B8;">Inference provider for LearnIQ modules</td>
+          </tr>
+          <tr>
+            <td><strong>DB_MONITOR_ENABLED</strong></td>
+            <td><code class="ops-code">true</code></td>
+            <td style="color:#94A3B8;">Enables DB performance metrics collection</td>
+          </tr>
+          <tr>
+            <td><strong>DB_OPTIMIZER_AUTO_APPLY</strong></td>
+            <td><code class="ops-code">{% if auto_apply_enabled %}true{% else %}false{% endif %}</code></td>
+            <td style="color:#94A3B8;">Enables automated schema health patches</td>
+          </tr>
+          <tr>
+            <td><strong>DB_MONITOR_INTERVAL_HOURS</strong></td>
+            <td><code class="ops-code">{{ monitor_interval_hours }}</code></td>
+            <td style="color:#94A3B8;">Health scanning cycle duration</td>
+          </tr>
+          <tr>
+            <td><strong>OLLAMA_MODEL</strong></td>
+            <td><code class="ops-code">{{ ai.configured_model or 'gemma:2b' }}</code></td>
+            <td style="color:#94A3B8;">Target local language model</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+</div>
+
+{# ── Live Update AJAX Script ── #}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const toggle = document.getElementById('live-update-toggle');
+  const icon = document.getElementById('live-update-icon');
+  let intervalId = null;
+
+  if (!toggle) return;
+
+  function runPoll() {
+    if (icon) icon.style.transform = 'rotate(360deg)';
+    
+    // Reset rotation after transition completes
+    setTimeout(() => {
+      if (icon) {
+        icon.style.transition = 'none';
+        icon.style.transform = 'rotate(0deg)';
+        setTimeout(() => {
+          if (icon) icon.style.transition = 'transform 0.5s ease';
+        }, 50);
+      }
+    }, 500);
+
+    fetch('/platform/operations/metrics-api')
+      .then(response => response.json())
+      .then(res => {
+        if (!res.ok || !res.metrics) return;
+
+        const data = res.metrics;
+
+        // 1. Update overall status pill
+        const overallStatusLabel = document.querySelector('.ops-hero-grid div[style*="text-align:right"]');
+        if (overallStatusLabel) {
+          let pillHtml = '<div style="font-size:0.7rem;color:#475569;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.08em;">Overall status</div>';
+          if (data.status === 'healthy') {
+            pillHtml += '<div class="ops-status-pill ok" style="font-size:0.9rem;padding:0.5rem 1rem;"><span class="ops-status-dot pulse"></span> All Systems Operational</div>';
+          } else if (data.status === 'degraded') {
+            pillHtml += '<div class="ops-status-pill warn" style="font-size:0.9rem;padding:0.5rem 1rem;"><span class="ops-status-dot pulse"></span> Degraded</div>';
+          } else {
+            pillHtml += `<div class="ops-status-pill error" style="font-size:0.9rem;padding:0.5rem 1rem;"><span class="ops-status-dot pulse"></span> ${data.status.toUpperCase()}</div>`;
+          }
+          overallStatusLabel.innerHTML = pillHtml;
+        }
+
+        // 2. Update Hero banner pills (Postgres, Mongo, AI, Integrations)
+        const pills = document.querySelectorAll('.ops-status-row .ops-status-pill');
+        if (pills.length >= 4) {
+          // Postgres
+          const pgPill = pills[0];
+          pgPill.className = `ops-status-pill ${data.postgres.pending ? 'warn' : 'ok'}`;
+          pgPill.innerHTML = `<span class="ops-status-dot ${!data.postgres.pending ? 'pulse' : ''}"></span><i class="fas fa-database" style="font-size:0.65rem;"></i> PostgreSQL — ${data.postgres.pending ? 'Migrations Pending' : 'Up to Date'}`;
+
+          // Mongo
+          const mongoPill = pills[1];
+          mongoPill.className = `ops-status-pill ${data.mongo.available ? 'ok' : 'error'}`;
+          mongoPill.innerHTML = `<span class="ops-status-dot ${data.mongo.available ? 'pulse' : ''}"></span><i class="fas fa-leaf" style="font-size:0.65rem;"></i> MongoDB — ${data.mongo.available ? data.mongo.tenant_db_count + ' Tenant DB(s)' : 'Unavailable'}`;
+
+          // AI
+          const aiPill = pills[2];
+          aiPill.className = `ops-status-pill ${data.ai.model_ready ? 'ok' : (data.ai.available ? 'warn' : 'off')}`;
+          aiPill.innerHTML = `<span class="ops-status-dot ${data.ai.model_ready ? 'pulse' : ''}"></span><i class="fas fa-brain" style="font-size:0.65rem;"></i> LearnIQ AI — ${data.ai.model_ready ? data.ai.resolved_model : (data.ai.available ? 'No Model' : 'Offline')}`;
+
+          // Integrations
+          const intPill = pills[3];
+          const intOk = data.integrations.ok === data.integrations.total;
+          intPill.className = `ops-status-pill ${intOk ? 'ok' : (data.integrations.ok > 0 ? 'warn' : 'error')}`;
+          intPill.innerHTML = `<span class="ops-status-dot"></span><i class="fas fa-plug" style="font-size:0.65rem;"></i> Integrations — ${data.integrations.ok}/${data.integrations.total} OK`;
+        }
+
+        // 3. Update tab nav badges
+        const tabBadges = document.querySelectorAll('.ops-tab-nav .ops-tab-badge');
+        if (tabBadges.length >= 5) {
+          // Overview
+          const ovBadge = tabBadges[0];
+          ovBadge.className = `ops-tab-badge ${data.status === 'healthy' ? 'ok' : 'warn'}`;
+          ovBadge.innerHTML = data.status === 'healthy' ? '✓' : '!';
+
+          // Postgres
+          const pgBadge = tabBadges[1];
+          pgBadge.className = `ops-tab-badge ${data.postgres.pending ? 'warn' : 'ok'}`;
+          pgBadge.innerHTML = data.postgres.pending ? '!' : '✓';
+
+          // Mongo
+          const mongoBadge = tabBadges[2];
+          mongoBadge.className = `ops-tab-badge ${data.mongo.available ? 'ok' : 'error'}`;
+          mongoBadge.innerHTML = data.mongo.available ? '✓' : '✗';
+
+          // AI
+          const aiBadge = tabBadges[3];
+          aiBadge.className = `ops-tab-badge ${data.ai.model_ready ? 'ok' : (data.ai.available ? 'warn' : 'error')}`;
+          aiBadge.innerHTML = data.ai.model_ready ? '✓' : (data.ai.available ? '!' : '✗');
+
+          // Integrations
+          const intOk = data.integrations.ok === data.integrations.total;
+          const intBadge = tabBadges[4];
+          intBadge.className = `ops-tab-badge ${intOk ? 'ok' : 'warn'}`;
+          intBadge.innerHTML = intOk ? '✓' : '!';
+        }
+
+        // 4. Update CPU and Memory metrics in System tab if active
+        const cpuValue = document.getElementById('metrics-cpu-value');
+        const cpuBar = document.getElementById('metrics-cpu-bar');
+        if (cpuValue && cpuBar && data.system.cpu_percent !== null) {
+          cpuValue.textContent = `${data.system.cpu_percent}%`;
+          cpuBar.style.width = `${data.system.cpu_percent}%`;
+        }
+
+        const ramValue = document.getElementById('metrics-ram-value');
+        const ramBar = document.getElementById('metrics-ram-bar');
+        if (ramValue && ramBar && data.system.mem_percent !== null) {
+          ramValue.textContent = `${data.system.mem_used} / ${data.system.mem_total} MB (${data.system.mem_percent}%)`;
+          ramBar.style.width = `${data.system.mem_percent}%`;
+        }
+      })
+      .catch(err => {
+        console.error('Polling failed:', err);
+      });
+
+    fetch('/platform/operations/agents-api')
+      .then(response => response.json())
+      .then(agentRes => {
+        if (!agentRes.ok || !agentRes.agents) return;
+        const panel = document.getElementById('opsAgentPanel');
+        const domain = panel && panel.dataset.domain;
+        const agent = domain ? agentRes.agents[domain] : null;
+        if (!agent) return;
+        const statusEl = document.getElementById('opsAgentStatus');
+        const summaryEl = document.getElementById('opsAgentSummary');
+        const scoreEl = document.getElementById('opsAgentScore');
+        if (statusEl) statusEl.textContent = agent.status;
+        if (summaryEl) summaryEl.textContent = agent.summary;
+        if (scoreEl) scoreEl.textContent = `Health ${agent.health_score != null ? agent.health_score : '—'}/100`;
+      })
+      .catch(() => {});
+  }
+
+  toggle.addEventListener('change', function() {
+    if (toggle.checked) {
+      localStorage.setItem('ops_live_update', 'true');
+      runPoll();
+      intervalId = setInterval(runPoll, 10000);
+    } else {
+      localStorage.setItem('ops_live_update', 'false');
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    }
+  });
+
+  // Restore toggle state from localStorage
+  if (localStorage.getItem('ops_live_update') === 'true') {
+    toggle.checked = true;
+    runPoll();
+    intervalId = setInterval(runPoll, 10000);
+  }
+});
+</script>
+{% endblock %}

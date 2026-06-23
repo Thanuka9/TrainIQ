@@ -123,9 +123,13 @@ def _users_page_redirect():
 # --- Admin Authentication Middleware ---
 def _effective_super_admin():
     from flask import session
+    from utils.support_access import can_support_write, is_in_support_mode
+
+    if is_in_support_mode():
+        return can_support_write()
     if current_user.is_super_admin:
         return True
-    return bool(session.get('platform_support') and is_trainiq_staff())
+    return False
 
 
 def _deny_admin_access(message="You don't have permission to do that."):
@@ -148,9 +152,23 @@ def _deny_admin_access(message="You don't have permission to do that."):
 def admin_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
+        from utils.support_access import (
+            audit_support_mutation_allowed,
+            block_support_readonly_mutation,
+            can_support_view,
+        )
+
+        blocked = block_support_readonly_mutation(func.__name__)
+        if blocked:
+            return blocked
+
         if _effective_super_admin():
+            audit_support_mutation_allowed(func.__name__)
             return func(*args, **kwargs)
         if user_can_access_route(current_user, func.__name__, effective_super_admin=False):
+            audit_support_mutation_allowed(func.__name__)
+            return func(*args, **kwargs)
+        if can_support_view() and request.method in ('GET', 'HEAD', 'OPTIONS'):
             return func(*args, **kwargs)
         return _deny_admin_access()
     return wrapper
@@ -158,9 +176,17 @@ def admin_required(func):
 def super_admin_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
+        from utils.support_access import audit_support_mutation_allowed, block_support_readonly_mutation
+
+        blocked = block_support_readonly_mutation(func.__name__)
+        if blocked:
+            return blocked
+
         if _effective_super_admin():
+            audit_support_mutation_allowed(func.__name__)
             return func(*args, **kwargs)
         if user_can_access_route(current_user, func.__name__, effective_super_admin=False):
+            audit_support_mutation_allowed(func.__name__)
             return func(*args, **kwargs)
         return _deny_admin_access("You don't have permission to perform that action.")
     return wrapper
@@ -326,8 +352,8 @@ def admin_dashboard():
 @login_required
 @super_admin_required
 def tenant_settings():
-    from models import Tenant
-    tenant = Tenant.query.get(user_tenant_id())
+    from utils.tenant_db import load_tenant_by_id
+    tenant = load_tenant_by_id(user_tenant_id(), label='admin_tenant_settings')
     if not tenant:
         flash("Organization settings not found.", "error")
         return redirect(url_for('admin_routes.admin_dashboard'))
@@ -375,6 +401,12 @@ def tenant_settings():
             
         try:
             db.session.commit()
+            from utils.tenant_db import invalidate_request_tenant_cache
+            from utils.tenant_domain_cache import invalidate_tenant_domain_cache
+
+            invalidate_request_tenant_cache(tenant.id)
+            invalidate_tenant_domain_cache()
+            invalidate_request_tenant_cache(tenant.id)
             session['tenant_name'] = name
             flash("Organization settings updated successfully!", "success")
         except Exception as e:
@@ -648,7 +680,12 @@ def edit_course(course_id):
         # 4) Media assets (documents, videos, links, transcripts)
         from utils.course_edit import apply_course_media_edits
 
-        apply_course_media_edits(course, request.form, request.files)
+        try:
+            apply_course_media_edits(course, request.form, request.files)
+        except ValueError as exc:
+            if str(exc) == 'storage_quota_exceeded':
+                return redirect(url_for('admin_routes.edit_course', course_id=course_id))
+            raise
 
         db.session.commit()
         flash("Course updated successfully.", "success")
@@ -1044,8 +1081,8 @@ def view_users():
         )
 
     from utils.billing_plans import tenant_usage
-    from models import Tenant
-    tenant = Tenant.query.get(tid) if tid else None
+    from utils.tenant_db import load_tenant_by_id
+    tenant = load_tenant_by_id(tid, label='admin_view_users') if tid else None
     usage = tenant_usage(tenant) if tenant else {}
     return render_template(
         'admin_users.html',
@@ -3169,6 +3206,32 @@ def manage_exam_requests():
 
     # --- Handle Approve/Reject POST ---
     if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'approve_all':
+            pending = scope_exam_access_requests(
+                ExamAccessRequest.query.filter_by(status='pending')
+            ).all()
+            from utils.notifications import create_notification
+            count = 0
+            for req in pending:
+                req.status = 'approved'
+                req.reviewed_at = datetime.utcnow()
+                create_notification(
+                    req.user_id,
+                    "Exam access approved",
+                    "You can now take the exam.",
+                    category="exam",
+                    link_url=url_for("exams_routes.list_exams"),
+                    icon="file-alt",
+                )
+                count += 1
+            if count:
+                db.session.commit()
+                flash(f"Approved {count} pending request(s).", "success")
+            else:
+                flash("No pending requests to approve.", "info")
+            return redirect(url_for('admin_routes.manage_exam_requests'))
+
         req_id = request.form.get('request_id')
         action = request.form.get('action')  # approve or reject
         req = ExamAccessRequest.query.get_or_404(req_id)
@@ -3207,6 +3270,7 @@ def manage_exam_requests():
         flash("Invalid date format. Use YYYY-MM-DD.", "danger")
 
     all_requests = query.all()
+    pending_count = sum(1 for r in all_requests if r.status == 'pending')
 
     # --- Attach readable exam titles ---
     for r in all_requests:
@@ -3220,6 +3284,7 @@ def manage_exam_requests():
     return render_template(
         'admin_exam_requests.html',
         requests=all_requests,
+        pending_count=pending_count,
         from_date=from_date_str,
         to_date=to_date_str
     )

@@ -10,6 +10,9 @@
 {% endblock %}
 
 {% block content %}
+{% if not mongo_available %}
+  {% include 'partials/mongo_degraded_banner.html' %}
+{% endif %}
 <div class="tiq-page-header">
   <div class="tiq-flex-between">
     <div>

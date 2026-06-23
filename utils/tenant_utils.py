@@ -1,7 +1,6 @@
 """Multi-tenant helpers for TrainIQ SaaS."""
 from __future__ import annotations
 
-import os
 import random
 import string
 
@@ -13,22 +12,6 @@ from sqlalchemy import text
 def generate_office_key(length=10):
     chars = string.ascii_uppercase + string.digits
     return "".join(random.choice(chars) for _ in range(length))
-
-
-def trainiq_staff_domains():
-    raw = os.getenv("TRAINIQ_STAFF_DOMAINS", "trainiq.com")
-    return {d.strip().lower() for d in raw.split(",") if d.strip()}
-
-
-def trainiq_staff_emails():
-    """Explicit staff allowlist — always includes TRAINIQ_CEO_EMAIL."""
-    from utils.platform_ceo import PLATFORM_CEO_EMAIL
-
-    raw = os.getenv("TRAINIQ_STAFF_EMAILS", "")
-    emails = {e.strip().lower() for e in raw.split(",") if e.strip()}
-    if PLATFORM_CEO_EMAIL:
-        emails.add(PLATFORM_CEO_EMAIL)
-    return emails
 
 
 def is_platform_tenant(tenant) -> bool:

@@ -130,6 +130,28 @@
       .platform-orbs span,
       .platform-reveal { animation: none !important; transition: none !important; transform: none !important; opacity: 1 !important; }
     }
+
+    /* Mobile: horizontal section tabs; desktop uses sidebar only */
+    .platform-subnav {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 0.35rem;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 0.35rem;
+      margin-bottom: 1rem;
+      scrollbar-width: thin;
+    }
+    .platform-subnav .tiq-btn { flex: 0 0 auto; white-space: nowrap; }
+    @media (min-width: 992px) {
+      .platform-subnav { display: none; }
+    }
+    @media (max-width: 991px) {
+      .platform-kpi-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+      .platform-chart-grid { grid-template-columns: 1fr; }
+      .tiq-table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .tiq-page-content { padding-left: 0.75rem; padding-right: 0.75rem; }
+    }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
@@ -162,43 +184,7 @@
     </div>
 
     <nav class="tiq-sidebar-nav">
-      {% set nav = [
-        ('platform_routes.platform_dashboard', 'globe', 'Command Center', ('platform_routes.platform_dashboard',)),
-        ('platform_routes.list_tenants', 'building', 'Organizations', ('platform_routes.list_tenants', 'platform_routes.tenant_detail')),
-        ('platform_routes.platform_users', 'users', 'All Users', ('platform_routes.platform_users',)),
-        ('platform_routes.platform_support', 'headset', 'Support', ('platform_routes.platform_support',)),
-        ('platform_routes.platform_security', 'shield-halved', 'Security', ('platform_routes.platform_security',)),
-        ('platform_routes.platform_activity', 'stream', 'Activity', ('platform_routes.platform_activity',)),
-        ('platform_routes.platform_revenue', 'dollar-sign', 'Revenue', ('platform_routes.platform_revenue',)),
-      ] %}
-      {% for endpoint, icon, label, active_eps in nav %}
-      <a href="{{ url_for(endpoint) }}" class="tiq-nav-item {% if request.endpoint in active_eps %}active{% endif %}">
-        <span class="nav-icon"><i class="fas fa-{{ icon }}"></i></span>
-        <span class="nav-label">{{ label }}</span>
-      </a>
-      {% endfor %}
-
-      {% if is_platform_ceo() or has_platform_perm('staff.view') %}
-      <div class="tiq-nav-section-label" style="margin-top:1rem;">Team</div>
-      <a href="{{ url_for('platform_routes.platform_staff') }}" class="tiq-nav-item {% if request.endpoint == 'platform_routes.platform_staff' %}active{% endif %}">
-        <span class="nav-icon"><i class="fas fa-user-shield"></i></span>
-        <span class="nav-label">{% if is_platform_ceo() %}Staff &amp; Invites{% else %}Staff Hub{% endif %}</span>
-      </a>
-      {% endif %}
-
-      {% if session.get('platform_support') %}
-      <div class="tiq-nav-section-label" style="margin-top:1rem;">Support mode</div>
-      <a href="{{ url_for('admin_routes.admin_dashboard') }}" class="tiq-nav-item">
-        <span class="nav-icon"><i class="fas fa-building"></i></span>
-        <span class="nav-label">{{ session.get('tenant_name', 'Customer org') }}</span>
-      </a>
-      <form action="{{ url_for('platform_routes.exit_tenant') }}" method="POST" style="padding:0 1rem;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="tiq-btn tiq-btn-warning tiq-btn-sm tiq-w-full" style="justify-content:center;">
-          <i class="fas fa-sign-out-alt"></i> Exit org view
-        </button>
-      </form>
-      {% endif %}
+      {% include 'partials/platform_sidebar_nav.html' %}
     </nav>
 
     <div class="tiq-sidebar-footer">
@@ -211,11 +197,7 @@
         <i class="fas fa-ellipsis-vertical" style="color:rgba(148,163,184,0.5);margin-left:auto;font-size:0.8rem"></i>
       </div>
       <div class="tiq-dropdown" id="platformUserMenu" style="bottom:100%;top:auto;margin-bottom:8px;">
-        <a href="{{ url_for('platform_routes.platform_dashboard') }}" class="tiq-dropdown-item"><i class="fas fa-globe"></i> Command Center</a>
-        {% if is_platform_ceo() %}
-        <a href="{{ url_for('platform_routes.platform_staff') }}" class="tiq-dropdown-item"><i class="fas fa-user-plus"></i> Invite Staff</a>
-        {% endif %}
-        <div class="tiq-dropdown-divider"></div>
+        {% include 'partials/platform_user_menu_items.html' %}
         <a href="{{ url_for('auth_routes.logout') }}" class="tiq-dropdown-item danger"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
       </div>
     </div>
@@ -232,6 +214,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:0.75rem">
+        {% include 'partials/platform_topbar_links.html' %}
         {% include 'partials/topbar_right_controls.html' %}
         <div class="tiq-user-menu">
           <button class="tiq-user-trigger" data-tiq-dropdown="platformTopMenu">
@@ -245,11 +228,10 @@
               <div style="font-weight:700;font-size:0.875rem">{{ current_user.first_name }} {{ current_user.last_name }}</div>
               <div style="font-size:0.75rem;color:var(--tiq-text-3)">{% if is_platform_ceo() %}Platform CEO{% else %}Platform Operator{% endif %}</div>
             </div>
-            <a href="{{ url_for('platform_routes.platform_dashboard') }}" class="tiq-dropdown-item"><i class="fas fa-globe"></i> Command Center</a>
+            {% include 'partials/platform_user_menu_items.html' %}
             {% if is_platform_ceo() %}
             <a href="{{ url_for('platform_routes.platform_staff') }}#invite-staff" class="tiq-dropdown-item"><i class="fas fa-user-plus"></i> Invite Staff</a>
             {% endif %}
-            <div class="tiq-dropdown-divider"></div>
             <a href="{{ url_for('auth_routes.logout') }}" class="tiq-dropdown-item danger"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
           </div>
         </div>
@@ -261,11 +243,36 @@
       <div class="tiq-alert tiq-alert-warning" style="margin-bottom:1rem;">
         <i class="fas fa-headset"></i>
         <strong>Support mode</strong> — viewing <strong>{{ session.get('tenant_name', 'customer org') }}</strong>.
-        <a href="{{ url_for('admin_routes.admin_dashboard') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm" style="margin-left:0.5rem;">Open org admin</a>
+        {% if support_readonly %}
+        <span class="tiq-badge" style="margin-left:0.5rem;background:#FEF3C7;color:#92400E;font-size:0.7rem;padding:0.15rem 0.5rem;border-radius:999px;">Read-only</span>
+        {% elif support_write_elevated %}
+        <span class="tiq-badge" style="margin-left:0.5rem;background:#FEE2E2;color:#991B1B;font-size:0.7rem;padding:0.15rem 0.5rem;border-radius:999px;">Write enabled</span>
+        {% endif %}
+        <a href="{{ url_for('platform_routes.platform_dashboard') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm" style="margin-left:0.5rem;">Platform Command Center</a>
+        {% if has_platform_perm('staff.view') %}
+        <a href="{{ url_for('platform_routes.platform_staff') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">Staff Hub</a>
+        {% endif %}
+        {% if support_readonly and has_platform_perm('tenants.manage') %}
+        <details style="display:inline;margin-left:0.35rem;">
+          <summary class="tiq-btn tiq-btn-danger tiq-btn-sm" style="list-style:none;cursor:pointer;">Enable write access</summary>
+          <form action="{{ url_for('platform_routes.elevate_support_write') }}" method="POST" style="margin-top:0.75rem;padding:0.75rem;background:var(--tiq-surface-2);border-radius:8px;max-width:360px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <p style="font-size:0.85rem;margin:0 0 0.75rem;color:var(--tiq-text-2);">Break-glass: confirm customer authorization and enter their Office Key.</p>
+            <label class="tiq-label" for="office_key_confirm">Office Key</label>
+            <input class="tiq-input" id="office_key_confirm" name="office_key_confirm" required autocomplete="off" style="margin-bottom:0.5rem;">
+            <label style="display:flex;gap:0.5rem;align-items:flex-start;font-size:0.85rem;margin-bottom:0.75rem;">
+              <input type="checkbox" name="breakglass_ack" value="1" required style="margin-top:3px;">
+              Customer authorized this support change (ticket/on-call approval).
+            </label>
+            <button type="submit" class="tiq-btn tiq-btn-danger tiq-btn-sm">Confirm &amp; enable write</button>
+          </form>
+        </details>
+        {% endif %}
         <form action="{{ url_for('platform_routes.exit_tenant') }}" method="POST" style="display:inline;margin-left:0.35rem;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="tiq-btn tiq-btn-warning tiq-btn-sm">Back to Platform</button>
+          <button type="submit" class="tiq-btn tiq-btn-warning tiq-btn-sm">Exit support mode</button>
         </form>
+        <a href="{{ url_for('admin_routes.admin_dashboard') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm" style="margin-left:0.35rem;">Open org admin</a>
       </div>
       {% endif %}
       {% block content %}{% endblock %}

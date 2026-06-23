@@ -151,6 +151,18 @@ def upload_course():
             flash("Add at least one document, video upload, or external media link.", "error")
             return redirect(url_for('study_material_routes.upload_course'))
 
+        from models import Tenant
+        from utils.tenant_storage import assert_storage_allowed, invalidate_tenant_storage_cache, sum_upload_file_sizes
+
+        upload_tenant = Tenant.query.get(user_tenant_id())
+        pending_bytes = (
+            sum_upload_file_sizes(main_docs)
+            + sum_upload_file_sizes(main_videos)
+            + sum_upload_file_sizes(subtopic_files)
+        )
+        if upload_tenant and pending_bytes and not assert_storage_allowed(upload_tenant, pending_bytes):
+            return redirect(url_for('study_material_routes.upload_course'))
+
         try:
             course_time = int(course_time)
             max_time    = int(max_time)
@@ -316,6 +328,7 @@ def upload_course():
         db.session.commit()
         logging.info(f"Subtopics uploaded for study material ID: {study_material.id}")
 
+        invalidate_tenant_storage_cache(study_material.tenant_id or user_tenant_id())
         flash("Study materials and subtopics uploaded successfully.", "success")
         return redirect(url_for('study_material_routes.list_study_materials'))
 

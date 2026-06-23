@@ -19,6 +19,14 @@
       </div>
       <h1>Exam Access Requests</h1>
     </div>
+    {% if pending_count %}
+    <form method="POST" onsubmit="return confirm('Approve all {{ pending_count }} pending request(s)?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <button type="submit" name="action" value="approve_all" class="tiq-btn tiq-btn-success">
+        <i class="fas fa-check-double"></i> Approve all ({{ pending_count }})
+      </button>
+    </form>
+    {% endif %}
   </div>
 </div>
 
@@ -104,7 +112,9 @@
           {% else %}
           <tr>
             <td colspan="6" class="tiq-text-center" style="padding:3rem; color:var(--tiq-text-3);">
-              No access requests found.
+              <div style="font-size:2rem;margin-bottom:0.75rem;opacity:0.35;"><i class="fas fa-inbox"></i></div>
+              <strong style="display:block;color:var(--tiq-text);margin-bottom:0.35rem;">No access requests</strong>
+              When learners request exam access, they'll appear here for approval.
             </td>
           </tr>
           {% endfor %}

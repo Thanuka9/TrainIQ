@@ -1,0 +1,18 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: default
+  group_by: ['alertname', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: default
+    email_configs:
+      - to: '${ALERT_EMAIL:-ops@trainiq.com}'
+        from: '${ALERT_FROM:-alerts@trainiq.com}'
+        smarthost: '${SMTP_HOST:-smtp.example.com:587}'
+        auth_username: '${SMTP_USER:-}'
+        auth_password: '${SMTP_PASS:-}'

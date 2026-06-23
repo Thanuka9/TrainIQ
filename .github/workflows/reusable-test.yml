@@ -75,6 +75,11 @@ jobs:
           echo "PostgreSQL did not become ready in time"
           exit 1
 
+      - name: Apply database migrations
+        run: flask db upgrade
+        env:
+          FLASK_APP: app.py
+
       - name: Run tests (with one flake retry)
         id: pytest
         run: |
@@ -95,6 +100,24 @@ jobs:
           fi
           echo "result=failed" >> "$GITHUB_OUTPUT"
           exit 1
+
+      - name: Verify health endpoint
+        if: success()
+        run: |
+          python - <<'PY'
+          import os
+          os.environ.setdefault("FLASK_ENV", "development")
+          os.environ.setdefault("SECRET_KEY", "ci-test-secret-key-not-for-production")
+          os.environ.setdefault("DATABASE_URL", os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/collectivercm_test"))
+          os.environ.setdefault("REDIS_URI", "memory://")
+          from app import app
+          client = app.test_client()
+          resp = client.get("/health")
+          assert resp.status_code == 200, resp.data
+          data = resp.get_json()
+          assert data.get("postgres", {}).get("ok") is True, data
+          print("Health check OK:", data)
+          PY
 
       - name: Upload pytest results
         if: always()

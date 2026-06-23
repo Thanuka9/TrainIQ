@@ -51,8 +51,14 @@
   <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-building" style="color:#6366F1;margin-right:5px;"></i>Organizations</div><div class="stat-value">{{ stats.total_tenants }}</div></div>
   <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-users" style="color:#06B6D4;margin-right:5px;"></i>Total users</div><div class="stat-value">{{ stats.total_users }}</div><div style="font-size:0.72rem;color:#10B981;">+{{ stats.new_users_7d }} this week</div></div>
   <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-user-check" style="color:#10B981;margin-right:5px;"></i>Verified</div><div class="stat-value">{{ stats.active_users }}</div></div>
-  <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-dollar-sign" style="color:#10B981;margin-right:5px;"></i>Est. MRR</div><div class="stat-value">${{ stats.estimated_mrr }}</div><div style="font-size:0.72rem;color:var(--tiq-text-3);">ARR ${{ stats.estimated_arr }}</div></div>
+  {% if has_platform_perm('revenue.view') %}
+  <a href="{{ url_for('platform_routes.platform_revenue') }}" class="tiq-stat-card" style="text-decoration:none;color:inherit;display:block;" title="Estimated from plan prices and custom MRR overrides — not audited Stripe revenue. View revenue analytics →">
+    <div class="stat-label"><i class="fas fa-dollar-sign" style="color:#10B981;margin-right:5px;"></i>MRR {% if stats.mrr_stripe_backed %}<span style="font-size:0.65rem;opacity:0.75;">(Stripe-backed)</span>{% else %}<span style="font-size:0.65rem;opacity:0.75;">(estimated)</span>{% endif %}</div>
+    <div class="stat-value">${{ stats.estimated_mrr }}</div>
+    <div style="font-size:0.72rem;color:var(--tiq-text-3);">Est. ARR ${{ stats.estimated_arr }}{% if stats.stripe_synced_tenants %} · {{ stats.stripe_synced_tenants }} Stripe org(s){% endif %} · <span style="color:#6366F1;">View revenue →</span></div>
+  </a>
   <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-credit-card" style="color:#F59E0B;margin-right:5px;"></i>Paid / Trial</div><div class="stat-value">{{ stats.paid_tenants }} / {{ stats.trial_tenants }}</div></div>
+  {% endif %}
   <div class="tiq-stat-card"><div class="stat-label"><i class="fas fa-headset" style="color:#EF4444;margin-right:5px;"></i>Open support</div><div class="stat-value">{{ stats.open_support }}</div></div>
 </div>
 
@@ -66,6 +72,7 @@
 </div>
 
 <div class="tiq-grid tiq-grid-2 tiq-gap" style="margin-bottom:1.5rem;">
+  {% if has_platform_perm('tenants.enter') %}
   <div class="tiq-card">
     <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-key me-2"></i>Enter organization (support mode)</h3></div>
     <div class="tiq-card-body">
@@ -84,6 +91,7 @@
       <p style="font-size:0.8rem;color:var(--tiq-text-3);margin:0.75rem 0 0;">Full Super Admin access inside the customer org. Use <strong>Back to Platform</strong> when done.</p>
     </div>
   </div>
+  {% endif %}
   <div class="tiq-card">
     <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-chart-line me-2"></i>Growth snapshot</h3></div>
     <div class="tiq-card-body" style="min-height:200px;">
@@ -108,12 +116,14 @@
       </div>
     </div>
   </div>
+  {% if has_platform_perm('revenue.view') %}
   <div class="tiq-card">
     <div class="tiq-card-header"><h3 class="tiq-card-title"><i class="fas fa-dollar-sign me-2"></i>MRR by plan</h3></div>
     <div class="tiq-card-body">
       <div id="platformMrrBar"></div>
     </div>
   </div>
+  {% endif %}
 </div>
 
 <form method="get" class="platform-filter-bar" id="platformOrgFilter">
@@ -159,7 +169,9 @@
   <div class="tiq-card-header">
     <h3 class="tiq-card-title"><i class="fas fa-table me-2"></i>All organizations ({{ filtered_rows|length }} of {{ stats.total_tenants }})</h3>
     <div style="display:flex;gap:0.5rem;">
+      {% if has_platform_perm('exports.data') %}
       <a href="{{ url_for('platform_routes.export_tenants_csv', q=q, plan=plan, status=status, sort=sort) }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm"><i class="fas fa-file-csv"></i> CSV</a>
+      {% endif %}
       <a href="{{ url_for('platform_routes.platform_users') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm"><i class="fas fa-users"></i> All users</a>
     </div>
   </div>
@@ -175,7 +187,7 @@
             <th>Courses</th>
             <th>Exams</th>
             <th>Tasks</th>
-            <th>MRR</th>
+            {% if has_platform_perm('revenue.view') %}<th>MRR</th>{% endif %}
             <th></th>
           </tr>
         </thead>
@@ -190,13 +202,15 @@
             <td>{{ row.courses }}</td>
             <td>{{ row.exams }}</td>
             <td>{{ row.tasks }}</td>
-            <td>{% if row.mrr %}${{ row.mrr }}{% else %}—{% endif %}</td>
+            {% if has_platform_perm('revenue.view') %}<td>{% if row.mrr %}${{ row.mrr }}{% else %}—{% endif %}</td>{% endif %}
             <td style="white-space:nowrap;">
               <a href="{{ url_for('platform_routes.platform_users', tenant_id=t.id) }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm" title="Users"><i class="fas fa-users"></i></a>
+              {% if has_platform_perm('tenants.enter') %}
               <form action="{{ url_for('platform_routes.enter_tenant', tenant_id=t.id) }}" method="POST" style="display:inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm">Enter</button>
               </form>
+              {% endif %}
             </td>
           </tr>
           {% else %}
@@ -302,6 +316,7 @@ document.addEventListener('DOMContentLoaded', function() {
   donut('platformStatusPie', charts.status_labels, charts.status_values, ['#10B981', '#EF4444', '#94A3B8', '#F59E0B', '#6366F1']);
 
   // MRR by plan — bar with $ labels
+  {% if has_platform_perm('revenue.view') %}
   if (charts.mrr_labels.length) {
     render('platformMrrBar', {
       ...baseOpts,
@@ -317,6 +332,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const el = document.getElementById('platformMrrBar');
     if (el) el.innerHTML = '<p style="color:var(--tiq-text-3);text-align:center;padding:3rem 1rem;">No paid plans yet — MRR appears once an org upgrades.</p>';
   }
+  {% endif %}
 });
 </script>
 {% endblock %}

@@ -7,8 +7,6 @@ from utils.tenant_utils import (
     is_trainiq_staff,
     is_platform_tenant,
     parse_domain_list,
-    trainiq_staff_domains,
-    trainiq_staff_emails,
 )
 
 
@@ -33,10 +31,6 @@ def test_host_matches_allowed():
     assert not host_matches_allowed("evil.com", "acme.com")
 
 
-def test_trainiq_staff_domains_default():
-    assert "trainiq.com" in trainiq_staff_domains()
-
-
 class _FakeUser:
     is_authenticated = True
 
@@ -58,9 +52,3 @@ def test_is_trainiq_staff_ceo_email():
     from utils.platform_ceo import PLATFORM_CEO_EMAIL
 
     assert is_trainiq_staff(_FakeUser(PLATFORM_CEO_EMAIL))
-
-
-def test_trainiq_staff_emails_includes_ceo():
-    from utils.platform_ceo import PLATFORM_CEO_EMAIL
-
-    assert PLATFORM_CEO_EMAIL in trainiq_staff_emails()

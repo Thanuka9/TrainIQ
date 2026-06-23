@@ -1,10 +1,11 @@
 """Tests for learner course notes."""
 import os
+import uuid
 from datetime import datetime
 
 import pytest
 
-os.environ.setdefault("REDIS_URI", "memory://")
+os.environ["REDIS_URI"] = "memory://"
 
 from unittest.mock import MagicMock, patch
 
@@ -104,6 +105,8 @@ def note_client(note_ctx):
     user, _material = note_ctx
     flask_app.config["TESTING"] = True
     flask_app.config["WTF_CSRF_ENABLED"] = False
+    for lim in flask_app.extensions.get("limiter") or ():
+        lim.enabled = False
     client = flask_app.test_client()
     with client.session_transaction() as sess:
         sess["_user_id"] = str(user.id)
@@ -122,14 +125,37 @@ def test_export_course_notes_http(note_client, note_ctx):
     assert material.title in body or "My Notes" in body
 
 
-def test_search_course_notes_http(note_client, note_ctx):
+def test_search_course_notes_http(note_client, note_ctx, app):
     client, user = note_client
     _, material = note_ctx
+    asset_id = f"asset_search_{uuid.uuid4().hex[:8]}"
+    with app.app_context():
+        note = CourseNote(
+            user_id=user.id,
+            study_material_id=material.id,
+            asset_id=asset_id,
+            page_num=1,
+            content="Updated search content",
+            tenant_id=material.tenant_id,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        db.session.add(note)
+        db.session.commit()
+
     resp = client.get("/study_materials/course_notes/search?q=Updated")
     assert resp.status_code == 200
     data = resp.get_json()
     assert data["count"] >= 1
     assert any(n["course_id"] == material.id for n in data["notes"])
+
+    with app.app_context():
+        CourseNote.query.filter_by(
+            user_id=user.id,
+            study_material_id=material.id,
+            asset_id=asset_id,
+        ).delete()
+        db.session.commit()
 
 
 def test_search_course_notes_requires_min_length(note_client):

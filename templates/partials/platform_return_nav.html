@@ -1,0 +1,92 @@
+{# Persistent navigation for TrainIQ CEO / platform staff when outside /platform/* #}
+{% if is_trainiq_staff() and request.blueprint != 'platform_routes' %}
+  {% if session.get('platform_support') %}
+  <div class="tiq-alert tiq-alert-warning platform-return-bar" style="margin-bottom:1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.5rem;">
+      <span>
+        <i class="fas fa-headset"></i>
+        <strong>Support mode</strong> — viewing <strong>{{ session.get('tenant_name', 'customer org') }}</strong>
+        {% if support_readonly %}
+        <span class="tiq-badge" style="margin-left:0.35rem;background:#FEF3C7;color:#92400E;font-size:0.7rem;padding:0.15rem 0.5rem;border-radius:999px;">Read-only</span>
+        {% elif support_write_elevated %}
+        <span class="tiq-badge" style="margin-left:0.35rem;background:#FEE2E2;color:#991B1B;font-size:0.7rem;padding:0.15rem 0.5rem;border-radius:999px;">Write enabled</span>
+        {% endif %}
+        {% if global_tenant and global_tenant.status and global_tenant.status not in ['active', 'trial'] %}
+        <span class="tiq-badge" style="margin-left:0.35rem;background:#FEE2E2;color:#991B1B;font-size:0.7rem;padding:0.15rem 0.5rem;border-radius:999px;text-transform:capitalize;">
+          Org {{ global_tenant.status }}
+        </span>
+        {% endif %}
+      </span>
+      <span class="platform-return-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+        <a href="{{ url_for('platform_routes.platform_dashboard') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">
+          <i class="fas fa-globe"></i> Platform Command Center
+        </a>
+        {% if has_platform_perm('staff.view') %}
+        <a href="{{ url_for('platform_routes.platform_staff') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">
+          <i class="fas fa-user-shield"></i> Staff Hub
+        </a>
+        {% endif %}
+        {% if support_readonly and has_platform_perm('tenants.manage') %}
+        <details style="display:inline;">
+          <summary class="tiq-btn tiq-btn-danger tiq-btn-sm" style="list-style:none;cursor:pointer;">Enable write access</summary>
+          <form action="{{ url_for('platform_routes.elevate_support_write') }}" method="POST" style="margin-top:0.5rem;padding:0.75rem;background:#fff;border:1px solid var(--tiq-border);border-radius:8px;max-width:360px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="tiq-label" for="office_key_confirm_nav">Office Key</label>
+            <input class="tiq-input" id="office_key_confirm_nav" name="office_key_confirm" required autocomplete="off" style="margin-bottom:0.5rem;">
+            <label style="display:flex;gap:0.5rem;font-size:0.85rem;margin-bottom:0.5rem;">
+              <input type="checkbox" name="breakglass_ack" value="1" required>
+              Customer authorized this change.
+            </label>
+            <button type="submit" class="tiq-btn tiq-btn-danger tiq-btn-sm">Confirm write access</button>
+          </form>
+        </details>
+        {% endif %}
+        <form action="{{ url_for('platform_routes.exit_tenant') }}" method="POST" style="margin:0;display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="tiq-btn tiq-btn-warning tiq-btn-sm">
+            <i class="fas fa-sign-out-alt"></i> Exit support mode
+          </button>
+        </form>
+      </span>
+    </div>
+    {% if global_tenant and global_tenant.status in ['suspended', 'expired'] %}
+    <p style="margin:0 0 0.5rem;font-size:0.8rem;color:#92400E;">
+      <i class="fas fa-triangle-exclamation"></i>
+      This organization is <strong>{{ global_tenant.status }}</strong> — customer logins may be blocked. Support access is audited.
+    </p>
+    {% endif %}
+    <div style="display:flex;gap:0.35rem;flex-wrap:wrap;font-size:0.8rem;">
+      {% for label, endpoint in [
+        ('Org dashboard', 'admin_routes.admin_dashboard'),
+        ('Users', 'admin_routes.view_users'),
+        ('Courses', 'admin_routes.view_courses'),
+        ('Exams', 'admin_routes.view_exams'),
+        ('Analytics', 'admin_routes.view_analytics'),
+        ('Support tickets', 'admin_routes.admin_list_tickets'),
+        ('Audit logs', 'admin_routes.view_audit_logs'),
+        ('Billing', 'billing_routes.billing_home'),
+        ('Settings', 'admin_routes.tenant_settings'),
+      ] %}
+      <a href="{{ url_for(endpoint) }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm" style="padding:0.2rem 0.5rem;">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="platform-return-strip" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;padding:0.65rem 0.85rem;background:var(--tiq-surface-2);border:1px solid var(--tiq-border);border-radius:var(--tiq-radius-lg);">
+    <span style="font-size:0.85rem;color:var(--tiq-text-2);">
+      <i class="fas fa-globe" style="color:#6366F1;"></i>
+      {% if is_platform_ceo() %}Platform CEO{% else %}Platform staff{% endif %} — leave org admin to return to the command center.
+    </span>
+    <span style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+      <a href="{{ url_for('platform_routes.platform_dashboard') }}" class="tiq-btn tiq-btn-primary tiq-btn-sm">
+        <i class="fas fa-globe"></i> Platform Command Center
+      </a>
+      {% if has_platform_perm('staff.view') %}
+      <a href="{{ url_for('platform_routes.platform_staff') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">
+        <i class="fas fa-user-shield"></i> Staff Hub
+      </a>
+      {% endif %}
+    </span>
+  </div>
+  {% endif %}
+{% endif %}

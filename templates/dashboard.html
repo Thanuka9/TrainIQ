@@ -167,6 +167,8 @@
       </button>
     </div>
     <nav class="tiq-sidebar-nav">
+      {% include 'partials/platform_sidebar_nav.html' %}
+
       <div class="tiq-nav-section-label">Main</div>
       <a href="{{ url_for('general_routes.dashboard') }}" class="tiq-nav-item active">
         <span class="nav-icon"><i class="fas fa-house"></i></span>
@@ -227,6 +229,7 @@
         <i class="fas fa-ellipsis-vertical" style="color:rgba(148,163,184,0.5);margin-left:auto;font-size:0.8rem"></i>
       </div>
       <div class="tiq-dropdown" id="sidebarUserMenu" style="bottom:100%;top:auto;margin-bottom:8px;">
+        {% include 'partials/platform_user_menu_items.html' %}
         <a href="{{ url_for('profile_routes.profile') }}" class="tiq-dropdown-item"><i class="fas fa-user"></i> My Profile</a>
         <div class="tiq-dropdown-divider"></div>
         <a href="{{ url_for('auth_routes.logout') }}" class="tiq-dropdown-item danger"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
@@ -240,10 +243,15 @@
       <button class="tiq-mobile-menu-btn" id="mobileSidebarBtn"><i class="fas fa-bars"></i></button>
       <div style="flex:1">
         <div class="tiq-breadcrumb">
+          {% if is_trainiq_staff() %}
+          <a href="{{ url_for('platform_routes.platform_dashboard') }}">Platform</a>
+          <span class="tiq-breadcrumb-sep"><i class="fas fa-chevron-right" style="font-size:0.6rem"></i></span>
+          {% endif %}
           <span>Dashboard</span>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:0.75rem">
+        {% include 'partials/platform_topbar_links.html' %}
         {% include 'partials/topbar_right_controls.html' %}
         <div class="tiq-user-menu">
           <button class="tiq-user-trigger" data-tiq-dropdown="topbarMenu">
@@ -253,6 +261,7 @@
             <i class="fas fa-chevron-down chevron"></i>
           </button>
           <div class="tiq-dropdown" id="topbarMenu">
+            {% include 'partials/platform_user_menu_items.html' %}
             <a href="{{ url_for('profile_routes.profile') }}" class="tiq-dropdown-item"><i class="fas fa-user"></i> Profile</a>
             <div class="tiq-dropdown-divider"></div>
             <a href="{{ url_for('auth_routes.logout') }}" class="tiq-dropdown-item danger"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
@@ -262,6 +271,7 @@
     </header>
 
     <div class="tiq-page-content">
+      {% include 'partials/platform_return_nav.html' %}
 
       {% include 'partials/billing_usage_banner.html' %}
       {% include 'partials/trial_checklist.html' %}

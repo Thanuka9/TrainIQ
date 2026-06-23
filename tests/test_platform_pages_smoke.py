@@ -58,3 +58,50 @@ def test_platform_support_page(platform_staff_client):
     assert resp.status_code == 200
     html = resp.get_data(as_text=True)
     assert "Support" in html or "support" in html.lower()
+
+
+def test_platform_operations_page(platform_staff_client):
+    resp = platform_staff_client.get("/platform/operations")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert "Platform Operations" in html
+    assert "PostgreSQL" in html
+    assert "MongoDB" in html
+    assert "LearnIQ" in html or "AI" in html
+
+
+def test_platform_operations_tabs(platform_staff_client):
+    for tab in ("postgres", "mongo", "ai", "integrations"):
+        resp = platform_staff_client.get(f"/platform/operations?tab={tab}")
+        assert resp.status_code == 200
+
+
+def test_dashboard_shows_platform_return_nav(platform_staff_client):
+    resp = platform_staff_client.get("/dashboard")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert "Platform Command Center" in html
+    assert "TrainIQ Platform" in html
+
+
+def test_admin_page_shows_platform_return_nav(platform_staff_client):
+    resp = platform_staff_client.get("/admin/admin")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert "Platform Command Center" in html
+    assert "TrainIQ Platform" in html
+
+
+def test_error_pages_show_platform_link(platform_staff_client):
+    for path in ("/this-route-does-not-exist-xyz",):
+        resp = platform_staff_client.get(path)
+        assert resp.status_code == 404
+        assert "Platform Command Center" in resp.get_data(as_text=True)
+
+
+def test_platform_topbar_hidden_on_platform_dashboard(platform_staff_client):
+    resp = platform_staff_client.get("/platform")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert "Platform Command Center" in html
+    assert 'platform-topbar-label">Platform</span>' not in html

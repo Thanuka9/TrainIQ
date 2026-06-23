@@ -101,7 +101,8 @@ def check_level_completion(user_id: int, level_db_id: int) -> bool:
       • required exams passed (unless skipped by designation)
     """
     try:
-        user = User.query.get(user_id)
+        from utils.tenant_db import load_user_by_id
+        user = load_user_by_id(user_id, label='level_access_check')
         if not user:
             return False
 
@@ -277,8 +278,9 @@ def advance_user_level_after_completion(user_id: int, level_db_id: int):
     is fully complete. Returns the unlocked level number, or None.
     """
     from utils.tenant_utils import tenant_levels_query
+    from utils.tenant_db import load_user_by_id
 
-    user = User.query.get(user_id)
+    user = load_user_by_id(user_id, label='level_access_advance')
     level = Level.query.get(level_db_id)
     if not user or not level:
         return None

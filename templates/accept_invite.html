@@ -17,6 +17,11 @@
 </head>
 <body>
   <div class="invite-card">
+    <p style="margin:0 0 1rem;">
+      <a href="{{ url_for('auth_routes.login') }}" class="tiq-btn-back" style="display:inline-flex;text-decoration:none;">
+        <i class="fas fa-arrow-left"></i> Back to Sign In
+      </a>
+    </p>
     <h1><i class="fas fa-envelope-open-text" style="color: var(--tiq-primary);"></i> Join {{ tenant.name }}</h1>
     <p>Set your name and password to complete your invitation. You'll verify with a 2FA code sent to your email.</p>
 

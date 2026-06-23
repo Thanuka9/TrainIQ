@@ -1,0 +1,70 @@
+# Multi-process TrainIQ deployment (same image, different SERVICE_MODE).
+# Requires external Postgres and MongoDB — see DEPLOYMENT.md
+services:
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  web:
+    build: .
+    command: gunicorn -c gunicorn.conf.py app:app
+    env_file: .env
+    environment:
+      SERVICE_MODE: web
+      RUN_SCHEDULER: "false"
+      EVENT_BUS_CONSUMER: "false"
+    ports:
+      - "5000:5000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  platform:
+    build: .
+    command: gunicorn -c gunicorn.conf.py app:app
+    env_file: .env
+    environment:
+      SERVICE_MODE: platform
+      RUN_SCHEDULER: "false"
+      EVENT_BUS_CONSUMER: "false"
+    ports:
+      - "5001:5000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ops-worker:
+    build: .
+    command: python scripts/run_ops_worker.py
+    env_file: .env
+    environment:
+      SERVICE_MODE: full
+      RUN_SCHEDULER: "true"
+      OPS_WORKER_MODE: "true"
+      EVENT_BUS_CONSUMER: "true"
+      EVENT_BUS_ENABLED: "true"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_data:

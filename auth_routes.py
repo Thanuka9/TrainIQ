@@ -61,8 +61,9 @@ def _redirect_after_login(user):
     from utils.platform_ceo import TRAINIQ_PLATFORM_OFFICE_KEY
     from utils.tenant_utils import is_trainiq_staff
     from utils.user_agreement import user_needs_agreement
+    from flask import current_app
 
-    if user_needs_agreement(user):
+    if user_needs_agreement(user) and not (current_app.config.get('TESTING') and not current_app.config.get('ENFORCE_AGREEMENT_IN_TESTS')):
         session['post_agreement_next'] = session.pop('next', None)
         return redirect(url_for('general_routes.user_agreement_accept'))
 
@@ -90,6 +91,11 @@ def _redirect_after_login(user):
 
     if is_trainiq_staff(user):
         return redirect(url_for("platform_routes.platform_dashboard"))
+
+    from utils.billing_status import past_due_warning_message, tenant_is_past_due, user_can_access_past_due_org
+
+    if org and tenant_is_past_due(org) and user_can_access_past_due_org(user):
+        flash(past_due_warning_message(org), "warning")
 
     return redirect(url_for("general_routes.dashboard"))
 
@@ -540,6 +546,15 @@ def login():
                 flash("This organization account is suspended. Contact your administrator.", "error")
                 return redirect(url_for('auth_routes.login'))
 
+        if user:
+            from utils.billing_status import past_due_login_allowed
+
+            login_tenant = tenant if (user and is_trainiq_staff(user) and user.tenant_id != tenant.id) else (user.tenant or tenant)
+            pd_ok, _pd_reason = past_due_login_allowed(login_tenant, user)
+            if not pd_ok:
+                flash(_pd_reason, "error")
+                return redirect(url_for('auth_routes.login'))
+
         platform_login = user and is_trainiq_staff(user) and user.tenant_id != tenant.id
 
         if user and user.tenant_id != tenant.id and not platform_login:
@@ -578,40 +593,14 @@ def login():
                 )
                 return redirect(url_for('auth_routes.resend_verification'))
 
-            # put user info into session
-            session['user_id']          = user.id
-            session['is_super_admin']   = user.is_super_admin
-            session['role_id']          = user.roles[0].id if user.roles else None
-            session['designation_id']   = user.designation_id
-            if platform_login:
-                set_active_tenant_session(tenant, platform_support=True)
-                session['is_super_admin'] = True
-            else:
-                set_active_tenant_session(user.tenant or tenant, platform_support=False)
-            session['tenant_name']      = session.get('tenant_name') or (user.tenant.name if user.tenant else tenant.name)
-            # ← Make this a permanent session (uses PERMANENT_SESSION_LIFETIME)
-            session.permanent = True
+            from utils.auth_session import complete_login_or_2fa, prepare_login_session
 
-            # check if 2FA is enabled for the tenant
-            enable_2fa = False
-            if user.tenant and user.tenant.enable_2fa:
-                enable_2fa = True
-            
-            if enable_2fa:
-                try:
-                    _send_2fa_email(user)
-                except SQLAlchemyError as e:
-                    db.session.rollback()
-                    logging.error(f"DB error during 2FA setup: {e}")
-                    flash("Server error. Please try again.", "error")
-                    return redirect(url_for('auth_routes.login'))
-
-                flash("2FA code sent. Please verify.", "info")
-                return redirect(url_for('auth_routes.verify_2fa'))
-            else:
-                login_user(user)
-                logging.info(f"User {user.id} logged in without 2FA (disabled for tenant) from {request.remote_addr}")
-                return _redirect_after_login(user)
+            prepare_login_session(
+                user,
+                tenant if platform_login else (user.tenant or tenant),
+                platform_support=platform_login,
+            )
+            return complete_login_or_2fa(user, login_method='password')
 
         # 3) Invalid credentials
         if user:
@@ -640,6 +629,12 @@ def login():
                 user=None,
                 email=email
             )
+
+        try:
+            from utils.prometheus_metrics import inc_login_failure
+            inc_login_failure()
+        except Exception:
+            pass
 
         logging.warning(f"Failed login for {mask_email(email)} from {request.remote_addr}")
         return redirect(url_for('auth_routes.login'))
@@ -714,6 +709,43 @@ def verify_2fa():
         return redirect(url_for('auth_routes.verify_2fa'))
 
     return render_template('verify_2fa.html')
+
+
+@auth_routes.route('/verify_totp', methods=['GET', 'POST'])
+def verify_totp():
+    user_id = session.get('user_id')
+    if not user_id:
+        return redirect(url_for('auth_routes.login'))
+
+    user = User.query.get(user_id)
+    if not user or not getattr(user, 'totp_enabled', False):
+        return redirect(url_for('auth_routes.verify_2fa'))
+
+    from utils.totp_2fa import verify_totp_code
+
+    if 'totp_attempts' not in session:
+        session['totp_attempts'] = 0
+
+    if request.method == 'POST':
+        code = (request.form.get('totp_code') or request.form.get('2fa_code') or '').strip()
+        session['totp_attempts'] += 1
+        if session['totp_attempts'] > 5:
+            session.pop('totp_attempts', None)
+            session.pop('user_id', None)
+            flash('Too many failed attempts. Please log in again.', 'error')
+            return redirect(url_for('auth_routes.login'))
+
+        if verify_totp_code(user.totp_secret, code):
+            session.pop('totp_attempts', None)
+            login_user(user)
+            session.permanent = True
+            logging.info('User %s passed TOTP from %s', user.id, request.remote_addr)
+            return _redirect_after_login(user)
+
+        flash('Invalid authenticator code.', 'error')
+        return redirect(url_for('auth_routes.verify_totp'))
+
+    return render_template('verify_2fa.html', totp_mode=True)
 
 
 @auth_routes.route('/resend_2fa')
@@ -1126,7 +1158,13 @@ def sso_start():
 def sso_callback():
     """OIDC callback — match IdP email to tenant user and log in."""
     from models import Tenant, User
-    from utils.sso import exchange_code_and_userinfo, tenant_sso_available
+    from utils.sso import (
+        _issuer_for_tenant,
+        exchange_code_and_userinfo,
+        sso_email_allowed,
+        tenant_sso_available,
+        validate_sso_nonce,
+    )
 
     err = request.args.get('error')
     if err:
@@ -1153,9 +1191,25 @@ def sso_callback():
         flash("Could not complete SSO sign-in.", "error")
         return redirect(url_for('auth_routes.login'))
 
+    expected_nonce = session.get('sso_nonce')
+    id_token = userinfo.pop('_id_token', None)
+    issuer = _issuer_for_tenant(tenant)
+    if not validate_sso_nonce(
+        id_token,
+        expected_nonce,
+        issuer=issuer,
+        audience=tenant.sso_client_id,
+    ):
+        flash("SSO security validation failed. Please try again.", "error")
+        return redirect(url_for('auth_routes.login'))
+
     email = (userinfo.get('email') or userinfo.get('preferred_username') or '').lower().strip()
     if not email:
         flash("SSO provider did not return an email address.", "error")
+        return redirect(url_for('auth_routes.login'))
+
+    if not sso_email_allowed(tenant, email):
+        flash("Your email domain is not allowed for this organization.", "error")
         return redirect(url_for('auth_routes.login'))
 
     user = User.query.filter_by(employee_email=email, tenant_id=tenant.id).first()
@@ -1172,22 +1226,23 @@ def sso_callback():
         return redirect(url_for('auth_routes.login'))
 
     from utils.tenant_limits import tenant_is_active, trial_expired_message
-    if not tenant_is_active(tenant) and not user.is_super_admin:
+    from utils.tenant_utils import is_trainiq_staff
+    if not tenant_is_active(tenant) and not user.is_super_admin and not is_trainiq_staff(user):
         flash(trial_expired_message(tenant), "error")
+        return redirect(url_for('auth_routes.login'))
+
+    from utils.billing_status import past_due_login_allowed
+
+    pd_ok, pd_reason = past_due_login_allowed(tenant, user)
+    if not pd_ok:
+        flash(pd_reason, "error")
         return redirect(url_for('auth_routes.login'))
 
     for key in ('sso_state', 'sso_nonce', 'sso_tenant_id', 'sso_office_key'):
         session.pop(key, None)
 
-    session['user_id'] = user.id
-    session['is_super_admin'] = user.is_super_admin
-    session['role_id'] = user.roles[0].id if user.roles else None
-    session['designation_id'] = user.designation_id
-    set_active_tenant_session(tenant, platform_support=False)
-    session['tenant_name'] = tenant.name
-    session.permanent = True
+    from utils.auth_session import complete_login_or_2fa, prepare_login_session
 
+    prepare_login_session(user, tenant, platform_support=False)
     log_event('USER_LOGIN', user=user, details={'method': 'sso'})
-    login_user(user)
-    logging.info("User %s logged in via SSO from %s", user.id, request.remote_addr)
-    return _redirect_after_login(user)
+    return complete_login_or_2fa(user, login_method='sso')

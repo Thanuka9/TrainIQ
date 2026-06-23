@@ -1,0 +1,20 @@
+{# Shared user-menu links for TrainIQ CEO / platform staff #}
+{% if is_trainiq_staff() %}
+<a href="{{ url_for('platform_routes.platform_dashboard') }}" class="tiq-dropdown-item">
+  <i class="fas fa-globe"></i> Platform Command Center
+</a>
+{% if has_platform_perm('staff.view') %}
+<a href="{{ url_for('platform_routes.platform_staff') }}" class="tiq-dropdown-item">
+  <i class="fas fa-user-shield"></i> Staff Hub
+</a>
+{% endif %}
+{% if session.get('platform_support') %}
+<form action="{{ url_for('platform_routes.exit_tenant') }}" method="POST" style="margin:0;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit" class="tiq-dropdown-item" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;">
+    <i class="fas fa-sign-out-alt"></i> Exit support mode
+  </button>
+</form>
+{% endif %}
+<div class="tiq-dropdown-divider"></div>
+{% endif %}

@@ -1,0 +1,228 @@
+{# Platform navigation — full sidebar on /platform/*; compact links in org admin #}
+
+{% if request.blueprint == 'platform_routes' %}
+
+<div class="tiq-nav-section-label" style="margin-top:0.25rem;">Command Center</div>
+
+{% set nav_items = [
+
+  ('dashboard', 'platform_routes.platform_dashboard', 'globe', 'Command Center', 'dashboard.view'),
+
+  ('tenants', 'platform_routes.list_tenants', 'building', 'Organizations', 'tenants.view'),
+
+  ('users', 'platform_routes.platform_users', 'users', 'All Users', 'users.view'),
+
+  ('staff', 'platform_routes.platform_staff', 'user-shield', 'Staff', 'staff.view'),
+
+  ('support', 'platform_routes.platform_support', 'headset', 'Support', 'support.view'),
+
+  ('security', 'platform_routes.platform_security', 'shield-halved', 'Security', 'security.view'),
+
+  ('activity', 'platform_routes.platform_activity', 'stream', 'Activity', 'activity.view'),
+
+  ('revenue', 'platform_routes.platform_revenue', 'dollar-sign', 'Revenue', 'revenue.view'),
+
+  ('operations', 'platform_routes.platform_operations', 'server', 'Operations', 'operations.view'),
+
+] %}
+
+{% for key, endpoint, icon, label, perm in nav_items %}
+
+{% if has_platform_perm(perm) %}
+
+<a href="{{ url_for(endpoint) }}"
+
+   class="tiq-nav-item {% if active_platform == key or (key == 'tenants' and request.endpoint == 'platform_routes.tenant_detail') %}active{% endif %}">
+
+  <span class="nav-icon"><i class="fas fa-{{ icon }}"></i></span>
+
+  <span class="nav-label">{{ label }}</span>
+
+</a>
+
+{% endif %}
+
+{% endfor %}
+
+{% if session.get('platform_support') %}
+
+<div class="tiq-nav-section-label" style="margin-top:0.75rem;">Support session</div>
+
+<a href="{{ url_for('admin_routes.admin_dashboard') }}" class="tiq-nav-item {% if request.blueprint == 'admin_routes' %}active{% endif %}">
+
+  <span class="nav-icon"><i class="fas fa-building"></i></span>
+
+  <span class="nav-label">{{ session.get('tenant_name', 'Customer org')|truncate(18) }}</span>
+
+</a>
+
+<form action="{{ url_for('platform_routes.exit_tenant') }}" method="POST" style="padding:0.35rem 1rem 0.5rem;">
+
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <button type="submit" class="tiq-btn tiq-btn-warning tiq-btn-sm tiq-w-full" style="justify-content:center;">
+
+    <i class="fas fa-sign-out-alt"></i> Exit support
+
+  </button>
+
+</form>
+
+{% endif %}
+
+
+
+{% elif is_trainiq_staff() %}
+
+<div class="tiq-nav-section-label" style="margin-top:0.5rem;">TrainIQ Platform</div>
+
+<a href="{{ url_for('platform_routes.platform_dashboard') }}"
+
+   class="tiq-nav-item platform-nav-home {% if request.blueprint == 'platform_routes' and request.endpoint == 'platform_routes.platform_dashboard' %}active{% endif %}">
+
+  <span class="nav-icon"><i class="fas fa-globe"></i></span>
+
+  <span class="nav-label">Command Center</span>
+
+</a>
+
+{% if has_platform_perm('tenants.view') %}
+
+<a href="{{ url_for('platform_routes.list_tenants') }}"
+
+   class="tiq-nav-item {% if request.endpoint in ('platform_routes.list_tenants', 'platform_routes.tenant_detail') %}active{% endif %}">
+
+  <span class="nav-icon"><i class="fas fa-building"></i></span>
+
+  <span class="nav-label">Organizations</span>
+
+</a>
+
+{% endif %}
+
+{% if has_platform_perm('users.view') %}
+
+<a href="{{ url_for('platform_routes.platform_users') }}"
+
+   class="tiq-nav-item {% if request.endpoint == 'platform_routes.platform_users' %}active{% endif %}">
+
+  <span class="nav-icon"><i class="fas fa-users"></i></span>
+
+  <span class="nav-label">All Users</span>
+
+</a>
+
+{% endif %}
+
+{% if has_platform_perm('support.view') %}
+
+<a href="{{ url_for('platform_routes.platform_support') }}"
+
+   class="tiq-nav-item {% if request.endpoint == 'platform_routes.platform_support' %}active{% endif %}">
+
+  <span class="nav-icon"><i class="fas fa-headset"></i></span>
+
+  <span class="nav-label">Support Queue</span>
+
+</a>
+
+{% endif %}
+
+{% if has_platform_perm('security.view') %}
+
+<a href="{{ url_for('platform_routes.platform_security') }}"
+
+   class="tiq-nav-item {% if request.endpoint == 'platform_routes.platform_security' %}active{% endif %}">
+
+  <span class="nav-icon"><i class="fas fa-shield-halved"></i></span>
+
+  <span class="nav-label">Security</span>
+
+</a>
+
+{% endif %}
+
+{% if has_platform_perm('activity.view') %}
+
+<a href="{{ url_for('platform_routes.platform_activity') }}"
+
+   class="tiq-nav-item {% if request.endpoint == 'platform_routes.platform_activity' %}active{% endif %}">
+
+  <span class="nav-icon"><i class="fas fa-stream"></i></span>
+
+  <span class="nav-label">Activity</span>
+
+</a>
+
+{% endif %}
+
+{% if has_platform_perm('revenue.view') %}
+
+<a href="{{ url_for('platform_routes.platform_revenue') }}"
+
+   class="tiq-nav-item {% if request.endpoint == 'platform_routes.platform_revenue' %}active{% endif %}">
+
+  <span class="nav-icon"><i class="fas fa-dollar-sign"></i></span>
+
+  <span class="nav-label">Revenue</span>
+
+</a>
+
+{% endif %}
+
+{% if has_platform_perm('staff.view') %}
+
+<a href="{{ url_for('platform_routes.platform_staff') }}"
+
+   class="tiq-nav-item {% if request.endpoint == 'platform_routes.platform_staff' %}active{% endif %}">
+
+  <span class="nav-icon"><i class="fas fa-user-shield"></i></span>
+
+  <span class="nav-label">{% if is_platform_ceo() %}Staff &amp; Invites{% else %}Staff Hub{% endif %}</span>
+
+</a>
+
+{% endif %}
+
+{% if has_platform_perm('operations.view') %}
+
+<a href="{{ url_for('platform_routes.platform_operations') }}"
+
+   class="tiq-nav-item {% if request.endpoint == 'platform_routes.platform_operations' %}active{% endif %}">
+
+  <span class="nav-icon"><i class="fas fa-server"></i></span>
+
+  <span class="nav-label">Operations</span>
+
+</a>
+
+{% endif %}
+
+{% if session.get('platform_support') %}
+
+<a href="{{ url_for('admin_routes.admin_dashboard') }}"
+
+   class="tiq-nav-item {% if request.blueprint == 'admin_routes' %}active{% endif %}">
+
+  <span class="nav-icon"><i class="fas fa-building"></i></span>
+
+  <span class="nav-label">{{ session.get('tenant_name', 'Customer org') }}</span>
+
+</a>
+
+<form action="{{ url_for('platform_routes.exit_tenant') }}" method="POST" style="padding:0.35rem 1rem 0.5rem;">
+
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <button type="submit" class="tiq-btn tiq-btn-warning tiq-btn-sm tiq-w-full" style="justify-content:center;">
+
+    <i class="fas fa-sign-out-alt"></i> Exit org view
+
+  </button>
+
+</form>
+
+{% endif %}
+
+{% endif %}
+

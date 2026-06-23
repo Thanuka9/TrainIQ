@@ -453,6 +453,7 @@
 
       this.listEl.innerHTML = items.map((n) => {
         const cat = n.category || 'info';
+        const catLabel = { exam: 'Exam', task: 'Task', support: 'Support', billing: 'Billing', announcement: 'News', info: 'Alert' }[cat] || cat;
         const unread = n.is_read ? '' : ' unread';
         const body = this.escape(n.body || '');
         const title = this.escape(n.title || '');
@@ -461,7 +462,7 @@
         return `<a href="${n.link_url || '#'}" class="tiq-notif-item${unread}" data-id="${n.id}" data-link="${n.link_url || ''}">
           <div class="tiq-notif-item-icon ${cat}"><i class="fas fa-${icon}"></i></div>
           <div class="tiq-notif-item-body">
-            <div class="tiq-notif-item-title">${title}</div>
+            <div class="tiq-notif-item-title">${title} <span class="tiq-badge tiq-badge-neutral" style="font-size:0.65rem;vertical-align:middle;margin-left:4px;">${this.escape(catLabel)}</span></div>
             ${body ? `<div class="tiq-notif-item-text">${body}</div>` : ''}
             <div class="tiq-notif-item-time">${time}</div>
           </div>

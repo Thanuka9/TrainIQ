@@ -223,16 +223,20 @@
     <i class="fas fa-shield-halved"></i>
   </div>
   <h1 class="fa-title">Security Verification</h1>
-  <p class="fa-subtitle">Enter the 6-digit verification code sent to your registered authenticator or email.</p>
+  {% if totp_mode %}
+  <p class="fa-subtitle">Enter the 6-digit code from your authenticator app.</p>
+  {% else %}
+  <p class="fa-subtitle">Enter the 6-digit verification code sent to your registered email.</p>
+  {% endif %}
 
   <!-- Form -->
-  <form action="{{ url_for('auth_routes.verify_2fa') }}" method="POST" id="verifyForm">
+  <form action="{{ url_for('auth_routes.verify_totp' if totp_mode else 'auth_routes.verify_2fa') }}" method="POST" id="verifyForm">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
     <div class="tiq-form-group">
       <label class="tiq-label" for="2fa_code">Verification Code</label>
       <div class="tiq-input-wrapper">
-        <input type="text" class="tiq-input" id="2fa_code" name="2fa_code"
+        <input type="text" class="tiq-input" id="2fa_code" name="{{ 'totp_code' if totp_mode else '2fa_code' }}"
                placeholder="000000" required autocomplete="one-time-code" autofocus maxlength="8"/>
       </div>
     </div>
@@ -243,11 +247,13 @@
     </button>
   </form>
 
+  {% if not totp_mode %}
   <div class="resend-container">
     <button id="resendBtn" type="button" class="resend-btn" disabled>
       <i class="fas fa-redo-alt"></i> Resend code in <span id="timer">30</span>s
     </button>
   </div>
+  {% endif %}
 
   <a href="{{ url_for('auth_routes.login') }}" class="fa-back">
     <i class="fas fa-arrow-left"></i> Back to Sign In
@@ -268,6 +274,9 @@
   });
 
   document.addEventListener("DOMContentLoaded", () => {
+    {% if totp_mode %}
+    return;
+    {% endif %}
     let countdown = 30;
     const timerEl = document.getElementById("timer");
     const resendBtn = document.getElementById("resendBtn");

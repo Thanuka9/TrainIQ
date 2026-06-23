@@ -98,6 +98,23 @@ def get_valid_staff_invite(token: str):
     return invite
 
 
+def validate_staff_target(user_id: int):
+    """Return (user, error_message) for CEO staff role/deactivate actions."""
+    from models import User
+    from utils.platform_ceo import is_platform_ceo
+
+    user = User.query.get(user_id)
+    if not user:
+        return None, "User not found."
+    if is_platform_ceo(user):
+        return None, "Cannot modify the platform CEO."
+    if not getattr(user, "is_platform_staff", False):
+        return None, "User is not platform staff."
+    if not user_on_platform_tenant(user):
+        return None, "User must belong to the TrainIQ platform organization."
+    return user, None
+
+
 def revoke_staff_invite(invite_id: int) -> bool:
     from extensions import db
     from models import PlatformStaffInvite

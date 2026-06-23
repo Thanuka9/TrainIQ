@@ -1,0 +1,32 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - /etc/prometheus/alerts/trainiq.yml
+
+scrape_configs:
+  - job_name: trainiq-web
+    metrics_path: /metrics
+    bearer_token_file: /etc/prometheus/trainiq_metrics.token
+    static_configs:
+      - targets: ['host.docker.internal:5000']
+        labels:
+          service: web
+
+  - job_name: trainiq-platform
+    metrics_path: /metrics
+    bearer_token_file: /etc/prometheus/trainiq_metrics.token
+    static_configs:
+      - targets: ['host.docker.internal:5001']
+        labels:
+          service: platform
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']

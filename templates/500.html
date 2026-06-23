@@ -116,9 +116,20 @@
   <p class="err-desc">We experienced an internal server error. Our engineering team has been notified and is looking into the issue.</p>
   
   <div class="err-actions">
-    <a href="{{ url_for('root') }}" class="tiq-btn tiq-btn-primary" style="background: linear-gradient(135deg, #EF4444 0%, #F59E0B 100%); box-shadow: 0 4px 16px rgba(239,68,68,0.35);">
-      <i class="fas fa-home"></i> Go to Homepage
+    {% if current_user.is_authenticated and is_trainiq_staff() %}
+    <a href="{{ url_for('platform_routes.platform_dashboard') }}" class="tiq-btn tiq-btn-primary" style="background: linear-gradient(135deg, #EF4444 0%, #F59E0B 100%); box-shadow: 0 4px 16px rgba(239,68,68,0.35);">
+      <i class="fas fa-globe"></i> Platform Command Center
     </a>
+    {% else %}
+    <a href="{{ url_for('general_routes.dashboard') if current_user.is_authenticated else url_for('root') }}" class="tiq-btn tiq-btn-primary" style="background: linear-gradient(135deg, #EF4444 0%, #F59E0B 100%); box-shadow: 0 4px 16px rgba(239,68,68,0.35);">
+      <i class="fas fa-home"></i> {% if current_user.is_authenticated %}Dashboard{% else %}Go to Homepage{% endif %}
+    </a>
+    {% endif %}
+    {% if current_user.is_authenticated and is_trainiq_staff() %}
+    <a href="{{ url_for('general_routes.dashboard') }}" class="tiq-btn tiq-btn-ghost-white">
+      <i class="fas fa-th-large"></i> User Dashboard
+    </a>
+    {% endif %}
     <a href="javascript:history.back()" class="tiq-btn tiq-btn-ghost-white">
       <i class="fas fa-arrow-left"></i> Go Back
     </a>

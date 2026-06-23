@@ -665,6 +665,7 @@
     }, 5 * 60 * 1000);
   </script>
   <body>
+    {% with dark=true %}{% include 'partials/platform_exam_staff_bar.html' %}{% endwith %}
     <!-- Timer Progress Bar -->
     <div class="timer-progress-container">
       <div class="timer-progress-bar" id="progressBar"></div>

@@ -42,11 +42,7 @@ def is_platform_ceo(user=None) -> bool:
     if not user or not getattr(user, "is_authenticated", False):
         return False
     email = (getattr(user, "employee_email", "") or "").lower().strip()
-    if email == PLATFORM_CEO_EMAIL:
-        return True
-    if getattr(user, "is_platform_staff", False) and (getattr(user, "platform_staff_role", "") or "").lower() == "ceo":
-        return True
-    return False
+    return bool(email) and email == PLATFORM_CEO_EMAIL
 
 
 def ensure_platform_ceo():
@@ -67,6 +63,7 @@ def ensure_platform_ceo():
                 status="active",
                 max_users=9999,
                 max_storage_mb=102400,
+                enable_2fa=True,
             )
             db.session.add(tenant)
             db.session.flush()
@@ -127,6 +124,13 @@ def ensure_platform_ceo():
 
         db.session.commit()
         provision_tenant_mongo(tenant.id)
+        if not tenant.enable_2fa:
+            tenant.enable_2fa = True
+            db.session.commit()
+        from utils.platform_sso import apply_platform_oidc_to_tenant
+
+        if apply_platform_oidc_to_tenant(tenant):
+            db.session.commit()
         logger.info("Platform CEO bootstrap complete.")
     except Exception as exc:
         db.session.rollback()

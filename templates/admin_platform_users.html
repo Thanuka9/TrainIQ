@@ -9,7 +9,9 @@
       <h1>Global User Directory</h1>
       <p class="tiq-lead">Search and manage users across every organization.</p>
     </div>
+    {% if has_platform_perm('exports.data') %}
     <a href="{{ url_for('platform_routes.export_users_csv', q=q, tenant_id=tenant_id, status=status) }}" class="tiq-btn tiq-btn-secondary"><i class="fas fa-file-csv"></i> Export CSV</a>
+    {% endif %}
   </div>
 </div>
 {% include 'partials/platform_subnav.html' %}
@@ -90,11 +92,14 @@
             <td>{{ u.join_date.strftime('%Y-%m-%d') if u.join_date else '—' }}</td>
             <td>
               {% if t %}
+              {% if has_platform_perm('tenants.enter') %}
               <form action="{{ url_for('platform_routes.enter_tenant', tenant_id=t.id) }}" method="POST" style="display:inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="target" value="users">
                 <button type="submit" class="tiq-btn tiq-btn-primary tiq-btn-sm" title="Enter org → Users">Manage</button>
               </form>
+              {% endif %}
+              {% if has_platform_perm('users.actions') %}
               {% if not u.is_verified %}
               <form action="{{ url_for('platform_routes.platform_resend_verification', user_id=u.id) }}" method="POST" style="display:inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -110,6 +115,7 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="tiq-btn tiq-btn-secondary tiq-btn-sm" title="Force password reset email">Reset PW</button>
               </form>
+              {% endif %}
               {% endif %}
             </td>
           </tr>

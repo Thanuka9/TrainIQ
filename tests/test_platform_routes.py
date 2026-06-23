@@ -1,5 +1,4 @@
-"""Tests for platform staff helpers."""
-from utils.tenant_utils import is_trainiq_staff, trainiq_staff_domains
+from utils.tenant_utils import is_trainiq_staff
 
 
 class _User:
@@ -9,10 +8,6 @@ class _User:
         self.employee_email = email
         self.is_platform_staff = is_platform_staff
         self.tenant = tenant
-
-
-def test_trainiq_staff_domains_includes_default():
-    assert "trainiq.com" in trainiq_staff_domains()
 
 
 def test_is_trainiq_staff_requires_invite():

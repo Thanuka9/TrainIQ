@@ -1,5 +1,5 @@
 {# Compact seat usage widget for admin dashboard (TalentLMS-style usage meter) #}
-{% if tenant_usage_global and current_user.is_super_admin %}
+{% if tenant_usage_global and effective_is_super_admin %}
 <div class="tiq-card" style="margin-bottom:1.5rem;border:1px solid var(--tiq-border);">
   <div class="tiq-card-body" style="padding:1rem 1.25rem;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">

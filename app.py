@@ -15,10 +15,12 @@ try:
 except ImportError:
     logging.warning("Flask-Limiter not installed; skipping rate limiting.")
     rate_limiting_available = False
-from flask_migrate import Migrate, upgrade as migrate_upgrade
+from flask_migrate import Migrate
 from flask_login import LoginManager, login_required, current_user
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+
+from sqlalchemy.exc import DBAPIError, OperationalError
 
 from extensions import db, mail, scheduler
 from auth_routes import auth_routes
@@ -34,10 +36,15 @@ from special_exams_routes import special_exams_routes
 from models import User, FailedLogin, AuditLog
 from mongodb_operations import initialize_mongodb, setup_collections
 from utils.email_utils import init_scheduler
+from utils.db_monitor_scheduler import init_db_monitor
+from utils.ops_agent_scheduler import init_ops_agents_scheduler
 from audit import log_event  # our helper
 
-# Load environment variables
+# Load environment variables (preserve test harness REDIS_URI=memory:// set in conftest)
+_preserved_redis_uri = os.getenv("REDIS_URI")
 load_dotenv(override=True)
+if _preserved_redis_uri == "memory://":
+    os.environ["REDIS_URI"] = "memory://"
 
 IS_PRODUCTION = os.getenv('FLASK_ENV', 'development') != 'development'
 
@@ -50,6 +57,9 @@ app = Flask(
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+from utils.request_logging import init_request_logging
+
+init_request_logging(app)
 
 # ----------------------------------------------------------------------
 # CLI: Backfill historical failed-logins
@@ -148,6 +158,9 @@ app.config.update({
     'ALLOWED_EMAIL_DOMAINS':      os.getenv('ALLOWED_EMAIL_DOMAINS', ''),
 })
 
+from utils.db_replica import configure_sqlalchemy_binds
+configure_sqlalchemy_binds(app)
+
 from utils.security import validate_production_config
 validate_production_config(app)
 
@@ -235,91 +248,20 @@ def run_catalog_backfill():
 db.init_app(app)
 migrate = Migrate(app, db)
 with app.app_context():
-    migrate_upgrade()
     try:
-        db.session.execute(db.text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS primary_color VARCHAR(7) DEFAULT '#4f46e5'"))
-        db.session.execute(db.text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS secondary_color VARCHAR(7) DEFAULT '#06b6d4'"))
-        db.session.execute(db.text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS support_email VARCHAR(120) DEFAULT 'support@trainiq.com'"))
-        db.session.execute(db.text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS portal_tagline VARCHAR(255) DEFAULT 'Centralized HR and Performance Hub'"))
-        db.session.execute(db.text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS enable_2fa BOOLEAN DEFAULT FALSE"))
-        db.session.execute(db.text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS enable_proctoring BOOLEAN DEFAULT TRUE"))
-        db.session.execute(db.text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS office_key VARCHAR(50) UNIQUE"))
-        db.session.execute(db.text("ALTER TABLE exams ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id)"))
-        db.session.execute(db.text("ALTER TABLE exams ADD COLUMN IF NOT EXISTS passing_score FLOAT DEFAULT 70.0"))
-        db.session.execute(db.text("ALTER TABLE study_materials ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id)"))
-        db.session.execute(db.text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id)"))
-        db.session.execute(db.text("ALTER TABLE clients ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id)"))
-        db.session.execute(db.text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id)"))
-        db.session.execute(db.text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS question_type VARCHAR(50) DEFAULT 'single_choice'"))
-        db.session.execute(db.text("ALTER TABLE questions ALTER COLUMN correct_answer TYPE TEXT"))
-        for catalog_table in ('categories', 'levels', 'areas', 'designations'):
-            db.session.execute(db.text(
-                f"ALTER TABLE {catalog_table} ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id)"
-            ))
-        for col_sql in (
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS plan VARCHAR(50) DEFAULT 'trial'",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'trial'",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS max_users INTEGER DEFAULT 10",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS max_storage_mb INTEGER DEFAULT 2048",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS trial_reminder_7d_at TIMESTAMP",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS trial_reminder_1d_at TIMESTAMP",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS onboarding_welcome_at TIMESTAMP",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS onboarding_drip_1_at TIMESTAMP",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS onboarding_drip_3_at TIMESTAMP",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS onboarding_drip_7_at TIMESTAMP",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS sso_enabled BOOLEAN DEFAULT FALSE",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS sso_provider VARCHAR(30)",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS sso_client_id VARCHAR(255)",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS sso_client_secret VARCHAR(512)",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS sso_issuer_url VARCHAR(512)",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS sso_tenant_domain VARCHAR(255)",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_checklist_dismissed BOOLEAN DEFAULT FALSE",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_email VARCHAR(120)",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_cycle VARCHAR(20) DEFAULT 'monthly'",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(120)",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS enable_invite_only BOOLEAN DEFAULT FALSE",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMP",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS suspended_reason TEXT",
-        ):
-            db.session.execute(db.text(col_sql))
-        # Invite role + platform performance indexes (mirrors p0q1r2s3t4u5 / q1r2s3t4u5v6)
-        db.session.execute(db.text(
-            "ALTER TABLE tenant_invites ADD COLUMN IF NOT EXISTS role VARCHAR(32) DEFAULT 'learner'"
-        ))
-        for idx_sql in (
-            "CREATE INDEX IF NOT EXISTS ix_users_join_date ON users (join_date)",
-            "CREATE INDEX IF NOT EXISTS ix_users_tenant_verified ON users (tenant_id, is_verified)",
-            "CREATE INDEX IF NOT EXISTS ix_users_is_locked ON users (is_locked)",
-            "CREATE INDEX IF NOT EXISTS ix_support_tickets_status ON support_tickets (status)",
-            "CREATE INDEX IF NOT EXISTS ix_support_tickets_user_id ON support_tickets (user_id)",
-            "CREATE INDEX IF NOT EXISTS ix_support_tickets_created_at ON support_tickets (created_at)",
-            "CREATE INDEX IF NOT EXISTS ix_tenants_plan ON tenants (plan)",
-            "CREATE INDEX IF NOT EXISTS ix_tenants_status ON tenants (status)",
-            "CREATE INDEX IF NOT EXISTS ix_tenants_trial_ends_at ON tenants (trial_ends_at)",
-            "CREATE INDEX IF NOT EXISTS ix_tenants_created_at ON tenants (created_at)",
-            "CREATE INDEX IF NOT EXISTS ix_tenant_invites_tenant_id ON tenant_invites (tenant_id)",
-            "CREATE INDEX IF NOT EXISTS ix_tenant_invites_used_at ON tenant_invites (used_at)",
-            "CREATE INDEX IF NOT EXISTS ix_audit_logs_event_created ON audit_logs (event_type, created_at)",
-            "CREATE INDEX IF NOT EXISTS ix_user_scores_created_at ON user_scores (created_at)",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(120)",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_period_start TIMESTAMP",
-            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_period_end TIMESTAMP",
-        ):
-            try:
-                db.session.execute(db.text(idx_sql))
-            except Exception as idx_err:
-                logging.warning("Skipped index DDL (%s): %s", idx_sql[:55], idx_err)
-        db.session.commit()
-        from utils.billing_plans import backfill_missing_trial_dates
-        backfill_missing_trial_dates()
-        run_tenant_backfill()
-        run_catalog_backfill()
-        from utils.platform_ceo import ensure_platform_ceo
-        ensure_platform_ceo()
+        from utils.startup_bootstrap import run_startup_database_check, should_bootstrap_on_startup
+
+        if should_bootstrap_on_startup():
+            from utils.db_platform import bootstrap_database
+
+            bootstrap_result = bootstrap_database(include_mongo=True)
+            if bootstrap_result.get('status') != 'success':
+                logging.warning("Database bootstrap partial: %s", bootstrap_result.get('steps'))
+        else:
+            run_startup_database_check()
     except Exception as db_err:
         db.session.rollback()
-        logging.error(f"Error checking/adding customization columns: {db_err}")
+        logging.error(f"Database bootstrap failed: {db_err}")
 
 login_manager.init_app(app)
 login_manager.login_view = 'auth_routes.login'
@@ -342,30 +284,63 @@ except Exception as e:
     logging.warning(f"MongoDB setup skipped: {e}")
 
 # ----------------------------------------------------------------------
-# APScheduler Setup
+# APScheduler Setup (single worker in production — see RUN_SCHEDULER)
 # ----------------------------------------------------------------------
-scheduler.init_app(app)
-init_scheduler(scheduler)
-scheduler.start()
+from utils.scheduler_config import should_run_scheduler, scheduler_jobs_for_ops_only
+
+try:
+    if should_run_scheduler() and not scheduler.running:
+        scheduler.init_app(app)
+        if not scheduler_jobs_for_ops_only():
+            init_scheduler(scheduler)
+        init_db_monitor(scheduler)
+        init_ops_agents_scheduler(scheduler)
+        scheduler.start()
+        logging.info(
+            '[scheduler] Started (ops_only=%s)',
+            scheduler_jobs_for_ops_only(),
+        )
+    elif not should_run_scheduler():
+        logging.info('[scheduler] Skipped — RUN_SCHEDULER=false (use scripts/run_ops_worker.py in production)')
+except Exception as scheduler_err:
+    logging.warning(f"APScheduler initialization bypassed or already running: {scheduler_err}")
 
 # ----------------------------------------------------------------------
-# Register Blueprints
+# Register Blueprints (SERVICE_MODE split: web | platform | full)
 # ----------------------------------------------------------------------
-app.register_blueprint(auth_routes, url_prefix='/auth')
-app.register_blueprint(general_routes)
-app.register_blueprint(profile_routes, url_prefix='/profile')
-app.register_blueprint(task_routes, url_prefix='/tasks')
-app.register_blueprint(exams_routes, url_prefix='/exams')
-app.register_blueprint(study_material_routes, url_prefix='/study_materials')
-app.register_blueprint(admin_routes, url_prefix='/admin')
-app.register_blueprint(__import__('billing_routes', fromlist=['billing_routes']).billing_routes, url_prefix='')
-from billing_routes import stripe_webhook as _stripe_webhook_handler
-csrf.exempt(_stripe_webhook_handler)
-app.register_blueprint(ai_routes, url_prefix='/ai')
-app.register_blueprint(management_routes, url_prefix='/management')
-app.register_blueprint(special_exams_routes)
-app.register_blueprint(__import__('platform_routes', fromlist=['platform_routes']).platform_routes, url_prefix='')
-app.register_blueprint(__import__('notification_routes', fromlist=['notification_routes']).notification_routes, url_prefix='')
+from utils.service_mode import (
+    register_lms_blueprints,
+    register_platform_blueprints,
+    register_support_admin_blueprints,
+)
+
+if register_lms_blueprints():
+    app.register_blueprint(auth_routes, url_prefix='/auth')
+    app.register_blueprint(general_routes)
+    app.register_blueprint(profile_routes, url_prefix='/profile')
+    app.register_blueprint(task_routes, url_prefix='/tasks')
+    app.register_blueprint(exams_routes, url_prefix='/exams')
+    app.register_blueprint(study_material_routes, url_prefix='/study_materials')
+    app.register_blueprint(admin_routes, url_prefix='/admin')
+    app.register_blueprint(__import__('billing_routes', fromlist=['billing_routes']).billing_routes, url_prefix='')
+    from billing_routes import stripe_webhook as _stripe_webhook_handler
+    csrf.exempt(_stripe_webhook_handler)
+    app.register_blueprint(ai_routes, url_prefix='/ai')
+    app.register_blueprint(management_routes, url_prefix='/management')
+    app.register_blueprint(special_exams_routes)
+    app.register_blueprint(__import__('notification_routes', fromlist=['notification_routes']).notification_routes, url_prefix='')
+
+if register_platform_blueprints():
+    app.register_blueprint(__import__('platform_routes', fromlist=['platform_routes']).platform_routes, url_prefix='')
+
+if register_support_admin_blueprints():
+    app.register_blueprint(auth_routes, url_prefix='/auth')
+    app.register_blueprint(general_routes)
+    app.register_blueprint(admin_routes, url_prefix='/admin')
+    app.register_blueprint(__import__('billing_routes', fromlist=['billing_routes']).billing_routes, url_prefix='')
+    from billing_routes import stripe_webhook as _stripe_webhook_handler
+    csrf.exempt(_stripe_webhook_handler)
+    app.register_blueprint(__import__('notification_routes', fromlist=['notification_routes']).notification_routes, url_prefix='')
 
 # Rate-limit sensitive auth endpoints
 if rate_limiting_available:
@@ -411,8 +386,19 @@ def inject_global_helpers():
         has_profile_picture=has_profile_picture,
         special_paper_label=special_paper_label,
         user_initials=user_initials,
+        utc_now=datetime.utcnow,
+        mongo_available=_mongo_available(),
         ** _billing_context(),
     )
+
+
+def _mongo_available() -> bool:
+    try:
+        from mongodb_operations import get_mongo_connection
+        _, db, _ = get_mongo_connection()
+        return db is not None
+    except Exception:
+        return False
 
 
 def _billing_context():
@@ -466,12 +452,21 @@ def check_afk_timeout():
         'auth_routes.onboarding',
         'exams_routes.start_exam',
         'exams_routes.submit_exam',
+        'exams_routes.save_answer',
+        'exams_routes.log_proctor_violation',
         'special_exams_routes.exam_paper1',
         'special_exams_routes.submit_paper1',
         'special_exams_routes.exam_paper2',
         'special_exams_routes.submit_paper2',
         'ping',
+        'health_check',
+        'prometheus_metrics',
     ]:
+        return
+    if request.endpoint and (
+        request.endpoint.startswith('ai_routes.')
+        or request.endpoint.startswith('study_material_routes.learniq')
+    ):
         return
 
     if 'user_id' in session:
@@ -512,7 +507,9 @@ app.before_request(enforce_user_agreement)
 
 
 def resolve_tenant():
-    from models import Tenant
+    from utils.tenant_db import load_tenant_by_id
+    from utils.tenant_domain_cache import load_tenants_with_allowed_domains_cached
+
     # 1. Resolve from request host domain
     host = request.host.split(':')[0].lower()
     matched_tenant = None
@@ -521,10 +518,8 @@ def resolve_tenant():
     is_custom_domain = host not in ('localhost', '127.0.0.1', 'trainiq.com', 'www.trainiq.com')
     
     if is_custom_domain:
-        from utils.tenant_utils import host_matches_allowed
-        candidates = Tenant.query.filter(Tenant.allowed_domain.isnot(None)).all()
-        matched_tenant = None
-        for tenant in candidates:
+        for tenant in load_tenants_with_allowed_domains_cached():
+            from utils.tenant_utils import host_matches_allowed
             if host_matches_allowed(host, tenant.allowed_domain):
                 matched_tenant = tenant
                 break
@@ -544,8 +539,9 @@ def resolve_tenant():
         session['tenant_name'] = matched_tenant.name
     elif not is_public and current_user.is_authenticated:
         from utils.tenant_utils import user_tenant_id
+
         active_tid = user_tenant_id()
-        user_tenant = db.session.get(Tenant, active_tid) if active_tid else None
+        user_tenant = load_tenant_by_id(active_tid, label='resolve_tenant')
         if user_tenant:
             g.tenant = user_tenant
             g.tenant_id = user_tenant.id
@@ -588,6 +584,21 @@ from utils.branding import resolve_display_brand
 
 app.before_request(resolve_tenant)
 
+
+@app.before_request
+def enforce_platform_ip_allowlist():
+    from utils.platform_ip_allowlist import enforce_platform_ip_allowlist as _enforce
+
+    return _enforce()
+
+
+@app.before_request
+def enforce_platform_support_ttl():
+    from utils.support_session import enforce_support_session_ttl
+
+    return enforce_support_session_ttl()
+
+
 @app.context_processor
 def inject_platform_helpers():
     from utils.tenant_utils import is_trainiq_staff
@@ -595,6 +606,14 @@ def inject_platform_helpers():
     from utils.platform_staff_permissions import staff_has_permission, effective_staff_role
     from utils.admin_permissions import user_has_permission, user_can_access_admin, permission_summary, user_can_manage_permissions
     from flask_login import current_user
+
+    from utils.support_access import (
+        can_support_write,
+        is_in_support_mode,
+        is_support_readonly,
+        is_support_write_elevated,
+    )
+    from utils.user_access import effective_is_super_admin
 
     def has_admin_perm(code):
         if not current_user.is_authenticated:
@@ -616,6 +635,11 @@ def inject_platform_helpers():
         user_can_access_admin=user_can_access_admin,
         user_can_manage_permissions=user_can_manage_permissions,
         permission_summary=permission_summary,
+        support_readonly=is_support_readonly() if current_user.is_authenticated else False,
+        support_write_elevated=is_support_write_elevated() if current_user.is_authenticated else False,
+        in_support_mode=is_in_support_mode() if current_user.is_authenticated else False,
+        can_support_write=can_support_write(current_user) if current_user.is_authenticated else False,
+        effective_is_super_admin=effective_is_super_admin(current_user) if current_user.is_authenticated else False,
     )
 
 
@@ -664,8 +688,10 @@ def inject_legal_context():
 # ----------------------------------------------------------------------
 @login_manager.user_loader
 def load_user(user_id):
+    from utils.tenant_db import load_user_by_id
+
     try:
-        return db.session.get(User, int(user_id))
+        return load_user_by_id(user_id, label='login_user_loader')
     except Exception as e:
         logging.error(f"Error loading user: {e}")
         return None
@@ -673,15 +699,80 @@ def load_user(user_id):
 # ----------------------------------------------------------------------
 # Error Handlers
 # ----------------------------------------------------------------------
+@app.route('/health')
+def health_check():
+    """Deployment health probe — Postgres required, MongoDB optional."""
+    from utils.system_health import system_health
+    payload = system_health()
+    code = 200 if payload['status'] == 'healthy' else 503
+    return jsonify(payload), code
+
+
+@app.route('/metrics')
+def prometheus_metrics():
+    """Prometheus exposition (optional — set PROMETHEUS_METRICS_ENABLED=true)."""
+    from flask import Response
+
+    from utils.prometheus_metrics import authorize_metrics_request, metrics_response
+
+    auth = request.headers.get('Authorization')
+    if not authorize_metrics_request(auth):
+        return jsonify({'error': 'unauthorized'}), 401
+    result = metrics_response()
+    if result is None:
+        return jsonify({'error': 'metrics disabled'}), 404
+    body, content_type = result
+    return Response(body, mimetype=content_type)
+
+
 @app.errorhandler(404)
 def page_not_found(e):
     logging.warning("404 - Page not found.")
     return render_template('404.html'), 404
 
+
+@app.errorhandler(OperationalError)
+@app.errorhandler(DBAPIError)
+def database_operational_error(e):
+    from utils.db_retry import is_retryable_db_error
+
+    if is_retryable_db_error(e):
+        logging.warning("Transient database error (deadlock/lock): %s", e)
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        flash('The database was briefly busy. Please try again.', 'warning')
+        return redirect(request.referrer or url_for('general_routes.dashboard'))
+    raise e
+
+
+@app.teardown_appcontext
+def _rollback_failed_request(exc):
+    if exc is not None:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+
 @app.errorhandler(500)
 def internal_error(e):
     logging.error(f"500 - Internal server error: {e}")
     return render_template('500.html'), 500
+
+
+@app.errorhandler(403)
+def forbidden(e):
+    logging.warning("403 - Forbidden: %s", request.path)
+    return render_template('403.html'), 403
+
+
+@app.errorhandler(413)
+def request_too_large(e):
+    logging.warning("413 - Request entity too large: %s", request.path)
+    flash("The file you uploaded is too large. Maximum size is 32 MB.", "error")
+    return redirect(request.referrer or url_for('general_routes.dashboard')), 413
 
 # ----------------------------------------------------------------------
 # Seed Runner (one-time)

@@ -9,7 +9,9 @@
       <h1>Platform Activity Log</h1>
       <p class="tiq-lead">CEO support sessions, signups, plan changes, and security events across the platform.</p>
     </div>
+    {% if has_platform_perm('activity.export') %}
     <a href="{{ url_for('platform_routes.export_activity_csv', start=start, end=end) }}" class="tiq-btn tiq-btn-secondary"><i class="fas fa-file-csv"></i> Export CSV</a>
+    {% endif %}
   </div>
 </div>
 {% include 'partials/platform_subnav.html' %}

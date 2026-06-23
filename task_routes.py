@@ -52,6 +52,15 @@ def save_task_document(file, task_id):
         flash("File size exceeds the limit of 25MB", "danger")
         return False
 
+    task = Task.query.get(task_id)
+    if task and task.tenant_id:
+        from models import Tenant
+        from utils.tenant_storage import assert_storage_allowed, invalidate_tenant_storage_cache
+
+        tenant = Tenant.query.get(task.tenant_id)
+        if tenant and not assert_storage_allowed(tenant, file_size):
+            return False
+
     task_document = TaskDocument(
         filename=filename,
         filetype=file.content_type,
@@ -61,6 +70,10 @@ def save_task_document(file, task_id):
     try:
         db.session.add(task_document)
         current_app.logger.info(f"Saved attachment: {filename} for task {task_id}")
+        if task and task.tenant_id:
+            from utils.tenant_storage import invalidate_tenant_storage_cache
+
+            invalidate_tenant_storage_cache(task.tenant_id)
         return True
     except Exception as e:
         current_app.logger.error(f"Failed to save attachment: {filename} for task {task_id}. Error: {e}", exc_info=True)

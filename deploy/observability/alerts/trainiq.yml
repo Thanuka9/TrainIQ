@@ -1,0 +1,38 @@
+groups:
+  - name: trainiq
+    rules:
+      - alert: TrainIQHighLoginFailures
+        expr: increase(trainiq_login_failures_total[15m]) > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High failed login rate on TrainIQ
+
+      - alert: TrainIQStripeWebhookErrors
+        expr: increase(trainiq_stripe_webhooks_total{outcome="failed"}[1h]) > 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: Stripe webhook processing failures
+
+      - alert: TrainIQMetricsScrapeFailure
+        expr: up{job=~"trainiq-web|trainiq-platform"} == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: TrainIQ /metrics scrape target unreachable
+
+      - alert: TrainIQHighErrorRate
+        expr: |
+          (
+            sum(rate(trainiq_http_requests_total{status=~"5.."}[5m]))
+            / clamp_min(sum(rate(trainiq_http_requests_total[5m])), 0.001)
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: TrainIQ HTTP 5xx error rate above 5%

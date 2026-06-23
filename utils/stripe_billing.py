@@ -58,6 +58,22 @@ def create_checkout_session(*, tenant, plan_id: str, billing_cycle: str, success
             customer_id = customer.id
             tenant.stripe_customer_id = customer_id
 
+        from utils.billing_plans import stripe_price_id
+
+        price_id = stripe_price_id(plan_id, billing_cycle)
+        if price_id:
+            line_items = [{"price": price_id, "quantity": 1}]
+        else:
+            line_items = [{
+                "price_data": {
+                    "currency": "usd",
+                    "unit_amount": amount_cents,
+                    "recurring": {"interval": "year" if billing_cycle == "yearly" else "month"},
+                    "product_data": {"name": f"TrainIQ {plan.get('name', plan_id)}"},
+                },
+                "quantity": 1,
+            }]
+
         idempotency_key = (
             f"checkout-{tenant.id}-{plan_id}-{billing_cycle}-"
             f"{getattr(tenant, 'billing_period_end', '') or 'new'}"
@@ -66,15 +82,7 @@ def create_checkout_session(*, tenant, plan_id: str, billing_cycle: str, success
         session = stripe.checkout.Session.create(
             mode="subscription",
             customer=customer_id,
-            line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "unit_amount": amount_cents,
-                    "recurring": {"interval": "year" if billing_cycle == "yearly" else "month"},
-                    "product_data": {"name": f"TrainIQ {plan.get('name', plan_id)}"},
-                },
-                "quantity": 1,
-            }],
+            line_items=line_items,
             success_url=success_url + "?session_id={CHECKOUT_SESSION_ID}",
             cancel_url=cancel_url,
             metadata={
@@ -88,6 +96,27 @@ def create_checkout_session(*, tenant, plan_id: str, billing_cycle: str, success
     except Exception as exc:
         logger.exception("Stripe checkout session failed: %s", exc)
         return None, None
+
+
+def create_billing_portal_session(*, tenant, return_url: str) -> str | None:
+    """Stripe Customer Portal for payment method / subscription self-service."""
+    if not STRIPE_ENABLED:
+        return None
+    customer_id = getattr(tenant, "stripe_customer_id", None)
+    if not customer_id:
+        return None
+    try:
+        import stripe  # type: ignore
+
+        stripe.api_key = STRIPE_SECRET_KEY
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=return_url,
+        )
+        return session.url
+    except Exception as exc:
+        logger.exception("Stripe portal session failed: %s", exc)
+        return None
 
 
 def handle_webhook_payload(payload: bytes, sig_header: str):

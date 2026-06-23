@@ -538,6 +538,8 @@ class User(db.Model, UserMixin):
         DateTime,
         nullable=True
     )
+    totp_secret = Column(String(64), nullable=True)
+    totp_enabled = Column(Boolean, nullable=False, default=False)
     # ---------------------------------
     # Password Reset Fields
     # ---------------------------------
@@ -1488,3 +1490,113 @@ class Announcement(db.Model):
             'date': dt.strftime('%b %d, %Y') if dt else '',
             'is_pinned': self.is_pinned,
         }
+
+
+# -------------------------------------
+# Database performance monitoring
+# -------------------------------------
+class DbPerformanceSnapshot(db.Model):
+    """Point-in-time database health metrics collected by the background monitor."""
+    __tablename__ = 'db_performance_snapshots'
+
+    id = Column(Integer, primary_key=True)
+    collected_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    status = Column(String(20), nullable=False, default='healthy', index=True)
+    issue_count = Column(Integer, nullable=False, default=0)
+    recommendation_count = Column(Integer, nullable=False, default=0)
+    summary_json = Column(Text, nullable=True)
+    postgres_stats_json = Column(Text, nullable=True)
+    mongo_stats_json = Column(Text, nullable=True)
+
+    recommendations = relationship(
+        'DbOptimizationRecommendation',
+        backref='snapshot',
+        lazy='dynamic',
+        cascade='all, delete-orphan',
+    )
+    metric_samples = relationship(
+        'DbMetricSample',
+        backref='snapshot',
+        lazy='dynamic',
+        cascade='all, delete-orphan',
+    )
+
+
+class DbMetricSample(db.Model):
+    """Time-series samples extracted from monitor snapshots."""
+    __tablename__ = 'db_metric_samples'
+
+    id = Column(Integer, primary_key=True)
+    collected_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    snapshot_id = Column(
+        Integer,
+        ForeignKey('db_performance_snapshots.id', ondelete='CASCADE'),
+        nullable=True,
+        index=True,
+    )
+    metric_key = Column(String(80), nullable=False, index=True)
+    value = Column(Float, nullable=False)
+
+
+class DbOptimizationRecommendation(db.Model):
+    """Suggested or applied database optimization from the monitor agent."""
+    __tablename__ = 'db_optimization_recommendations'
+
+    id = Column(Integer, primary_key=True)
+    snapshot_id = Column(
+        Integer,
+        ForeignKey('db_performance_snapshots.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    action_type = Column(String(40), nullable=False)
+    target_key = Column(String(120), nullable=False)
+    tier = Column(String(20), nullable=False, default='manual')
+    reason = Column(Text, nullable=False)
+    ddl = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default='pending', index=True)
+    applied_at = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint('snapshot_id', 'target_key', name='uq_db_opt_rec_snapshot_target'),
+    )
+
+
+class DbMaintenanceRun(db.Model):
+    """Audit log of CEO-triggered full database maintenance runs."""
+    __tablename__ = 'db_maintenance_runs'
+
+    id = Column(Integer, primary_key=True)
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    completed_at = Column(DateTime, nullable=True)
+    status = Column(String(20), nullable=False, default='running', index=True)
+    actor_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    restart_requested = Column(Boolean, nullable=False, default=False)
+    restart_status = Column(String(20), nullable=True)
+    steps_json = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    actor = relationship('User', foreign_keys=[actor_user_id])
+
+
+class PlatformOpsRun(db.Model):
+    """Audit log for scheduled and manual platform health cycles."""
+    __tablename__ = 'platform_ops_runs'
+
+    id = Column(Integer, primary_key=True)
+    source = Column(String(40), nullable=False, index=True)
+    trigger = Column(String(20), nullable=False, default='scheduled')
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    completed_at = Column(DateTime, nullable=True)
+    status = Column(String(20), nullable=False, default='running', index=True)
+    actor_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    snapshot_id = Column(Integer, ForeignKey('db_performance_snapshots.id', ondelete='SET NULL'), nullable=True)
+    issue_count = Column(Integer, nullable=True)
+    indexes_applied = Column(Integer, nullable=False, default=0)
+    indexes_failed = Column(Integer, nullable=False, default=0)
+    result_json = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    actor = relationship('User', foreign_keys=[actor_user_id])

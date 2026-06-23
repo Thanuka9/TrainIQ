@@ -7,18 +7,19 @@ from utils.admin_permissions import user_has_permission
 
 
 def effective_is_super_admin(user=None) -> bool:
-    """True when user is org super admin or TrainIQ staff in support mode."""
+    """True when user is org super admin, or elevated support write (not read-only support)."""
     from flask import has_request_context, session
+    from utils.support_access import can_support_write, is_in_support_mode
     from utils.tenant_utils import is_trainiq_staff
 
     user = user or current_user
     if not user or not getattr(user, "is_authenticated", False):
         return False
-    if getattr(user, "is_super_admin", False):
-        return True
     if not has_request_context():
-        return False
-    return bool(session.get("platform_support") and is_trainiq_staff(user))
+        return getattr(user, "is_super_admin", False)
+    if is_in_support_mode() and is_trainiq_staff(user):
+        return can_support_write(user)
+    return bool(getattr(user, "is_super_admin", False))
 
 
 def can_upload_study_materials(user=None) -> bool:

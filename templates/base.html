@@ -73,6 +73,8 @@
     <!-- Navigation -->
     <nav class="tiq-sidebar-nav">
 
+      {% include 'partials/platform_sidebar_nav.html' %}
+
       <div class="tiq-nav-section-label">Main</div>
 
       <a href="{{ url_for('general_routes.dashboard') }}"
@@ -169,6 +171,7 @@
         <i class="fas fa-ellipsis-vertical" style="color:rgba(148,163,184,0.6);margin-left:auto;font-size:0.8rem"></i>
       </div>
       <div class="tiq-dropdown" id="sidebarUserDropdown" style="bottom:100%;top:auto;margin-bottom:8px;">
+        {% include 'partials/platform_user_menu_items.html' %}
         <a href="{{ url_for('profile_routes.profile') }}" class="tiq-dropdown-item">
           <i class="fas fa-user"></i> View Profile
         </a>
@@ -201,6 +204,10 @@
       <!-- Page Title (injected by blocks) -->
       <div style="flex:1">
         <div class="tiq-breadcrumb">
+          {% if is_trainiq_staff() %}
+          <a href="{{ url_for('platform_routes.platform_dashboard') }}">Platform</a>
+          <span class="tiq-breadcrumb-sep"><i class="fas fa-chevron-right" style="font-size:0.6rem"></i></span>
+          {% endif %}
           <a href="{{ url_for('general_routes.dashboard') }}">Home</a>
           <span class="tiq-breadcrumb-sep"><i class="fas fa-chevron-right" style="font-size:0.6rem"></i></span>
           <span>{% block breadcrumb %}Page{% endblock %}</span>
@@ -209,6 +216,7 @@
 
       <!-- Right controls -->
       <div style="display:flex;align-items:center;gap:0.75rem">
+        {% include 'partials/platform_topbar_links.html' %}
         {% include 'partials/topbar_right_controls.html' %}
 
         <!-- User Menu -->
@@ -229,6 +237,7 @@
               <div style="font-size:0.75rem;color:var(--tiq-text-3)">{{ current_user.employee_email }}</div>
             </div>
             {% endif %}
+            {% include 'partials/platform_user_menu_items.html' %}
             <a href="{{ url_for('profile_routes.profile') }}" class="tiq-dropdown-item">
               <i class="fas fa-user"></i> My Profile
             </a>
@@ -246,6 +255,7 @@
 
     <!-- Page Content -->
     <div class="tiq-page-content">
+      {% include 'partials/platform_return_nav.html' %}
       {% block content %}{% endblock %}
     </div>
 

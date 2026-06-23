@@ -1,6 +1,6 @@
 {# Usage / trial / limit banner for Super Admins — include in dashboard & admin pages #}
 
-{% if tenant_usage_global and current_user.is_super_admin %}
+{% if tenant_usage_global and effective_is_super_admin %}
 
   {% set u = tenant_usage_global %}
 

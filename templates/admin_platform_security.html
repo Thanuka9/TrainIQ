@@ -4,10 +4,29 @@
 
 {% block content %}
 <div class="tiq-page-header" style="margin-bottom:1rem;">
-  <h1>Security &amp; Audit Console</h1>
-  <p class="tiq-lead">Platform-wide login activity, failed attempts, and locked accounts.</p>
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
+    <div>
+      <h1>Security &amp; Audit Console</h1>
+      <p class="tiq-lead">Platform-wide login activity, failed attempts, and locked accounts.</p>
+    </div>
+    <a href="{{ url_for('platform_routes.export_access_review_csv') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">
+      <i class="fas fa-file-csv"></i> Access review export
+    </a>
+  </div>
 </div>
 {% include 'partials/platform_subnav.html' %}
+
+<div class="tiq-card" style="margin-bottom:1.25rem;border-left:4px solid var(--tiq-primary);">
+  <div class="tiq-card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
+    <h3 class="tiq-card-title"><i class="fas fa-mobile-screen-button me-2"></i>Authenticator app (TOTP)</h3>
+    <a href="{{ url_for('platform_routes.platform_security_totp') }}" class="tiq-btn tiq-btn-secondary tiq-btn-sm">
+      <i class="fas fa-qrcode"></i> Manage authenticator
+    </a>
+  </div>
+  <div class="tiq-card-body" style="font-size:0.9rem;color:var(--tiq-text-2);">
+  Platform staff with 2FA enabled should enroll an authenticator app for faster, more secure sign-in.
+  </div>
+</div>
 
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.75rem;margin-bottom:1.25rem;">
   <div class="tiq-stat-card"><div class="stat-label">Failed logins (7d)</div><div class="stat-value">{{ feed.failed_logins_7d }}</div></div>

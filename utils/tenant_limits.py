@@ -38,9 +38,13 @@ def tenant_is_active(tenant) -> bool:
         return False
     if status == "expired":
         return False
+    if status == "anonymized":
+        return False
+    if status == "past_due":
+        return True
     if is_trial_expired(tenant):
         return False
-    return status in ("active", "trial")
+    return status in ("active", "trial", "past_due")
 
 
 def trial_expired_message(tenant) -> str:

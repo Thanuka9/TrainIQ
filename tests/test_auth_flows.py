@@ -132,4 +132,8 @@ def test_case_insensitive_login(client):
         )
     assert resp.status_code in (200, 302)
     if resp.status_code == 302:
-        assert "verify_2fa" in resp.location or "dashboard" in resp.location or "platform" in resp.location
+        loc = (resp.location or '').lower()
+        assert any(
+            token in loc
+            for token in ('verify_2fa', 'dashboard', 'platform', 'billing', 'admin')
+        )

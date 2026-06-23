@@ -1,0 +1,42 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 0,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "targets": [
+        {
+          "expr": "sum(rate(trainiq_http_requests_total[5m]))",
+          "legendFormat": "requests",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP request rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "increase(trainiq_login_failures_total[1h])",
+          "legendFormat": "failures",
+          "refId": "A"
+        }
+      ],
+      "title": "Failed logins (1h)",
+      "type": "stat"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["trainiq"],
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "TrainIQ Overview",
+  "uid": "trainiq-overview",
+  "version": 1
+}

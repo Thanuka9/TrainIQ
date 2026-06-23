@@ -1,0 +1,38 @@
+{# Compact platform links for topbars (admin + learner layouts) #}
+{% if is_trainiq_staff() %}
+{% set on_platform = request.blueprint == 'platform_routes' %}
+{% if not on_platform or session.get('platform_support') %}
+<div class="platform-topbar-links" style="display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;">
+  {% if not on_platform %}
+  <a href="{{ url_for('platform_routes.platform_dashboard') }}"
+     class="tiq-btn tiq-btn-secondary tiq-btn-sm"
+     title="TrainIQ Platform Command Center">
+    <i class="fas fa-globe"></i>
+    <span class="platform-topbar-label">Platform</span>
+  </a>
+  {% if has_platform_perm('staff.view') %}
+  <a href="{{ url_for('platform_routes.platform_staff') }}"
+     class="tiq-btn tiq-btn-secondary tiq-btn-sm"
+     title="Platform staff hub">
+    <i class="fas fa-user-shield"></i>
+    <span class="platform-topbar-label">Staff</span>
+  </a>
+  {% endif %}
+  {% endif %}
+  {% if session.get('platform_support') %}
+  <form action="{{ url_for('platform_routes.exit_tenant') }}" method="POST" style="margin:0;display:inline;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="tiq-btn tiq-btn-warning tiq-btn-sm" title="Leave customer org support mode">
+      <i class="fas fa-sign-out-alt"></i>
+      <span class="platform-topbar-label">Exit org</span>
+    </button>
+  </form>
+  {% endif %}
+</div>
+<style>
+  @media (max-width: 720px) {
+    .platform-topbar-links .platform-topbar-label { display: none; }
+  }
+</style>
+{% endif %}
+{% endif %}

@@ -87,7 +87,82 @@ def exchange_code_and_userinfo(tenant, *, code: str, redirect_uri: str) -> dict[
         timeout=15,
     )
     userinfo_resp.raise_for_status()
-    return userinfo_resp.json()
+    userinfo = userinfo_resp.json()
+    userinfo["_id_token"] = tokens.get("id_token")
+    return userinfo
+
+
+def verify_id_token_claims(
+    id_token: str,
+    *,
+    issuer: str | None = None,
+    audience: str | None = None,
+) -> dict | None:
+    """Verify id_token signature via OIDC JWKS when PyJWT is available."""
+    if not id_token or not issuer:
+        return None
+    try:
+        import jwt
+        from jwt import PyJWKClient
+    except ImportError:
+        return None
+    try:
+        meta = _discovery(issuer.rstrip('/'))
+        jwks_uri = meta.get('jwks_uri')
+        if not jwks_uri:
+            return None
+        jwks_client = PyJWKClient(jwks_uri)
+        signing_key = jwks_client.get_signing_key_from_jwt(id_token)
+        return jwt.decode(
+            id_token,
+            signing_key.key,
+            algorithms=['RS256', 'ES256', 'PS256'],
+            audience=audience,
+            issuer=issuer.rstrip('/'),
+            options={'verify_aud': bool(audience)},
+        )
+    except Exception as exc:
+        logger.warning('[sso] id_token JWKS verify failed: %s', exc)
+        return None
+
+
+def validate_sso_nonce(
+    id_token: str | None,
+    expected_nonce: str | None,
+    *,
+    issuer: str | None = None,
+    audience: str | None = None,
+) -> bool:
+    """Validate OIDC nonce — prefer JWKS-verified id_token claims."""
+    if not expected_nonce:
+        return True
+    if not id_token:
+        return False
+    claims = verify_id_token_claims(id_token, issuer=issuer, audience=audience)
+    if claims:
+        return claims.get('nonce') == expected_nonce
+    try:
+        import base64
+        import json
+
+        parts = id_token.split('.')
+        if len(parts) < 2:
+            return False
+        pad = '=' * (-len(parts[1]) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(parts[1] + pad))
+        return payload.get('nonce') == expected_nonce
+    except Exception as exc:
+        logger.warning('[sso] id_token nonce decode failed: %s', exc)
+        return False
+
+
+def sso_email_allowed(tenant, email: str) -> bool:
+    from utils.tenant_utils import domain_matches_allowed
+
+    allowed = (getattr(tenant, "allowed_domain", "") or "").strip()
+    if not allowed:
+        return True
+    return domain_matches_allowed(email, allowed)
 
 
 def new_sso_state() -> tuple[str, str]:

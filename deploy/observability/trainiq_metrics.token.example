@@ -1,0 +1,3 @@
+# Copy to trainiq_metrics.token and set the same value as PROMETHEUS_METRICS_TOKEN on the app.
+# docker compose -f docker-compose.observability.yml expects this file mounted read-only.
+REPLACE_WITH_PROMETHEUS_METRICS_TOKEN
