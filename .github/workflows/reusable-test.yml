@@ -32,6 +32,10 @@ jobs:
       SECRET_KEY: ci-test-secret-key-not-for-production
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/collectivercm_test
       REDIS_URI: memory://
+      RUN_SCHEDULER: "false"
+      EVENT_BUS_CONSUMER: "false"
+      DB_BOOTSTRAP_ON_STARTUP: "false"
+      SERVICE_MODE: full
       TRAINIQ_CEO_EMAIL: thanuka.ellepola@gmail.com
       TRAINIQ_CEO_DEFAULT_PASSWORD: ci-test-ceo-password
       TRAINIQ_PLATFORM_OFFICE_KEY: TRAINIQ
